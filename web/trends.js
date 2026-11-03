@@ -8,7 +8,7 @@ export const FORM_ZONES = [
   { max: -30, key: 'risco', label: 'Muito cansado' },
   { max: -10, key: 'produtivo', label: 'Em bloco de treino' },
   { max: 5, key: 'neutro', label: 'Equilibrado' },
-  { max: 20, key: 'descansado', label: 'Fresco' },
+  { max: 20, key: 'descansado', label: 'Descansado' },
   { max: Infinity, key: 'perdendo', label: 'Perdendo forma' },
 ];
 export const zoneOfPct = (p) => (p == null ? null : FORM_ZONES.find((z) => p < z.max));
@@ -99,7 +99,7 @@ async function body(screen, api) {
         <p><b>Strain</b> é a carga de cada treino: minutos em cada zona de FC do Garmin × peso da zona (Z1 vale 1, Z5 vale 5; abaixo da Z1, 0,5). Cresce com a duração e com a intensidade, e cai para o mesmo treino quando você fica mais condicionado (a FC fica mais baixa).</p>
         <p><b>Fitness</b> é a média do seu Strain dos últimos 42 dias, com mais peso para os dias recentes. A cada dia ele anda 1/42 (2,4%) na direção do Strain do dia: um treino maior que a média sobe o Fitness, um dia de folga desce ~2,4%. Por isso oscila alguns pontos de um dia para o outro e só mostra tendência ao longo de semanas.</p>
         <p><b>Fadiga</b> é a mesma conta com 7 dias. Sobe rápido depois de dias pesados e cai rápido com descanso.</p>
-        <p><b>Forma</b> = (Fitness − Fadiga de ontem) ÷ Fitness, em %. É como você acorda, antes do treino do dia. Faixas de referência (Joe Friel, adaptadas pelo intervals.icu): abaixo de −30% muito cansado; −30% a −10% em bloco de treino (fadiga acima do fitness, normal quando se está treinando); −10% a +5% equilibrado; +5% a +20% fresco (o que um polimento busca); acima de +20% perdendo forma. A Forma não diz se você está recuperado hoje: isso é o REC. Ela mede o equilíbrio entre a carga recente e a das últimas semanas.</p>
+        <p><b>Forma</b> = (Fitness − Fadiga de ontem) ÷ Fitness, em %. É como você acorda, antes do treino do dia. Faixas de referência (Joe Friel, adaptadas pelo intervals.icu): abaixo de −30% muito cansado; −30% a −10% em bloco de treino (fadiga acima do fitness, normal quando se está treinando); −10% a +5% equilibrado; +5% a +20% descansado (o que um polimento busca); acima de +20% perdendo forma. A Forma não diz se você está recuperado hoje: isso é o REC. Ela mede o equilíbrio entre a carga recente e a das últimas semanas.</p>
         <p>Método do TrainingPeaks e do Strava (modelo de Banister). Compare você com você mesmo; a escala é diferente da deles.</p>
       </details>
       <div class="chart-wrap" id="ch-pmc"></div>

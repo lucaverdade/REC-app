@@ -152,13 +152,50 @@ function recSub(d) {
   if (prev.length < 3) return '';
   return `média da semana ${Math.round(prev.reduce((a, b) => a + b, 0) / prev.length)}`;
 }
-const shortZone = (k) => ({ risco: 'Muito cansado', produtivo: 'Em bloco de treino', neutro: 'Equilibrado', descansado: 'Fresco', perdendo: 'Perdendo forma' }[k] ?? '');
+const shortZone = (k) => ({ risco: 'Muito cansado', produtivo: 'Em bloco de treino', neutro: 'Equilibrado', descansado: 'Descansado', perdendo: 'Perdendo forma' }[k] ?? '');
 // Strain do dia comparado ao seu dia normal (Fitness = Strain médio por dia nas últimas 6 semanas)
 function strainCat(l) {
   if (!l || l.strain == null) return '';
   if (!l.strain) return 'Descanso';
   const r = l.fitness ? l.strain / l.fitness : 1;
   return r < 0.5 ? 'Leve' : r < 1.25 ? 'Moderado' : r < 2 ? 'Pesado' : 'Muito pesado';
+}
+
+// sessões planejadas para o dia (do plano publicado pelo chat de treino), com Strain previsto
+function plannedHtml(pl, acts) {
+  return `<ul class="planned">${pl.map((p) => `<li><span><i class="dot s-${esc(p.sport)}"></i>${esc(p.titulo || p.label)}
+      <span class="meta">${p.minutos ? `${p.minutos} min` : ''}${p.zona ? `, ${esc(p.zona)}` : ''}</span></span>
+      ${p.strain != null ? `<span class="pl-strain">previsto <b>${p.strain}</b></span>` : ''}</li>`).join('')}</ul>`;
+}
+
+// Fadiga (muda todo dia) e Fitness como tendência de semanas
+function loadStrip(l) {
+  const dv = l.fatigueVsYesterday;
+  const fat = dv == null || dv === 0 ? 'igual a ontem' : `${dv > 0 ? '↑' : '↓'} ${Math.abs(dv)} desde ontem`;
+  const f4 = l.fitness4w;
+  const fit = f4 == null ? '' : f4 === 0 ? 'estável nas últimas 4 semanas' : `${f4 > 0 ? 'subiu' : 'caiu'} ${Math.abs(f4)}% nas últimas 4 semanas`;
+  return `<a class="load-strip" href="#tendencias" aria-label="Fadiga e Fitness. Ver tendências.">
+    <div class="ls-row">
+      <span class="ls-l"><i class="dot" style="background:var(--fatigue)"></i>Fadiga</span>
+      <b class="c-fat">${l.fatigue}</b>
+      <span class="ls-d ${dv > 0 ? 'bad' : dv < 0 ? 'good' : ''}">${fat}</span>
+    </div>
+    <div class="ls-row">
+      <span class="ls-l"><i class="dot" style="background:var(--fitness)"></i>Fitness</span>
+      <span class="ls-trend ${f4 > 0 ? 'good' : f4 < 0 ? 'bad' : ''}">${fit}</span>
+      ${weekDots(l.fitnessWeekly ?? [])}
+    </div>
+  </a>`;
+}
+// pontos semanais do Fitness (5 semanas)
+function weekDots(vals) {
+  if (vals.length < 2) return '';
+  const lo = Math.min(...vals), hi = Math.max(...vals), W = 70, H = 20;
+  const pts = vals.map((v, i) => [((i / (vals.length - 1)) * W), H - ((v - lo) / (hi - lo || 1)) * H]);
+  return `<svg class="wk-dots" viewBox="-4 -4 ${W + 8} ${H + 8}" aria-hidden="true">
+    <polyline points="${pts.map((p) => p.map((x) => x.toFixed(1)).join(',')).join(' ')}"/>
+    ${pts.map(([x, y], i) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i === pts.length - 1 ? 3.2 : 2.4}"/>`).join('')}
+  </svg>`;
 }
 
 // cartão de Fitness e Fadiga: número, variação em 7 dias e mini-gráfico de 4 semanas
@@ -289,16 +326,14 @@ function render(d) {
 
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
 
-    <section class="rings" aria-label="Resumo do dia">
+    <section class="rings rings-2" aria-label="Estou pronto hoje?">
       ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, frac: d.rec == null ? 0 : d.rec / 100, color: zoneVar(z),
         label: 'REC', sub: recSub(d), aria: 'REC. Toque para ver o que compõe o número.' })}
       ${ringTile({ id: 'forma', value: d.load?.formPct == null ? '–' : `${d.load.formPct > 0 ? '+' : d.load.formPct < 0 ? '−' : ''}${Math.abs(d.load.formPct)}<small>%</small>`,
         segments: formSegments(d.load?.formPct), label: 'Forma', sub: shortZone(d.load?.zone?.key), aria: 'Forma. Toque para ver as tendências.' })}
-      ${ringTile({ id: 'strain', value: d.load?.strain ?? '–', frac: d.load?.fitness ? d.load.strain / (2 * d.load.fitness) : 0, color: 'var(--strain)',
-        label: 'Strain', sub: strainCat(d.load), aria: 'Strain do dia. Toque para ver os treinos.' })}
     </section>
 
-    ${d.load ? loadCard(d.load) : ''}
+    ${d.load ? loadStrip(d.load) : ''}
 
     <div class="chips" role="list" aria-label="O que puxou o REC">${chipsHtml(d.contributors)}</div>
 
@@ -321,6 +356,7 @@ function render(d) {
 
     <section class="block">
       <h2>${d.isToday ? 'Treino de hoje' : 'Treinos do dia'}</h2>
+      ${d.planned?.length ? plannedHtml(d.planned, d.activities) : ''}
       ${actsHtml(d.activities)}
     </section>
 
@@ -353,7 +389,6 @@ function render(d) {
   recBtn.addEventListener('click', toggle);
   screen.querySelector('.chips')?.addEventListener('click', toggle);
   screen.querySelector('[data-ring="forma"]').addEventListener('click', () => { location.hash = '#tendencias'; });
-  screen.querySelector('[data-ring="strain"]').addEventListener('click', () => screen.querySelector('.act-cards, .empty')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 
   // nota opcional
   const feel = screen.querySelector('.feel');

@@ -48,7 +48,7 @@ export const FORM_ZONES = [
   { max: -30, key: 'risco', label: 'Muito cansado' },
   { max: -10, key: 'produtivo', label: 'Em bloco de treino' },
   { max: 5, key: 'neutro', label: 'Equilibrado' },
-  { max: 20, key: 'descansado', label: 'Fresco' },
+  { max: 20, key: 'descansado', label: 'Descansado' },
   { max: Infinity, key: 'perdendo', label: 'Perdendo forma' },
 ] as const;
 

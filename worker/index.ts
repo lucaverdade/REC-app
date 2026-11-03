@@ -190,6 +190,10 @@ async function loadOn(env: Env, date: string) {
     // Fitness/Fadiga: últimas 4 semanas e variação em 7 dias
     trend: p.slice(-28).map((d) => ({ date: d.date, fitness: Math.round(d.fitness * 10) / 10, fatigue: Math.round(d.fatigue * 10) / 10 })),
     delta7: p.length > 7 ? { fitness: Math.round(t.fitness - p[p.length - 8].fitness), fatigue: Math.round(t.fatigue - p[p.length - 8].fatigue) } : null,
+    fatigueVsYesterday: p.length > 1 ? Math.round(t.fatigue - p[p.length - 2].fatigue) : null,
+    // Fitness como tendência: um ponto por semana (5 semanas) e variação em 4 semanas
+    fitnessWeekly: [28, 21, 14, 7, 0].filter((k) => p.length > k).map((k) => Math.round(p[p.length - 1 - k].fitness * 10) / 10),
+    fitness4w: p.length > 28 && p[p.length - 29].fitness > 1 ? Math.round(((t.fitness - p[p.length - 29].fitness) / p[p.length - 29].fitness) * 100) : null,
   };
 }
 
@@ -499,7 +503,7 @@ const toRow = (d: RecDb): RecRow => ({
   base: Object.fromEntries(K.map((k) => [k, d['b_' + k]])) as RecRow['base'],
 });
 
-async function todayPayload(env: Env, date: string) {
+async function todayPayload(env: Env, date: string, req?: Request) {
   await ensureSchema(env);
   const { results } = await env.DB.prepare('SELECT * FROM rec_daily WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
     .bind(addDays(date, -7), date).all<RecDb>();
@@ -542,6 +546,11 @@ async function todayPayload(env: Env, date: string) {
     }),
     feel: feel?.value ?? null,
     load: ln,
+    planned: await (async () => {
+      if (!req) return [];
+      const plan = await readPlan(env, req, mondayOf(date));
+      return (plan?.dias?.[date] ?? []).map((p) => { const sp = normSport(p.modalidade); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, strain: plannedStrain(p) }; });
+    })(),
     sleep: {
       night: lastNight && { hours: lastNight.sleep_h, start: lastNight.sleep_start?.slice(11) ?? null, end: lastNight.sleep_end?.slice(11) ?? null },
       napYesterday: yesterdayNap,
@@ -581,7 +590,7 @@ export default {
 
     if (url.pathname === '/api/today' && req.method === 'GET') {
       const d = url.searchParams.get('date');
-      return json(await todayPayload(env, isDate(d) ? d : brtToday()));
+      return json(await todayPayload(env, isDate(d) ? d : brtToday(), req));
     }
     if (url.pathname === '/api/feel' && req.method === 'POST') {
       const body = await req.json<{ date?: string; value?: number }>().catch(() => ({}) as { date?: string; value?: number });
