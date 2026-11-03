@@ -1,0 +1,107 @@
+# Guia das métricas do REC
+
+Referência única de **o que cada número significa, como é calculado e como ler**, para conferir se o app está certo e se o Luca está melhorando. Atualizado em 03/11/2026. Código citado entre parênteses.
+
+---
+
+## 1. Princípio
+Todo número do app compara o Luca **com ele mesmo**: cada sinal é medido contra a média recente dele (a "base"), não contra uma tabela da população. "Normal" = dentro da variação típica dele.
+
+## 2. Sinais do corpo (manhã)
+| Sinal | O que mede | Bom | Ruim | Base usada |
+|---|---|---|---|---|
+| **HRV** (ms) | Variação entre batimentos no sono; mais alta = sistema nervoso mais relaxado | acima da base | abaixo da base | média de ln(HRV) dos 120 dias anteriores (REC); faixa visual: ±1 desvio em 60 dias |
+| **FC de repouso** (bpm) | Batimentos em repouso | igual ou abaixo da base | acima da base (≥ 2 bpm já conta) | mediana dos 120 dias anteriores; faixa visual: ±1 desvio em 60 dias (mín. 1 bpm) |
+| **Sono** (h) | Horas dormidas na noite | ≥ necessidade | < necessidade | REC: 7,5 h fixas (spec v1.1). Cartão de sono: necessidade pessoal = média das últimas 90 noites sem os 10% extremos (~7 h 25) |
+| **Respiração** (rpm) | Respirações por minuto no sono | igual ou abaixo da base | acima da base | média de 60 dias |
+| **Estresse** (Garmin) | Estresse médio do dia anterior | abaixo da base | acima da base | média de 60 dias |
+
+Sinais de alerta clássicos: HRV baixo **junto com** FC alta; respiração e FC acima do normal juntas (padrão de início de doença).
+
+## 3. REC (0–100) — "estou recuperado hoje?"
+(`src/rec.ts`, idêntico a `reference/rec_reference.py`)
+- Cada sinal vira um **z** (quantos desvios acima/abaixo da base; positivo = melhor), limitado a ±3.
+- Pesos: **HRV 2 · sono 1,5 · FC 1 · respiração 0,7 · estresse 0,5**.
+- REC = 100 × Φ(média ponderada dos z). z = 0 → 50; +1 → ~84; −1 → ~16.
+- Zonas por cor: vermelho 0–33, amarelo 34–66, verde 67–100. Sem HRV ou sem sono → traço.
+- **Carga de treino não entra no REC** (nos dados do Luca, sono e rotina mexem mais no HRV que o treino da véspera).
+- Modo sombra nas primeiras 6–8 semanas: os portões do plano (HRV ≥ 100, FC ≤ 41) continuam valendo.
+
+## 4. Strain — "quanto o treino custou"
+(`worker/index.ts`, STRAIN_SQL; `src/load.ts`)
+- **Strain de um treino = Σ minutos em cada zona de FC × peso da zona**: abaixo da Z1 = 0,5; Z1 = 1; Z2 = 2; Z3 = 3; Z4 = 4; Z5 = 5. É o **TRIMP de Edwards** (1993).
+- Cresce com duração e intensidade. Como usa a FC, o mesmo treino vale menos quando o condicionamento melhora.
+- Zonas por modalidade conforme o Garmin (bike tem zonas próprias desde 03/11, %HRR com FC máx. da bike ~185).
+- Por que não a carga do Garmin (EPOC): não crescia com a duração (2 h 50 de bike = 127 vs Hyrox 41 min = 242). Teste com 277 treinos com RPE: **TRIMP 0,82** de correlação com o esforço percebido (RPE × minutos) vs **EPOC 0,52**.
+- Limite: qualquer carga por FC subestima intervalos curtos acima do limiar (Hyrox).
+- Rótulos do dia (vs o dia médio = Fitness): < 0,5× leve · até 1,25× moderado · até 2× pesado · acima muito pesado.
+
+## 5. Fitness, Fadiga e Forma — "estou evoluindo?"
+(`src/load.ts`; modelo de Banister, como TrainingPeaks/Strava)
+- **Fitness** = média exponencial do Strain diário com constante de **42 dias**. Mede quanto treino o corpo está acostumado a fazer; anda 1/42 (~2,4%) por dia na direção do Strain do dia. Ler em semanas, não por dia.
+- **Fadiga** = mesma conta com **7 dias**. Sobe e desce rápido.
+- **Forma** = (Fitness − Fadiga de ontem) ÷ Fitness, em %. É como o Luca acorda, antes do treino do dia.
+
+| Forma | Nome no app | Leitura |
+|---|---|---|
+| < −30% | Muito cansado | carga muito acima do costume |
+| −30% a −10% | Em bloco de treino | fadiga acima do fitness; normal em bloco |
+| −10% a +5% | Equilibrado | treinando no ritmo de costume |
+| +5% a +20% | Descansado | cansaço saindo; alvo de polimento |
+| > +20% | Perdendo forma | carga baixa há tempo |
+
+Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitness sobe na carga, mas o corpo só "entrega" quando a Fadiga cai (supercompensação). O modelo não sabe se o corpo absorveu o treino; quem diz isso são os sinais do item 2.
+
+## 6. Strain semanal e faixa — "a carga está subindo no ritmo certo?"
+(`strainWeeksPayload`)
+- Faixa da semana = **0,8 a 1,3 × média de Strain das 3 semanas anteriores** (Strava usa média de 3 semanas; 0,8–1,3 é a faixa de referência da razão aguda/crônica, Gabbett).
+- Abaixo = semana leve (recuperação/polimento) · Dentro = progressão gradual · Acima (até 1,5×) = cresceu rápido · Bem acima (> 1,5×) = salto grande.
+- Aviso na aba Hoje: Strain de 7 dias fora de 0,8–1,4 da média semanal de 4 semanas; corrida da semana +15% sobre a média de 4 semanas.
+
+## 7. Sono — dívida e meta
+(`src/sleep.ts`, método Oura + Whoop)
+- Necessidade pessoal: média de 90 noites sem extremos (6 h 30 a 9 h).
+- Dívida: 14 dias, noites recentes pesam mais (meia-vida 7 dias); cochilos contam; noites acima da necessidade pagam. Faixas Oura: baixa < 2 h, moderada 2–5 h, alta > 5 h.
+- Meta da noite: necessidade + até 30 min (dívida) + até 30 min (Strain do dia acima do normal) − cochilo do dia.
+- Regularidade: horário médio de deitar/acordar e variação em 14 noites.
+
+## 8. "Meu corpo está recuperando?" — a resposta
+(`src/verdict.ts`)
+- Mesmos z e pesos do REC, média ponderada dos **últimos 7 dias** (meia-vida 3 dias).
+
+| Nota | Resposta |
+|---|---|
+| ≥ +0,30 | Sim, está recuperando bem |
+| −0,20 a +0,30 | Sim, dentro do seu normal |
+| −0,50 a −0,20 | Um pouco abaixo do normal |
+| −0,90 a −0,50 | Abaixo do normal |
+| < −0,90 | Não está recuperando |
+
+- Tendência: últimos 3 dias × 4 anteriores (±0,30 = melhorando/piorando).
+- Motivos: até 2 sinais que mais puxaram para baixo (peso × z ≤ −0,4) e o que mais ajudou, com os números.
+- Carga × recuperação:
+
+| Forma | Recuperação ok | Recuperação caindo/baixa |
+|---|---|---|
+| Muito cansado | segurando a carga por enquanto | carga acima do que absorve |
+| Em bloco de treino | bloco sendo absorvido | no limite / acima do que absorve |
+| Equilibrado | corpo acompanhando | queda vem de fora do treino |
+| Descansado / perdendo forma | recuperado | queda vem de fora do treino |
+
+- Respiração + FC acima do normal 2 dias seguidos → "padrão de início de doença", acima de qualquer leitura de carga.
+- Recalcula a cada noite nova.
+
+## 9. Previsões de prova (corrida)
+(`src/predict.ts`)
+- Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.
+- Motor: VO2máx de cada corrida pelo pace e pela % da FC de reserva (Daniels/Swain), média ponderada da metade melhor (meia-vida 6 semanas), tempo pela curva de Daniels. Calibração opcional com os números do Strava.
+
+## 10. Como conferir se está certo
+- **REC**: `npm test` compara o TS com o Python em todos os dias (tolerância 1e-9).
+- **Strain**: correlação com RPE × minutos (refazer a cada temporada; esperado ≥ 0,75).
+- **Forma**: antes de provas boas, a Forma deveria estar em "Descansado"; antes de provas ruins, abaixo de −10%.
+- **Resposta de recuperação**: com 40–60 notas "como me sinto", comparar o nível da resposta com a nota média da semana; ajustar limites se discordarem.
+- **Previsões**: comparar com o tempo real de cada prova.
+
+## 11. Fontes
+TrainingPeaks (glossário de métricas; TSS × hrTSS) · Strava (Fitness & Freshness; Relative Effort; Performance Predictions) · Garmin (Acute Load) · Whoop (Strain; Sleep need) · Oura (Sleep debt; design) · intervals.icu (Form %, HRSS) · Edwards (1993, TRIMP por zonas) · Banister (modelo impulso-resposta) · Gabbett (razão aguda/crônica) · Daniels & Gilbert (VO2 e tempo de prova).
