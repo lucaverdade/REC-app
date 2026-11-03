@@ -11,13 +11,14 @@ Lista viva do que o Luca pediu para depois. Ordem não é prioridade.
 - [ ] Indicadores de forma: pace na FC 145 (corrida), velocidade na FC 137 (bike), ritmo de natação por 100 m.
 
 ## Abas e telas
+- [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.
 - [ ] Aba Nutrição: registro em dois toques (carbo total, barriga).
 - [ ] Modo prova na semana de Aracaju.
 - [x] Avisos de carga (03/11) na aba Hoje: razão aguda/crônica fora de 0,8–1,4; corrida da semana +15% sobre a média de 4 semanas.
 
 ## Integrações
-- [ ] Strava: só as descrições dos treinos (o que o Luca achou da sessão).
+- [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 
 ## Depois (pode ter custo)
 - [ ] Login / Face ID (quando o app for disponibilizado).

@@ -15,6 +15,17 @@ const STATUS = {
   previsto: { icon: '◌', label: 'Previsto' },
 };
 
+// Strain previsto × feito (como TSS planejado × realizado no TrainingPeaks)
+function strainCompare(p) {
+  const done = p.doneStrain;
+  if (done == null) return `<div class="sc"><span>Strain previsto <b>${p.plannedStrain}</b></span></div>`;
+  const pct = Math.round((done / p.plannedStrain) * 100);
+  const cls = pct >= 80 && pct <= 120 ? 'ok' : pct < 80 ? 'low' : 'high';
+  return `<div class="sc"><span>Strain previsto <b>${p.plannedStrain}</b>, feito <b class="c-strain">${done}</b></span>
+    <span class="sc-pct ${cls}">${pct}%</span>
+    <span class="sc-bar"><i style="width:${Math.min(pct, 150) / 1.5}%"></i><em style="left:${100 / 1.5}%"></em></span></div>`;
+}
+
 function zoneBar(z) {
   if (!z) return '';
   const tot = z.reduce((a, b) => a + b, 0);
@@ -65,7 +76,7 @@ async function body(screen, api) {
     <div class="trio wk-sum">
       <div><span class="big">${sm.plannedHours == null ? '–' : nf(sm.plannedHours, 1)}</span><span class="lab">Horas planejadas</span></div>
       <div><span class="big">${nf(sm.doneHours, 1)}</span><span class="lab">Horas feitas</span></div>
-      <div><span class="big c-strain">${nf(sm.strain)}</span><span class="lab">Strain</span></div>
+      <div><span class="big c-strain">${nf(sm.strain)}</span><span class="lab">Strain${sm.plannedStrain != null ? ` de ${nf(sm.plannedStrain)} previsto` : ''}</span></div>
     </div>
     ${w.plan ? `<p class="note">${w.plan.fase ? `<b>${esc(w.plan.fase)}</b>. ` : ''}${esc(w.plan.notas ?? '')}</p>`
       : '<p class="note">Plano desta semana ainda não publicado. Aparecem só os treinos feitos.</p>'}
@@ -85,6 +96,7 @@ async function body(screen, api) {
               <div class="pl-top"><span><span class="st-icon" title="${STATUS[p.status].label}">${STATUS[p.status].icon}</span><i class="dot s-${esc(p.sport)}"></i>${esc(p.titulo || p.label)}${p.chave ? ' <span class="key">chave</span>' : ''}</span>
                 <span class="meta">${p.minutos ? hm(p.minutos) : ''}${p.zona ? `, ${esc(p.zona)}` : ''}</span></div>
               ${p.detalhe ? `<div class="ex-meta">${esc(p.detalhe)}</div>` : ''}
+              ${p.plannedStrain != null ? strainCompare(p) : ''}
               ${e ? `<ul class="acts-in">${exHtml(e)}</ul>` : ''}
             </li>`;
           }).join('')}</ul>` : ''}
@@ -94,5 +106,5 @@ async function body(screen, api) {
         </li>`;
       }).join('')}
     </ol>
-    <p class="note">Strain de cada treino no círculo à direita. A barra mostra o tempo em cada zona de FC, do cinza (abaixo da Z1) ao laranja escuro (Z5).</p>`;
+    <p class="note">Strain previsto = minutos planejados × peso da zona (Z2 vale 2 por minuto). Entre 80% e 120% do previsto conta como no alvo. Strain de cada treino no círculo à direita. A barra mostra o tempo em cada zona de FC, do cinza (abaixo da Z1) ao laranja escuro (Z5).</p>`;
 }

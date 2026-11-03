@@ -274,7 +274,7 @@ async function trendsPayload(env: Env, unit: Unit, offset: number) {
 
 
 // --- aba Treino: semana (seg–dom) planejada × executada ---
-interface PlanSession { modalidade: string; titulo?: string; minutos?: number; zona?: string; detalhe?: string; chave?: boolean }
+interface PlanSession { modalidade: string; titulo?: string; minutos?: number; zona?: string; detalhe?: string; chave?: boolean; strain?: number }
 interface Plan { semana: string; fase?: string; notas?: string; dias?: Record<string, PlanSession[]> }
 
 async function readPlan(env: Env, req: Request, monday: string): Promise<Plan | null> {
@@ -284,6 +284,19 @@ async function readPlan(env: Env, req: Request, monday: string): Promise<Plan | 
     const p = (await r.json()) as Plan;
     return p && typeof p === 'object' ? p : null;
   } catch { return null; }
+}
+
+/**
+ * Strain previsto de uma sessão planejada: minutos × peso médio da(s) zona(s) indicada(s).
+ * "Z2" → 2; "Z1–Z2" → 1,5; "Z4" → 4. Sem zona: 2 (Z2). O plano pode trazer "strain" para sobrescrever.
+ * Mesma conta do Strain real (minutos por zona × peso), então previsto e feito são comparáveis.
+ */
+function plannedStrain(p: PlanSession): number | null {
+  if (typeof p.strain === 'number') return Math.round(p.strain);
+  if (!p.minutos) return null;
+  const zs = [...String(p.zona ?? '').matchAll(/[1-5]/g)].map((m) => Number(m[0]));
+  const w = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : 2;
+  return Math.round(p.minutos * w);
 }
 
 const normSport = (m: string): Sport => {
@@ -308,7 +321,7 @@ async function weekPayload(env: Env, req: Request, offset: number) {
   const recBy = new Map(recs.map((r) => [r.date, r.rec == null ? null : Math.round(r.rec)]));
   const plan = await readPlan(env, req, monday);
 
-  let plannedMin = 0, doneMin = 0, strainTot = 0;
+  let plannedMin = 0, doneMin = 0, strainTot = 0, plannedStrainTot = 0;
   const days = [];
   for (let i = 0; i < 7; i++) {
     const date = addDays(monday, i);
@@ -327,11 +340,12 @@ async function weekPayload(env: Env, req: Request, offset: number) {
     const planned = (plan?.dias?.[date] ?? []).map((p) => {
       const sport = normSport(p.modalidade);
       plannedMin += p.minutos ?? 0;
+      const ps = plannedStrain(p); plannedStrainTot += ps ?? 0;
       const hit = ex.find((e) => !e.matched && e.sport === sport);
       let status: 'feito' | 'parcial' | 'nao_feito' | 'previsto';
       if (hit) { hit.matched = true; status = !p.minutos || (hit.min ?? 0) >= p.minutos * 0.8 ? 'feito' : 'parcial'; }
       else status = date < today ? 'nao_feito' : 'previsto';
-      return { ...p, sport, label: SPORT_LABEL[sport], status, activityId: hit?.id ?? null };
+      return { ...p, sport, label: SPORT_LABEL[sport], status, activityId: hit?.id ?? null, plannedStrain: ps, doneStrain: hit?.strain ?? null };
     });
     const rec = recBy.get(date) ?? null, recNext = recBy.get(addDays(date, 1)) ?? null;
     days.push({ date, isToday: date === today, future: date > today, rec, recNext, planned, executed: ex });
@@ -340,7 +354,7 @@ async function weekPayload(env: Env, req: Request, offset: number) {
   return {
     monday, sunday, offset,
     plan: plan ? { fase: plan.fase ?? null, notas: plan.notas ?? null } : null,
-    summary: { plannedHours: plan ? r1(plannedMin / 60) : null, doneHours: r1(doneMin / 60), strain: Math.round(strainTot) },
+    summary: { plannedHours: plan ? r1(plannedMin / 60) : null, doneHours: r1(doneMin / 60), strain: Math.round(strainTot), plannedStrain: plan ? Math.round(plannedStrainTot) : null },
     days,
   };
 }

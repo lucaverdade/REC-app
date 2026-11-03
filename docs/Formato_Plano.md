@@ -29,6 +29,8 @@ Fazer commit na branch `main` publica sozinho (Cloudflare). O app só exibe; nã
 - `modalidade`: `bike`, `corrida`, `natacao`, `hyrox`, `academia` (aceita variações como "ciclismo", "natação", "força").
 - `minutos`: usado para marcar o treino como **feito** (≥ 80% do tempo planejado) ou **parcial**.
 - `chave`: opcional; destaca a sessão principal do dia.
+- `zona`: usada também para o **Strain previsto** = minutos × peso médio da zona ("Z2" → 2/min; "Z1–Z2" → 1,5/min; sem zona → 2/min). Para sessões de intervalos, informe `strain` diretamente (ex.: aquecimento 15 min Z1 + 4×8 min Z4 + desaquecimento = 15×1 + 32×4 + rec/desaq. ≈ 160).
+- `strain`: opcional; sobrescreve o previsto.
 - Dias sem treino: omitir a data ou usar lista vazia.
 
 ## Como o app compara
