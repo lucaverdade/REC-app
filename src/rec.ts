@@ -16,6 +16,10 @@ export type Contributor = 'hrv' | 'rhr' | 'sleep' | 'resp' | 'stress';
 export interface RecResult {
   date: string;
   z: Record<Contributor, number | null>;
+  /** valor bruto usado no dia (HRV em ms, FC em bpm, sono em h, resp em rpm, estresse de D−1) */
+  value: Record<Contributor, number | null>;
+  /** linha de base usada (HRV: média geométrica 120 d; FC: mediana 120 d; sono: necessidade) */
+  base: Record<Contributor, number | null>;
   rec: number | null; // null = traço
 }
 
@@ -60,8 +64,9 @@ function rollingZ(
   minp: number,
   floor: number,
   opts: { med?: boolean; neg?: boolean } = {},
-): Num[] {
+): { z: Num[]; base: Num[] } {
   const out: Num[] = new Array(x.length).fill(null);
+  const bases: Num[] = new Array(x.length).fill(null);
   for (let i = 0; i < x.length; i++) {
     const xi = x[i];
     if (!isNum(xi)) continue;
@@ -77,8 +82,9 @@ function rollingZ(
     let z = (xi - base) / Math.max(sd, floor);
     if (opts.neg) z = -z;
     out[i] = clip(z, -3, 3);
+    bases[i] = base;
   }
-  return out;
+  return { z: out, base: bases };
 }
 
 // --- Φ (CDF normal) com erf de alta precisão ---
@@ -140,14 +146,28 @@ export function computeRec(rows: DailyInput[]): RecResult[] {
   const stressRaw = pick('stress', 0);
   const stressPrev: Num[] = df.map((_, i) => (i > 0 ? stressRaw[i - 1] : null));
 
-  const Z: Record<Contributor, Num[]> = {
+  const rz = {
     hrv: rollingZ(lnh, 120, 30, 0.04),
     rhr: rollingZ(rhr, 120, 20, 1.0, { med: true, neg: true }),
-    sleep: df.map((r) =>
-      isNum(r.sleep_h) ? clip((Math.min(r.sleep_h, 9) - SLEEP_NEED_H) / 1.0, -3, 1.5) : null,
-    ),
     resp: rollingZ(resp, 60, 20, 0.4, { neg: true }),
     stress: rollingZ(stressPrev, 60, 20, 3.0, { neg: true }),
+  };
+  const sleep: Num[] = df.map((r) =>
+    isNum(r.sleep_h) ? clip((Math.min(r.sleep_h, 9) - SLEEP_NEED_H) / 1.0, -3, 1.5) : null,
+  );
+  const Z: Record<Contributor, Num[]> = {
+    hrv: rz.hrv.z, rhr: rz.rhr.z, sleep, resp: rz.resp.z, stress: rz.stress.z,
+  };
+  const V: Record<Contributor, Num[]> = {
+    hrv: pick('hrv', 40), rhr, sleep: df.map((r) => (isNum(r.sleep_h) ? r.sleep_h : null)),
+    resp, stress: stressPrev,
+  };
+  const B: Record<Contributor, Num[]> = {
+    hrv: rz.hrv.base.map((b) => (b === null ? null : Math.exp(b))),
+    rhr: rz.rhr.base,
+    sleep: df.map(() => SLEEP_NEED_H),
+    resp: rz.resp.base,
+    stress: rz.stress.base,
   };
 
   const keys = Object.keys(WEIGHTS) as Contributor[];
@@ -155,17 +175,21 @@ export function computeRec(rows: DailyInput[]): RecResult[] {
 
   return df.map((r, i) => {
     const z = {} as Record<Contributor, number | null>;
+    const value = {} as Record<Contributor, number | null>;
+    const base = {} as Record<Contributor, number | null>;
     let num = 0, wsum = 0;
     for (const k of keys) {
       const v = Z[k][i];
       z[k] = v;
+      value[k] = V[k][i];
+      base[k] = B[k][i];
       if (v !== null) {
         num += WEIGHTS[k] * v;
         wsum += WEIGHTS[k];
       }
     }
     const valid = wsum >= wTotal / 2 && z.hrv !== null && z.sleep !== null;
-    return { date: r.date, z, rec: valid ? phi(num / wsum) * 100 : null };
+    return { date: r.date, z, value, base, rec: valid ? phi(num / wsum) * 100 : null };
   });
 }
 

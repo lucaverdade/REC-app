@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rec",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "web",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    // database_id: preencher depois de `npx wrangler d1 create rec`
+    { "binding": "DB", "database_name": "rec", "database_id": "00000000-0000-0000-0000-000000000000" }
+  ],
+  // 07:30 e 09:00 em Brasília (UTC−3)
+  "triggers": { "crons": ["30 10 * * *", "0 12 * * *"] },
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="REC">
+  <title>REC</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <main id="screen" aria-live="polite"></main>
+
+  <nav class="tabs" aria-label="Abas">
+    <a class="tab is-active" href="#hoje" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/></svg>Hoje</a>
+    <a class="tab is-off" aria-disabled="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17h4l3-10 3 10h6"/></svg>Treino</a>
+    <a class="tab is-off" aria-disabled="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 8h10"/></svg>Nutrição</a>
+    <a class="tab is-off" aria-disabled="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"/></svg>Tendências</a>
+  </nav>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
