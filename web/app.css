@@ -14,7 +14,7 @@
 
   /* REC: semáforo, levemente dessaturado para conversar com o resto */
   --rec-red: #ff5a52;
-  --rec-yellow: #ffcb3d;
+  --rec-yellow: #e6b450;
   --rec-green: #34d17f;
 
   /* modalidades (validadas para daltonismo e contraste sobre o preto) */
@@ -44,15 +44,15 @@
   /* faixas do REC (tons do semáforo) */
   --rb1: #d9363e;
   --rb2: #ff6a52;
-  --rb3: #ffa94d;
-  --rb4: #ffd23f;
+  --rb3: #dc8a55;
+  --rb4: #e6b450;
   --rb5: #34d17f;
 
   /* faixas da Forma (% do Fitness) */
-  --z-risco: #ff5f8f;
-  --z-produtivo: #ffb547;
-  --z-neutro: #c9c9d1;
-  --z-descansado: #4c9dff;
+  --z-risco: #e8698f;
+  --z-produtivo: #a98bf0;
+  --z-neutro: #b9bcc6;
+  --z-descansado: #5aa2f5;
   --z-perdendo: #8fd3ff;
 
   /* destaque de interface */
@@ -648,7 +648,8 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 
 /* --- resumo do dia e meta de Strain --- */
 .day-summary { margin: -4px 0 16px; padding: 10px 14px; border-radius: 12px; text-align: center; font-size: 16px; font-weight: 600; background: var(--card); border: 1px solid var(--line-soft); }
-.day-summary.s-green { color: var(--rec-green); } .day-summary.s-yellow { color: var(--rec-yellow); } .day-summary.s-red { color: var(--rec-red); }
+.day-summary { color: var(--text); font-weight: 500; text-align: left; border-left: 3px solid var(--sumc, var(--line)); }
+.day-summary.s-green { --sumc: var(--rec-green); } .day-summary.s-yellow { --sumc: var(--rec-yellow); } .day-summary.s-red { --sumc: var(--rec-red); }
 .st-card { display: flex; align-items: center; gap: 16px; margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-soft); }
 .st-ring { position: relative; width: 84px; flex: none; aspect-ratio: 1; }
 .st-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
