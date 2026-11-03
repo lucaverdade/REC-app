@@ -187,6 +187,9 @@ async function loadOn(env: Env, date: string) {
     form: Math.round(t.form), formPct: t.formPct == null ? null : Math.round(t.formPct),
     zone: z && { key: z.key, label: z.label },
     week: p.slice(-7).map((d) => ({ date: d.date, formPct: d.formPct == null ? null : Math.round(d.formPct) })),
+    // Fitness/Fadiga: últimas 4 semanas e variação em 7 dias
+    trend: p.slice(-28).map((d) => ({ date: d.date, fitness: Math.round(d.fitness * 10) / 10, fatigue: Math.round(d.fatigue * 10) / 10 })),
+    delta7: p.length > 7 ? { fitness: Math.round(t.fitness - p[p.length - 8].fitness), fatigue: Math.round(t.fatigue - p[p.length - 8].fatigue) } : null,
   };
 }
 

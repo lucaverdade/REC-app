@@ -131,6 +131,51 @@ function ringTile({ id, value, frac, color, label, sub, aria }) {
   </button>`;
 }
 
+// linha curta embaixo de cada anel
+function recSub(d) {
+  const prev = d.week.filter((w) => w.date < d.date && w.rec != null).map((w) => w.rec);
+  if (d.rec == null || prev.length < 3) return '';
+  const diff = Math.round(d.rec - prev.reduce((a, b) => a + b, 0) / prev.length);
+  return diff === 0 ? 'na média da semana' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} vs 7 dias`;
+}
+const shortZone = (k) => ({ risco: 'Sobrecarga', produtivo: 'Carregado', neutro: 'Equilibrado', descansado: 'Descansado', perdendo: 'Destreinando' }[k] ?? '');
+// Strain do dia comparado ao seu dia normal (Fitness = Strain médio por dia nas últimas 6 semanas)
+function strainCat(l) {
+  if (!l || l.strain == null) return '';
+  if (!l.strain) return 'Descanso';
+  const r = l.fitness ? l.strain / l.fitness : 1;
+  return r < 0.5 ? 'Leve' : r < 1.25 ? 'Moderado' : r < 2 ? 'Pesado' : 'Muito pesado';
+}
+
+// cartão de Fitness e Fadiga: número, variação em 7 dias e mini-gráfico de 4 semanas
+function spark(vals, color) {
+  const xs = vals.filter((v) => v != null);
+  if (xs.length < 2) return '';
+  const lo = Math.min(...xs), hi = Math.max(...xs), W = 120, H = 30;
+  const pts = vals.map((v, i) => `${((i / (vals.length - 1)) * W).toFixed(1)},${(H - ((v - lo) / (hi - lo || 1)) * H).toFixed(1)}`).join(' ');
+  return `<svg class="spark" viewBox="-2 -2 ${W + 4} ${H + 4}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" style="stroke:${color}"/></svg>`;
+}
+function loadCard(l) {
+  const dl = l.delta7 ?? {};
+  const arrow = (v, goodUp) => (v == null || v === 0 ? '<span class="lc-d">estável em 7 dias</span>'
+    : `<span class="lc-d ${(v > 0) === goodUp ? 'good' : 'bad'}">${v > 0 ? '↑' : '↓'} ${Math.abs(v)} em 7 dias</span>`);
+  return `<a class="load-card" href="#tendencias" aria-label="Fitness e fadiga. Ver tendências.">
+    <div class="lc">
+      <span class="lc-l">Fitness</span>
+      <b class="c-fit">${l.fitness}</b>
+      ${arrow(dl.fitness, true)}
+      ${spark((l.trend ?? []).map((x) => x.fitness), 'var(--fitness)')}
+    </div>
+    <div class="lc">
+      <span class="lc-l">Fadiga</span>
+      <b class="c-fat">${l.fatigue}</b>
+      ${arrow(dl.fatigue, false)}
+      ${spark((l.trend ?? []).map((x) => x.fatigue), 'var(--fatigue)')}
+    </div>
+    <p class="lc-note">Fitness é o seu Strain médio por dia nas últimas 6 semanas; Fadiga, na última semana.</p>
+  </a>`;
+}
+
 // chips: cada contribuinte do REC com seta para cima/baixo
 function chipsHtml(list) {
   return list.filter((c) => c.pull != null).map((c) => {
@@ -225,25 +270,22 @@ function render(d) {
         <h1>${d.isToday ? 'Hoje, ' : ''}${esc(fmtDate(todayIso, { weekday: d.isToday ? undefined : 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''))}</h1>
         <button type="button" data-day="-1" aria-label="Próximo dia" ${dayOffset === 0 ? 'disabled' : ''}>›</button>
       </div>
-      <span class="race">${esc(raceTxt)}</span>
+      ${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir o modo prova.">${esc(raceTxt)} ›</a>` : ''}
     </header>
 
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
 
     <section class="rings" aria-label="Resumo do dia">
       ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, frac: d.rec == null ? 0 : d.rec / 100, color: zoneVar(z),
-        label: 'REC', sub: d.rec == null ? 'sem dados' : 'recuperação', aria: 'REC. Toque para ver o que compõe o número.' })}
+        label: 'REC', sub: recSub(d), aria: 'REC. Toque para ver o que compõe o número.' })}
       ${ringTile({ id: 'forma', value: d.load?.formPct == null ? '–' : `${d.load.formPct > 0 ? '+' : d.load.formPct < 0 ? '−' : ''}${Math.abs(d.load.formPct)}<small>%</small>`,
         frac: d.load?.formPct == null ? 0 : Math.min(1, Math.max(0, (d.load.formPct + 50) / 90)), color: `var(--z-${d.load?.zone?.key ?? 'neutro'})`,
-        label: 'Forma', sub: d.load?.zone?.label ?? '', aria: 'Forma. Toque para ver as tendências.' })}
-      ${ringTile({ id: 'strain', value: d.load?.strain ?? '–', frac: d.load?.fitness ? d.load.strain / d.load.fitness : 0, color: 'var(--strain)',
-        label: 'Strain', sub: d.load?.fitness ? `${Math.round((d.load.strain / d.load.fitness) * 100)}% do dia médio` : '', aria: 'Strain do dia. Toque para ver os treinos.' })}
+        label: 'Forma', sub: shortZone(d.load?.zone?.key), aria: 'Forma. Toque para ver as tendências.' })}
+      ${ringTile({ id: 'strain', value: d.load?.strain ?? '–', frac: d.load?.fitness ? d.load.strain / (2 * d.load.fitness) : 0, color: 'var(--strain)',
+        label: 'Strain', sub: strainCat(d.load), aria: 'Strain do dia. Toque para ver os treinos.' })}
     </section>
 
-    ${d.load ? `<div class="ff-row">
-      <span><i class="dot" style="background:var(--fitness)"></i>Fitness <b class="c-fit">${d.load.fitness}</b></span>
-      <span><i class="dot" style="background:var(--fatigue)"></i>Fadiga <b class="c-fat">${d.load.fatigue}</b></span>
-    </div>` : ''}
+    ${d.load ? loadCard(d.load) : ''}
 
     <div class="chips" role="list" aria-label="O que puxou o REC">${chipsHtml(d.contributors)}</div>
 

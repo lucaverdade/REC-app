@@ -489,21 +489,32 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .debt-baixa { color: var(--text); } .debt-moderada { color: var(--z-produtivo); } .debt-alta { color: var(--z-risco); }
 .sl-exp { margin: 12px 0 0; }
 
-/* --- Hoje: três anéis (REC, Forma, Strain) --- */
-.rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 22px 0 10px; }
-.rtile { background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; display: grid; justify-items: center; gap: 2px; -webkit-tap-highlight-color: transparent; }
-.rt-ring { position: relative; width: 100%; max-width: 116px; aspect-ratio: 1; }
+/* --- Hoje: três anéis (REC, Forma, Strain), todos iguais --- */
+.rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 22px 0 18px; }
+.rtile { background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; display: grid; justify-items: center; align-content: start; gap: 2px; -webkit-tap-highlight-color: transparent; }
+.rt-ring { position: relative; width: min(100%, 104px); aspect-ratio: 1; }
 .rt-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
-.rt-track { fill: none; stroke: #1b1b1f; stroke-width: 7; }
-.rt-arc { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 1.1s var(--ease); filter: drop-shadow(0 0 4px rgba(0,0,0,.4)); }
-.rt-lap { stroke-width: 7; opacity: .55; }
-.rt-val { position: absolute; inset: 0; display: grid; place-items: center; font: 200 34px/1 var(--font-display); letter-spacing: -0.03em; }
-.rt-val small { font-size: 16px; margin-left: 1px; color: var(--text-2); }
-.rt-label { margin-top: 6px; font-weight: 600; font-size: 14px; }
-.rt-sub { font-size: 11px; color: var(--text-2); text-align: center; min-height: 1.3em; }
-.rtile[data-ring="rec"] .rt-val { font-size: 38px; }
-.ff-row { display: flex; justify-content: center; gap: 22px; margin: 6px 0 12px; font-size: 14px; color: var(--text-2); }
-.ff-row b { font-weight: 500; margin-left: 4px; }
+.rt-track { fill: none; stroke: #1b1b1f; stroke-width: 6; }
+.rt-arc { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1.1s var(--ease); }
+.rt-lap { opacity: .55; }
+.rt-val { position: absolute; inset: 0; display: grid; place-items: center; }
+.rt-val > span { font: 300 26px/1 var(--font-display); letter-spacing: -0.02em; white-space: nowrap; }
+.rt-val small { font-size: 14px; margin-left: 1px; color: var(--text-2); }
+.rt-label { margin-top: 8px; font-weight: 600; font-size: 14px; }
+.rt-sub { font-size: 12px; color: var(--text-2); text-align: center; white-space: nowrap; }
+
+/* cartão Fitness / Fadiga */
+.load-card { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 0 0 14px; padding: 14px 16px; border-radius: 16px;
+  background: #0e0f12; border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; }
+.lc { display: grid; gap: 2px; }
+.lc-l { font-size: 13px; color: var(--text-2); }
+.lc b { font: 300 34px/1.05 var(--font-display); letter-spacing: -0.02em; }
+.lc-d { font-size: 12px; color: var(--text-2); }
+.lc-d.good { color: var(--rec-green); } .lc-d.bad { color: var(--z-risco); }
+.spark { width: 100%; height: 28px; margin-top: 4px; }
+.spark polyline { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.lc-note { grid-column: 1 / -1; margin: 2px 0 0; font-size: 12px; color: var(--text-3); }
+
 .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 4px 0 18px; cursor: pointer; }
 .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); }
 .chip b { font-weight: 600; }
@@ -513,3 +524,5 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .contrib .week { margin: 14px 0 10px; }
 .contrib .shadow-note { margin: 0 0 18px; }
 @media (prefers-reduced-motion: reduce) { .rt-arc { transition: none; } }
+
+.top .race-link { color: var(--accent); text-decoration: none; }
