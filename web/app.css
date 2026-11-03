@@ -617,7 +617,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 /* --- resposta: meu corpo está recuperando? --- */
 .verdict { position: relative; margin: 4px 0 14px; padding: 14px 16px 12px 18px; border-radius: 16px; background: #0e0f12; border: 1px solid var(--line-soft); overflow: hidden; }
 .verdict::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--vc); }
-.v-bom { --vc: var(--rec-green); } .v-atencao { --vc: var(--rec-yellow); } .v-abaixo { --vc: var(--z-produtivo); } .v-ruim { --vc: var(--z-risco); }
+.v-bom { --vc: var(--rec-green); } .v-normal { --vc: #8fd3a8; } .v-atencao { --vc: var(--rec-yellow); } .v-abaixo { --vc: var(--z-produtivo); } .v-ruim { --vc: var(--z-risco); }
 .v-answer { margin: 0; font-size: 18px; font-weight: 600; color: var(--vc); }
 .v-load { margin: 6px 0 10px; font-size: 14px; color: var(--text); line-height: 1.45; }
 .v-sig { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -625,3 +625,12 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .v-sig b { width: 1.1em; text-align: center; font-weight: 700; }
 .v-sig li.ok b { color: var(--rec-green); } .v-sig li.bad b { color: var(--z-risco); } .v-sig li.bad { color: var(--text); }
 .v-foot { margin: 10px 0 0; font-size: 11px; color: var(--text-3); }
+
+.v-trend { margin: 4px 0 0; font-size: 13px; font-weight: 500; color: var(--text-2); }
+.v-trend.t-melhorando { color: var(--rec-green); } .v-trend.t-piorando { color: var(--z-risco); }
+.v-meter { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.vm { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); }
+.vm-baixo { border-color: color-mix(in srgb, var(--z-risco) 50%, transparent); color: var(--z-risco); }
+.vm-alto { border-color: color-mix(in srgb, var(--rec-green) 50%, transparent); color: var(--rec-green); }
+.vm-sem { opacity: .4; }
+.v-how { margin: 10px 0 0; }

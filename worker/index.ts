@@ -684,7 +684,8 @@ export default {
       const loads = await dailyLoads(env, addDays(from, -400), e);
       const { results: dm } = await env.DB.prepare('SELECT date, hrv, rhr, sleep_h, nap_h FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
         .bind(addDays(from, -130), e).all<{ date: string; hrv: number | null; rhr: number | null; sleep_h: number | null; nap_h: number | null }>();
-      const { results: rc } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2').bind(addDays(from, -14), e).all<{ date: string; rec: number | null }>();
+      const { results: rc } = await env.DB.prepare('SELECT date, rec, z_hrv, z_rhr, z_sleep, z_resp, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2')
+        .bind(addDays(from, -14), e).all<{ date: string; rec: number | null; z_hrv: number | null; z_rhr: number | null; z_sleep: number | null; z_resp: number | null; z_stress: number | null }>();
       return json(longTrend({ from, to: e, loads, metrics: dm, recs: rc }));
     }
     if (url.pathname === '/api/strain-weeks' && req.method === 'GET') {

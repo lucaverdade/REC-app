@@ -224,9 +224,16 @@ async function recovery(box, api) {
     <h2>Meu corpo está recuperando?</h2>
     ${t.verdict ? `<div class="verdict v-${t.verdict.level}">
       <p class="v-answer">${esc(t.verdict.answer)}</p>
+      <p class="v-trend t-${t.verdict.trend}">${t.verdict.trend === 'melhorando' ? '↑' : t.verdict.trend === 'piorando' ? '↓' : '→'} ${esc(t.verdict.trendTxt)}</p>
       <p class="v-load">${esc(t.verdict.load)}</p>
-      <ul class="v-sig">${t.verdict.signals.map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.label)}: ${esc(g.txt)}</li>`).join('')}</ul>
-      <p class="v-foot">Últimos 7 dias contra o seu normal dos 60 dias anteriores. Leitura por regras; em modo sombra, os portões do plano continuam valendo.</p>
+      ${t.verdict.reasons.length ? `<ul class="v-sig">${t.verdict.reasons.map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.txt)}</li>`).join('')}</ul>` : ''}
+      <div class="v-meter" aria-hidden="true">${t.verdict.signals.map((g) => `<span class="vm vm-${g.state}">${esc(g.label)}</span>`).join('')}</div>
+      <details class="explain v-how"><summary>Como é calculado</summary>
+        <p>Usa os mesmos sinais do REC, cada um comparado com o <b>seu</b> normal: HRV (peso 2), sono (1,5), FC de repouso (1), respiração (0,7) e estresse do dia anterior (0,5).</p>
+        <p>A resposta sai da média ponderada dos últimos 7 dias, com os dias mais recentes pesando mais. Faixas: recuperando bem, dentro do normal, um pouco abaixo, abaixo, não está recuperando. A tendência compara os últimos 3 dias com os 4 anteriores.</p>
+        <p>A frase da carga cruza a recuperação com a Forma e com há quantos dias a Fadiga está acima do Fitness. Respiração e FC acima do normal juntas por 2 dias indicam padrão de início de doença.</p>
+        <p>Atualiza a cada noite nova que chega da Garmin. Em modo sombra, os portões do plano continuam valendo.</p>
+      </details>
     </div>` : ''}
     <p class="note">Faixa sombreada = o seu normal dos 60 dias anteriores a cada dia. Toque num cartão para ampliar.</p>
     <div class="rgrid">${cards.map((c) => `

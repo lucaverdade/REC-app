@@ -47,5 +47,10 @@ Cada bloco responde uma pergunta, com uma frase no topo que lê o gráfico:
 5. **Meu corpo está recuperando?** Cartões REC, HRV, FC de repouso e sono com média de 7 dias, frase contra a base e mini-gráfico com a faixa normal (60 dias anteriores); toque amplia.
 Saíram: calendário de Strain por dia, gráficos separados de Forma e os gráficos de recuperação por período curto.
 
-### Resposta "Meu corpo está recuperando?" (03/11)
-Regras em `src/verdict.ts` (últimos 7 dias contra o normal dos 60 dias anteriores). Sinais: HRV ≥ 5% abaixo da base ou 3+ noites abaixo da faixa; FC ≥ 2 bpm acima ou 3+ dias acima; sono < necessidade − 30 min ou 3+ noites curtas; REC médio < 40. 0 sinais = recuperando bem; 1 = atenção; 2 = parcialmente; 3–4 = não totalmente. A frase de carga cruza com a faixa da Forma e os dias seguidos com Fadiga acima do Fitness.
+### Resposta "Meu corpo está recuperando?" (03/11, v2 com pesos)
+Regras em `src/verdict.ts`, sem IA. Usa os z do REC (cada sinal contra o normal do Luca): HRV 2, sono 1,5, FC 1, respiração 0,7, estresse 0,5.
+- Nível = média ponderada dos últimos 7 dias (recentes pesam mais, meia-vida 3 dias): ≥ +0,30 recuperando bem; −0,20 a +0,30 dentro do normal; −0,50 a −0,20 um pouco abaixo; −0,90 a −0,50 abaixo; < −0,90 não está recuperando.
+- Tendência: últimos 3 dias × 4 anteriores (±0,30).
+- Motivos: até 2 sinais que mais puxaram para baixo (peso × z ≤ −0,4) e o que mais ajudou, com os números do Luca.
+- Carga: cruza o nível com a faixa da Forma e os dias com Fadiga acima do Fitness. Respiração + FC acima do normal 2 dias seguidos = padrão de início de doença.
+- Recalcula a cada noite nova.

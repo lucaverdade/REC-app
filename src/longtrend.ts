@@ -14,7 +14,7 @@ const sd = (xs: number[]) => { const m = mean(xs); return Math.sqrt(xs.reduce((a
 const median = (xs: number[]) => { const a = [...xs].sort((p, q) => p - q); const n = a.length; return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2; };
 const avg = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? mean(v) : null; };
 
-export function longTrend(o: { from: string; to: string; loads: { date: string; load: number }[]; metrics: Metric[]; recs: { date: string; rec: number | null }[] }) {
+export function longTrend(o: { from: string; to: string; loads: { date: string; load: number }[]; metrics: Metric[]; recs: { date: string; rec: number | null; z_hrv?: number | null; z_rhr?: number | null; z_sleep?: number | null; z_resp?: number | null; z_stress?: number | null }[] }) {
   const p = pmc(o.loads);
   const pBy = new Map(p.map((d) => [d.date, d]));
   const mIdx = new Map(o.metrics.map((m, i) => [m.date, i]));
@@ -55,13 +55,11 @@ export function longTrend(o: { from: string; to: string; loads: { date: string; 
   const outRhr = last7.filter((x) => x.rhr != null && x.rhrHi != null && x.rhr > x.rhrHi).length;
   const z = formZone(last.formPct);
 
-  const sleep7 = avg(last7.map((x) => x.sleep)), rec7 = avg(last7.map((x) => x.rec));
-  const verdict = recoveryVerdict({
-    hrvPct: hrv7 != null && hrvB ? Math.round(((hrv7 - hrvB) / hrvB) * 100) : null, hrvOut: outHrv,
-    rhrDiff: rhr7 != null && rhrB != null ? Math.round((rhr7 - rhrB) * 10) / 10 : null, rhrOut: outRhr,
-    sleep7, sleepShort: last7.filter((x) => x.sleep != null && x.sleep < need - 0.5).length, sleepNeed: need, rec7,
-    zoneKey: z?.key ?? null, fatigueAboveDays: streak,
-  });
+  const zBy = new Map(o.recs.map((r) => [r.date, r]));
+  const verdict = recoveryVerdict(last7.map((d) => {
+    const r = zBy.get(d.date);
+    return { date: d.date, z: { hrv: r?.z_hrv ?? null, rhr: r?.z_rhr ?? null, sleep: r?.z_sleep ?? null, resp: r?.z_resp ?? null, stress: r?.z_stress ?? null }, raw: { hrv: d.hrv, rhr: d.rhr, sleep: d.sleep } };
+  }), { zoneKey: z?.key ?? null, fatigueAboveDays: streak, hrvBase: hrvB, rhrBase: rhrB, sleepNeed: need });
   return {
     from: o.from, to: o.to, sleepNeed: r1(need), days, verdict,
     summary: {
