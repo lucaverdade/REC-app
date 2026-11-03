@@ -19,6 +19,8 @@ Lista viva do que o Luca pediu para depois.
 
 - [x] Strain semanal com faixa (03/11), estilo Relative Effort do Strava: faixa = 0,8–1,3 × média das 3 semanas anteriores; 16 semanas em Tendências.
 
+- [ ] **Conferir Strain previsto × feito a partir de 04/11** (zonas de ciclismo e natação atualizadas no Garmin em 03/11). Se continuar desproporcional: (a) chat de treino informar `strain` em toda sessão usando as zonas do Garmin; (b) app estimar o previsto pelo histórico (Strain/min médio de sessões da mesma modalidade e zona) quando o plano não trouxer `strain`. Caso de 03/11: rolo planejado "Z1" 60 min → previsto 60 (60 × 1); feito 31 (58,6 min abaixo da Z1 a 0,5/min, zonas antigas, FC média 107).
+
 ## Abas e telas
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.
