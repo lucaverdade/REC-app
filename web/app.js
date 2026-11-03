@@ -149,11 +149,10 @@ function ringTile({ id, value, frac = 0, color, label, sub, aria, segments }) {
 // linha curta embaixo de cada anel
 function recSub(d) {
   const prev = d.week.filter((w) => w.date < d.date && w.rec != null).map((w) => w.rec);
-  if (d.rec == null || prev.length < 3) return '';
-  const diff = Math.round(d.rec - prev.reduce((a, b) => a + b, 0) / prev.length);
-  return diff === 0 ? 'na média da semana' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} vs 7 dias`;
+  if (prev.length < 3) return '';
+  return `média da semana ${Math.round(prev.reduce((a, b) => a + b, 0) / prev.length)}`;
 }
-const shortZone = (k) => ({ risco: 'Sobrecarga', produtivo: 'Carregado', neutro: 'Equilibrado', descansado: 'Descansado', perdendo: 'Destreinando' }[k] ?? '');
+const shortZone = (k) => ({ risco: 'Muito cansado', produtivo: 'Em bloco de treino', neutro: 'Equilibrado', descansado: 'Fresco', perdendo: 'Perdendo forma' }[k] ?? '');
 // Strain do dia comparado ao seu dia normal (Fitness = Strain médio por dia nas últimas 6 semanas)
 function strainCat(l) {
   if (!l || l.strain == null) return '';
