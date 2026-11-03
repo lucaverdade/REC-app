@@ -489,13 +489,19 @@ async function strainWeeksPayload(env: Env, weeks: number) {
     const days = [0, 1, 2, 3, 4, 5, 6].map((k) => { const d = addDays(start, k); return d > today ? null : Math.round(byDate.get(d) ?? 0); });
     all.push({ start, days, total: days.reduce<number>((a, v) => a + (v ?? 0), 0) });
   }
+  const { results: acts } = await env.DB.prepare(
+    `SELECT date, time, sport, min, km, ${STRAIN_SQL} strain FROM activities WHERE date BETWEEN ?1 AND ?2 ORDER BY date, time`,
+  ).bind(all[3].start, today).all<{ date: string; time: string; sport: Sport; min: number; km: number; strain: number | null }>();
   const out = all.slice(3).map((w, i) => {
     const prev = all.slice(i, i + 3);
     const avg = prev.reduce((a, x) => a + x.total, 0) / 3;
     const lo = Math.round(avg * 0.8), hi = Math.round(avg * 1.3);
     const ratio = avg > 0 ? w.total / avg : null;
     const status = !avg ? null : w.total < lo ? 'abaixo' : w.total <= hi ? 'dentro' : ratio! <= 1.5 ? 'acima' : 'bem_acima';
-    return { ...w, avg3: Math.round(avg), lo, hi, ratio: ratio == null ? null : Math.round(ratio * 100) / 100, status, current: w.start === thisMon };
+    const end = addDays(w.start, 6);
+    const activities = acts.filter((a) => a.date >= w.start && a.date <= end)
+      .map((a) => ({ date: a.date, time: a.time, sport: a.sport, label: SPORT_LABEL[a.sport], min: a.min, km: a.km, strain: a.strain == null ? null : Math.round(a.strain) }));
+    return { ...w, avg3: Math.round(avg), lo, hi, ratio: ratio == null ? null : Math.round(ratio * 100) / 100, status, current: w.start === thisMon, activities };
   });
   return { today, weeks: out };
 }

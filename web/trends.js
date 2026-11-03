@@ -93,7 +93,7 @@ async function body(screen, api) {
         <div><span class="big c-fat">${nf(now.fatigue)}</span><span class="lab">Fadiga</span><span class="delta">${dl ? signed(dl.fatigue) : ''}</span></div>
         <div><span class="big z-${zone?.key ?? 'neutro'}">${signed(now.formPct)}%</span><span class="lab">Forma</span><span class="delta">${dl?.formPct != null ? `${signed(dl.formPct)} pts` : ''}</span></div>
       </div>
-      <p class="note">${zone ? `<b class="z-${zone.key}">${zone.label}</b> em ${esc(lastLabel)}. ` : ''}Embaixo de cada número, quanto mudou no período.</p>
+      <p class="note">${zone ? `<b class="z-${zone.key}">${zone.label}</b> ${lastLabel === 'hoje' ? 'hoje' : `em ${esc(lastLabel)}`}. ` : ''}Embaixo de cada número, quanto mudou no período.</p>
       <details class="explain">
         <summary>O que significa</summary>
         <p><b>Strain</b> é a carga de cada treino: minutos em cada zona de FC do Garmin × peso da zona (Z1 vale 1, Z5 vale 5; abaixo da Z1, 0,5). Cresce com a duração e com a intensidade, e cai para o mesmo treino quando você fica mais condicionado (a FC fica mais baixa).</p>
@@ -102,14 +102,19 @@ async function body(screen, api) {
         <p><b>Forma</b> = (Fitness − Fadiga de ontem) ÷ Fitness, em %. É como você acorda, antes do treino do dia. Faixas de referência (Joe Friel, adaptadas pelo intervals.icu): abaixo de −30% muito cansado; −30% a −10% em bloco de treino (fadiga acima do fitness, normal quando se está treinando); −10% a +5% equilibrado; +5% a +20% descansado (o que um polimento busca); acima de +20% perdendo forma. A Forma não diz se você está recuperado hoje: isso é o REC. Ela mede o equilíbrio entre a carga recente e a das últimas semanas.</p>
         <p>Método do TrainingPeaks e do Strava (modelo de Banister). Compare você com você mesmo; a escala é diferente da deles.</p>
       </details>
-      <div class="chart-wrap" id="ch-pmc"></div>
-      <h3 class="sub">Forma (%)</h3>
-      <div class="chart-wrap" id="ch-form"></div>
     </section>
 
     <section class="block" id="sw"></section>
 
     <section class="block" id="pred"></section>
+
+    <section class="block">
+      <h2>Fitness, Fadiga e Forma</h2>
+      <div class="chart-wrap" id="ch-pmc"></div>
+      <h3 class="sub">Forma (%)</h3>
+      <div class="chart-wrap" id="ch-form"></div>
+    </section>
+
 
     <section class="block">
       <h2>Strain por dia</h2>
@@ -225,6 +230,8 @@ const tfmt = (m) => {
   const s = Math.round(m * 60), h = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
   return h ? `${h}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}` : `${mm}:${String(ss).padStart(2, '0')}`;
 };
+// diferença curta: "28 s", "1 min 05 s", "3 min"
+const dfmt = (m) => { const s = Math.round(Math.abs(m) * 60); return s < 60 ? `${s} s` : s % 60 ? `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s` : `${s / 60} min`; };
 const parseT = (txt) => {
   const p = String(txt || '').trim().split(':').map(Number);
   if (!p.length || p.some((x) => !Number.isFinite(x))) return null;
@@ -244,7 +251,7 @@ async function predictions(box, api) {
     if (!p.fourWeeksAgo) return '';
     const dm = p.current[k] - p.fourWeeksAgo[k];
     if (Math.abs(dm) < 1 / 60) return '<span class="pd-d">igual</span>';
-    return `<span class="pd-d ${dm < 0 ? 'up' : 'down'}">${dm < 0 ? '−' : '+'}${tfmt(Math.abs(dm))}</span>`;
+    return `<span class="pd-d ${dm < 0 ? 'up' : 'down'}">${dm < 0 ? '−' : '+'}${dfmt(dm)}</span>`;
   };
   sec.innerHTML = `
     <h2>Previsões de prova</h2>
@@ -252,7 +259,13 @@ async function predictions(box, api) {
       ${PD.map(([k, l]) => `<button type="button" role="tab" data-k="${k}" aria-selected="${k === pDist}" class="pd">
         <small>${l}</small><b>${tfmt(p.current[k])}</b>${diff(k)}</button>`).join('')}
     </div>
-    <p class="note">Variação em 4 semanas embaixo de cada tempo (verde = mais rápido).</p>
+    ${(() => {
+      if (!p.fourWeeksAgo) return '';
+      const dm = p.current[pDist] - p.fourWeeksAgo[pDist];
+      const name = PD.find(([k]) => k === pDist)[1];
+      if (Math.abs(dm) < 1 / 60) return `<p class="pd-head">${name}: igual a 4 semanas atrás.</p>`;
+      return `<p class="pd-head ${dm < 0 ? 'up' : 'down'}">${dm < 0 ? '↑ Melhorando' : '↓ Piorando'}: ${name} ${dfmt(dm)} ${dm < 0 ? 'mais rápido' : 'mais lento'} que 4 semanas atrás.</p>`;
+    })()}
     <div class="seg seg-sm" role="tablist" aria-label="Período das previsões">
       ${[[1, '1 mês'], [3, '3 meses'], [6, '6 meses']].map(([m, l]) => `<button role="tab" data-m="${m}" aria-selected="${m === pMonths}">${l}</button>`).join('')}
     </div>
@@ -328,8 +341,14 @@ async function strainWeeks(box, api) {
       </div>
       <div class="sw-days">${w.days.map((v, k) => `<div><span class="sw-bar" style="height:${v ? Math.max(4, (v / maxDay) * 100) : 0}%" title="${v ?? '–'}"></span><small>${wd[k]}</small></div>`).join('')}</div>
     </div>
+    <h3 class="sub">Treinos da semana</h3>
+    ${w.activities?.length ? `<ul class="sw-acts">${w.activities.map((a) => `<li>
+        <span class="sw-a-day">${esc(new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }).replace(/\./g, ''))}</span>
+        <span class="sw-a-name"><i class="dot s-${esc(a.sport)}"></i>${esc(a.label)}<small>${Math.round(a.min)} min${a.km >= 0.5 ? `, ${nf(a.km, 1)} km` : ''}</small></span>
+        <b class="c-strain">${a.strain ?? '–'}</b></li>`).join('')}</ul>`
+      : '<p class="empty">Nenhum treino nesta semana.</p>'}
     <div class="chart-wrap" id="ch-sw"></div>
-    <p class="note">Toque num ponto para ver a semana. A faixa sombreada é 0,8 a 1,3 vezes a média das 3 semanas anteriores: subir dentro dela é progressão gradual; acima dela, a carga cresceu rápido.</p>`;
+    <p class="note">Toque num ponto para ver a semana e os treinos. A faixa sombreada é 0,8 a 1,3 vezes a média das 3 semanas anteriores: subir dentro dela é progressão gradual; acima dela, a carga cresceu rápido.</p>`;
 
   // gráfico: faixa (área entre lo e hi) + pontos semanais
   const svgW = 340, h = 120;

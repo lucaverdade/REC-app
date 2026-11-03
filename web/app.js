@@ -173,18 +173,21 @@ function loadStrip(l) {
   const dv = l.fatigueVsYesterday;
   const fat = dv == null || dv === 0 ? 'igual a ontem' : `${dv > 0 ? '↑' : '↓'} ${Math.abs(dv)} desde ontem`;
   const f4 = l.fitness4w;
-  const fit = f4 == null ? '' : f4 === 0 ? 'estável nas últimas 4 semanas' : `${f4 > 0 ? 'subiu' : 'caiu'} ${Math.abs(f4)}% nas últimas 4 semanas`;
+  const fit = f4 == null ? '' : f4 === 0 ? 'estável em 4 sem.' : `${f4 > 0 ? '↑' : '↓'} ${Math.abs(f4)}% em 4 sem.`;
   return `<a class="load-strip" href="#tendencias" aria-label="Fadiga e Fitness. Ver tendências.">
     <div class="ls-row">
       <span class="ls-l"><i class="dot" style="background:var(--fatigue)"></i>Fadiga</span>
       <b class="c-fat">${l.fatigue}</b>
       <span class="ls-d ${dv > 0 ? 'bad' : dv < 0 ? 'good' : ''}">${fat}</span>
+      ${spark((l.trend ?? []).slice(-14).map((x) => x.fatigue), 'var(--fatigue)')}
     </div>
     <div class="ls-row">
       <span class="ls-l"><i class="dot" style="background:var(--fitness)"></i>Fitness</span>
-      <span class="ls-trend ${f4 > 0 ? 'good' : f4 < 0 ? 'bad' : ''}">${fit}</span>
+      <b class="c-fit">${l.fitness}</b>
+      <span class="ls-d ${f4 > 0 ? 'good' : f4 < 0 ? 'bad' : ''}">${fit}</span>
       ${weekDots(l.fitnessWeekly ?? [])}
     </div>
+    <p class="ls-note">Fadiga: últimos 14 dias. Fitness: um ponto por semana.</p>
   </a>`;
 }
 // pontos semanais do Fitness (5 semanas)

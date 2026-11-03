@@ -569,3 +569,18 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .sw-chart .sw-dot { fill: #0b0b0d; stroke: var(--text); stroke-width: 1.6; cursor: pointer; }
 .sw-chart .sw-dot.on { fill: var(--strain); stroke: var(--strain); }
 .sw-chart .sw-dot.sw-acima { stroke: var(--z-produtivo); } .sw-chart .sw-dot.sw-bem_acima { stroke: var(--z-risco); }
+
+.ls-row { display: grid; grid-template-columns: 4.8em 3.2ch minmax(0, 1fr) 64px; white-space: nowrap; align-items: center; gap: 8px; }
+.ls-row .spark, .ls-row .wk-dots { width: 64px; height: 26px; margin: 0; }
+.ls-row .ls-d { font-size: 12px; }
+.ls-row b { font-size: 28px; }
+.ls-note { margin: 0; font-size: 11px; color: var(--text-3); }
+
+.sw-acts { list-style: none; margin: 0 0 6px; padding: 0; border-top: 1px solid var(--line); }
+.sw-acts li { display: grid; grid-template-columns: 4.6em 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+.sw-a-day { font-size: 13px; color: var(--text-2); }
+.sw-a-name { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; }
+.sw-a-name small { color: var(--text-3); font-size: 12px; }
+.sw-acts b { font: 300 20px/1 var(--font-display); }
+.pd-head { margin: 4px 0 6px; font-size: 14px; color: var(--text-2); font-weight: 500; }
+.pd-head.up { color: var(--rec-green); } .pd-head.down { color: var(--z-risco); }
