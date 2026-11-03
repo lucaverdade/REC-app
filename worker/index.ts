@@ -4,6 +4,7 @@ import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
+import { regularity, sleepDebt, sleepNeed, type SleepNight } from '../src/sleep.ts';
 import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
@@ -60,20 +61,26 @@ async function ensureSchema(env: Env) {
   const stmts = SCHEMA.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n')
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
+  // migrações de colunas (ignora "duplicate column" quando já existem)
+  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL']) {
+    try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
+  }
   schemaReady = true;
 }
 
 async function writeDays(env: Env, days: GarminDay[]) {
   const st = env.DB.prepare(
-    `INSERT INTO daily_metrics (date, hrv, rhr, sleep_h, sleep_score, resp, stress, source, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'garmin_api', datetime('now'))
+    `INSERT INTO daily_metrics (date, hrv, rhr, sleep_h, sleep_score, resp, stress, sleep_start, sleep_end, nap_h, source, updated_at)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'garmin_api', datetime('now'))
      ON CONFLICT(date) DO UPDATE SET
        hrv = COALESCE(excluded.hrv, hrv), rhr = COALESCE(excluded.rhr, rhr), sleep_h = COALESCE(excluded.sleep_h, sleep_h),
        sleep_score = COALESCE(excluded.sleep_score, sleep_score), resp = COALESCE(excluded.resp, resp),
-       stress = COALESCE(excluded.stress, stress), source = 'garmin_api', updated_at = datetime('now')`,
+       stress = COALESCE(excluded.stress, stress), sleep_start = COALESCE(excluded.sleep_start, sleep_start),
+       sleep_end = COALESCE(excluded.sleep_end, sleep_end), nap_h = COALESCE(excluded.nap_h, nap_h),
+       source = 'garmin_api', updated_at = datetime('now')`,
   );
   const useful = days.filter((d) => [d.hrv, d.rhr, d.sleep_h, d.resp, d.stress].some((v) => v !== null));
-  if (useful.length) await env.DB.batch(useful.map((d) => st.bind(d.date, d.hrv, d.rhr, d.sleep_h, d.sleep_score, d.resp, d.stress)));
+  if (useful.length) await env.DB.batch(useful.map((d) => st.bind(d.date, d.hrv, d.rhr, d.sleep_h, d.sleep_score, d.resp, d.stress, d.sleep_start, d.sleep_end, d.nap_h)));
   return useful.length;
 }
 
@@ -472,6 +479,11 @@ async function todayPayload(env: Env, date: string) {
   const feel = await env.DB.prepare('SELECT value FROM feel_notes WHERE date = ?1').bind(date).first<{ value: number }>();
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+    .bind(addDays(date, -20), date).all<SleepNight>();
+  const debt = sleepDebt(nights);
+  const lastNight = nights.find((n) => n.date === date) ?? null;
+  const yesterdayNap = nights.find((n) => n.date === addDays(date, -1))?.nap_h ?? null;
 
   const empty: RecRow = { date, rec: null, z: {} as RecRow['z'], value: {} as RecRow['value'], base: {} as RecRow['base'] };
   for (const k of K) { empty.z[k] = null; empty.value[k] = null; empty.base[k] = null; }
@@ -495,6 +507,13 @@ async function todayPayload(env: Env, date: string) {
     }),
     feel: feel?.value ?? null,
     load: ln,
+    sleep: {
+      night: lastNight && { hours: lastNight.sleep_h, start: lastNight.sleep_start?.slice(11) ?? null, end: lastNight.sleep_end?.slice(11) ?? null },
+      napYesterday: yesterdayNap,
+      debt: debt == null ? null : Math.round(debt * 10) / 10,
+      need: sleepNeed(debt, ln.strain),
+      regularity: regularity(nights),
+    },
     isToday: date === brtToday(),
     race: { ...RACE, days: daysBetween(date, RACE.date) },
     // app busca sozinho ao abrir quando a noite de hoje ainda não está no banco

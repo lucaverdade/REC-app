@@ -15,6 +15,8 @@ export interface GarminDay {
   date: string;
   hrv: number | null; rhr: number | null; sleep_h: number | null; sleep_score: number | null;
   resp: number | null; stress: number | null;
+  sleep_start: string | null; sleep_end: string | null; // horário local "AAAA-MM-DDTHH:MM"
+  nap_h: number | null; // cochilos do dia (h)
 }
 
 export interface GarminActivity {
@@ -84,7 +86,16 @@ export function parseSleep(j: any) {
     resp: first(dto.averageRespirationValue, dto.avgRespirationValue, j?.averageRespirationValue),
     rhr: first(j?.restingHeartRate, dto.restingHeartRate),
     hrv: first(j?.avgOvernightHrv, dto.avgOvernightHrv),
+    // os campos "Local" vêm em milissegundos já no horário local (tratados como se fossem UTC)
+    nap_h: (() => { const v = first(dto.napTimeSeconds); return v == null ? null : v / 3600; })(),
+    sleep_start: localStamp(dto.sleepStartTimestampLocal),
+    sleep_end: localStamp(dto.sleepEndTimestampLocal),
   };
+}
+
+function localStamp(v: unknown): string | null {
+  const ms = n(v);
+  return ms == null ? null : new Date(ms).toISOString().slice(0, 16);
 }
 
 export function parseHrvRange(j: any): Map<string, number> {
@@ -197,6 +208,9 @@ export async function fetchDays(env: GarminEnv, from: string, to: string): Promi
       rhr: sum.get(d)?.rhr ?? s?.rhr ?? null,
       sleep_h: s?.sleep_h ?? null,
       sleep_score: s?.sleep_score ?? null,
+      nap_h: s?.nap_h ?? null,
+      sleep_start: s?.sleep_start ?? null,
+      sleep_end: s?.sleep_end ?? null,
       resp: sum.get(d)?.resp ?? s?.resp ?? null,
       stress: stress.get(d) ?? sum.get(d)?.stress ?? null,
     };

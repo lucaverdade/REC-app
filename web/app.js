@@ -112,6 +112,30 @@ function actsHtml(acts) {
   }).join('')}</ul>`;
 }
 
+// ---------- Sono: noite, dívida, necessidade e regularidade ----------
+const hmm = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)}\u00a0h\u00a0${String(m % 60).padStart(2, '0')}`; };
+function sleepCard(d) {
+  const s = d.sleep, n = s.night, need = s.need;
+  const pct = n?.hours != null ? Math.min(1.25, n.hours / 7.5) : 0;
+  const extra = [];
+  if (need.fromDebt >= 1 / 60) extra.push(`dívida +${Math.round(need.fromDebt * 60)} min`);
+  if (need.fromStrain >= 1 / 60) extra.push(`treino +${Math.round(need.fromStrain * 60)} min`);
+  const r = s.regularity;
+  return `
+    <section class="sleep-card" aria-label="Sono">
+      <div class="sl-head"><span class="sl-title">Sono</span>
+        ${n?.start && n?.end ? `<span class="meta">${esc(n.start)} → ${esc(n.end)}</span>` : ''}</div>
+      <div class="sl-main"><b>${hmm(n?.hours)}</b><span>de 7\u00a0h\u00a030</span></div>
+      <div class="sl-bar"><i style="width:${(pct / 1.25) * 100}%"></i><em style="left:${(1 / 1.25) * 100}%"></em></div>
+      <div class="sl-stats">
+        <div><span>${s.debt == null ? '–' : s.debt < 1 / 60 ? 'zerada' : hmm(s.debt)}</span><small>Dívida (7 noites)</small></div>
+        <div><span>${hmm(need.total)}</span><small>${d.isToday ? 'Precisa hoje à noite' : 'Precisava na noite seguinte'}${extra.length ? ` (${extra.join(', ')})` : ''}</small></div>
+      </div>
+      ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).</p>` : ''}
+      ${s.napYesterday ? `<p class="sl-reg">Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}: <b>${Math.round(s.napYesterday * 60)} min</b> (conta na dívida).</p>` : ''}
+    </section>`;
+}
+
 // ---------- Forma: medidor semicircular com as faixas (como o anel do REC) ----------
 const G = { min: -50, max: 40 };
 function gaugeSvg(pct) {
@@ -194,6 +218,7 @@ function render(d) {
     ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}
 
     ${d.load ? formCard(d) : ''}
+    ${d.sleep ? sleepCard(d) : ''}
 
     <section class="block">
       <h2>${d.isToday ? 'Treino de hoje' : 'Treinos do dia'}</h2>
@@ -339,6 +364,13 @@ async function renderGarmin() {
     </section>
 
     <section class="block">
+      <h2>Atualizar os últimos 90 dias</h2>
+      <p class="note">Busca de novo os últimos 90 dias, inclusive dados que o app passou a guardar depois (horários de sono, cochilos).</p>
+      <button class="btn ghost" id="refill" ${st.hasKey ? '' : 'disabled'}>Buscar 90 dias</button>
+      <p class="progress" id="refill-out" aria-live="polite"></p>
+    </section>
+
+    <section class="block">
       <h2>Teste da conexão</h2>
       <p class="note">Busca os últimos 14 dias e mostra quais campos a API entrega.</p>
       <button class="btn ghost" id="check" ${st.hasKey ? '' : 'disabled'}>Testar conexão</button>
@@ -395,6 +427,30 @@ async function renderGarmin() {
       out.textContent = `Parou: ${errText(e)} Toque de novo para continuar; o que já veio fica salvo.`;
       btn.disabled = false;
     }
+  });
+
+  screen.querySelector('#refill').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, out = screen.querySelector('#refill-out');
+    btn.disabled = true;
+    const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+    const today = st.hoje, chunks = [];
+    for (let d = addDaysIso(today, -89); d <= today; d = addDaysIso(d, 14)) chunks.push([d, addDaysIso(d, 13) > today ? today : addDaysIso(d, 13)]);
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        for (let tent = 1; ; tent++) {
+          out.textContent = `Bloco ${i + 1} de ${chunks.length}…`;
+          try { await api(`/api/garmin/backfill?from=${chunks[i][0]}&to=${chunks[i][1]}`, { method: 'POST' }); break; }
+          catch (e) {
+            if (!/limite|429/.test(e.message) || tent >= 15) throw e;
+            for (let s = 60; s > 0; s--) { out.textContent = `A Garmin pediu uma pausa. Retomando em ${s} s…`; await sleepMs(1000); }
+          }
+        }
+        await sleepMs(1500);
+      }
+      await api(`/api/recompute?to=${today}&keep=60`, { method: 'POST' });
+      out.textContent = 'Pronto.';
+    } catch (e) { out.textContent = `Parou: ${errText(e)}`; }
+    btn.disabled = false;
   });
 
   screen.querySelector('#zones').addEventListener('click', async (ev) => {

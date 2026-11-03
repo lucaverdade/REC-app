@@ -42,7 +42,12 @@ createServer((req, res) => {
     const d = u.searchParams.get('date')!, r = daily.get(d);
     if (!r || num(r.sleep_h) === null) return send(200, { dailySleepDTO: { calendarDate: d } });
     return send(200, {
-      dailySleepDTO: { calendarDate: d, sleepTimeSeconds: Math.round(num(r.sleep_h)! * 3600), averageRespirationValue: num(r.resp), sleepScores: { overall: { value: num(r.sleep_score) } } },
+      dailySleepDTO: {
+        calendarDate: d, sleepTimeSeconds: Math.round(num(r.sleep_h)! * 3600), napTimeSeconds: d.endsWith('1') ? 1500 : 0, averageRespirationValue: num(r.resp), sleepScores: { overall: { value: num(r.sleep_score) } },
+        // horários simulados: acorda ~05:40–06:20, dorme o necessário antes
+        sleepEndTimestampLocal: Date.parse(d + 'T06:00:00Z') + ((d.charCodeAt(9) % 5) - 2) * 10 * 60000,
+        sleepStartTimestampLocal: Date.parse(d + 'T06:00:00Z') + ((d.charCodeAt(9) % 5) - 2) * 10 * 60000 - Math.round(num(r.sleep_h)! * 3600000) - 20 * 60000,
+      },
       restingHeartRate: num(r.rhr), avgOvernightHrv: num(r.hrv),
     });
   }
