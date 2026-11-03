@@ -12,7 +12,7 @@
     // database_id: preencher depois de `npx wrangler d1 create rec`
     { "binding": "DB", "database_name": "rec", "database_id": "00000000-0000-0000-0000-000000000000" }
   ],
-  // 07:30 e 09:00 em Brasília (UTC−3)
-  "triggers": { "crons": ["30 10 * * *", "0 12 * * *"] },
+  // a cada 15 min das 04:00 às 10:45 de Brasília (UTC−3); para de chamar a Garmin quando a noite chega
+  "triggers": { "crons": ["*/15 7-13 * * *"] },
   "observability": { "enabled": true }
 }

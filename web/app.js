@@ -180,11 +180,29 @@ function render(d) {
   });
 }
 
+let autoTried = '';   // uma busca automática por dia, por abertura
 async function load() {
   if (!store.get()) return renderGate();
-  try { render(await api('/api/today')); }
+  try {
+    const d = await api('/api/today');
+    render(d);
+    if (d.needsSync && autoTried !== d.date) {
+      autoTried = d.date;
+      const sync = screen.querySelector('.sync');
+      sync.disabled = true; sync.textContent = 'Buscando a noite na Garmin…';
+      await api('/api/refresh?auto=1', { method: 'POST' }).catch(() => {});
+      const d2 = await api('/api/today');
+      render(d2);
+      if (d2.needsSync) screen.querySelector('.sync').textContent = 'A noite ainda não chegou à Garmin. Sincronize o relógio e toque aqui.';
+    }
+  }
   catch (e) { if (e.message !== '401') screen.innerHTML = '<p class="comment" style="margin-top:40vh">Sem conexão com o servidor. Abra de novo em instantes.</p>'; }
 }
+
+// ao voltar para o app: recarrega (pega a noite se chegou e troca o dia se virou)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && store.get()) { autoTried = ''; load(); }
+});
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 load();

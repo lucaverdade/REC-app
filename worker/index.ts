@@ -42,8 +42,16 @@ async function recompute(env: Env, upTo: string, keep = 10) {
   return recs.length;
 }
 
-async function morningRoutine(env: Env, trigger: 'cron' | 'manual') {
+/** A noite de hoje já chegou? (HRV e sono da manhã atual) */
+async function hasTonight(env: Env, date: string) {
+  const r = await env.DB.prepare('SELECT hrv, sleep_h FROM daily_metrics WHERE date = ?1').bind(date).first<{ hrv: number | null; sleep_h: number | null }>();
+  return !!r && r.hrv !== null && r.sleep_h !== null;
+}
+
+async function morningRoutine(env: Env, trigger: 'cron' | 'manual' | 'open') {
   const today = brtToday();
+  // a rotina agendada só trabalha enquanto a noite de hoje não chegou
+  if (trigger === 'cron' && (await hasTonight(env, today))) return { status: 'ja_atualizado', detail: '' };
   let status = 'ok', detail = '';
   try {
     const g = await fetchRecentDays(env, addDays(today, -3));
@@ -108,6 +116,8 @@ async function todayPayload(env: Env, date: string) {
     activities: acts.results.map((a) => ({ ...a, label: SPORT_LABEL[a.sport] })),
     feel: feel?.value ?? null,
     race: { ...RACE, days: daysBetween(date, RACE.date) },
+    // app busca sozinho ao abrir quando a noite de hoje ainda não está no banco
+    needsSync: date === brtToday() && !(await hasTonight(env, date)),
     shadowMode: true, // primeiras 6–8 semanas: REC não decide treino
     lastSync,
   };
@@ -140,7 +150,8 @@ export default {
       return json({ ok: true });
     }
     if (url.pathname === '/api/refresh' && req.method === 'POST') {
-      return json(await morningRoutine(env, 'manual'));
+      const auto = url.searchParams.get('auto') === '1';
+      return json(await morningRoutine(env, auto ? 'open' : 'manual'));
     }
     return json({ error: 'nao_encontrado' }, 404);
   },

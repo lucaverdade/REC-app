@@ -1,5 +1,5 @@
 // Agrupamento dos tipos Garmin nas modalidades do app.
-// Hyrox não tem tipo próprio no export: assumido como indoor_cardio (confirmar com o Luca).
+// Hyrox: o Luca registra como "Cardio" no relógio, que chega como indoor_cardio.
 export type Sport = 'bike' | 'corrida' | 'natacao' | 'hyrox' | 'academia' | 'outro';
 
 const MAP: Record<string, Sport> = {

@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS feel_notes (
 CREATE TABLE IF NOT EXISTS sync_log (
   id      INTEGER PRIMARY KEY AUTOINCREMENT,
   at      TEXT NOT NULL DEFAULT (datetime('now')),
-  trigger TEXT NOT NULL,          -- cron | manual
+  trigger TEXT NOT NULL,          -- cron | manual | open
   status  TEXT NOT NULL,          -- ok | erro | sem_dados
   detail  TEXT
 );
