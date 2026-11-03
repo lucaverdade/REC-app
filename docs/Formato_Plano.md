@@ -6,7 +6,14 @@ O app REC lê o plano de um arquivo JSON por semana no repositório `lucaverdade
 web/plan/AAAA-MM-DD.json      ← data da SEGUNDA-FEIRA da semana
 ```
 
-Fazer commit na branch `main` publica sozinho (Cloudflare). O app só exibe; não edita.
+Fazer commit na branch `main` publica sozinho (Cloudflare) em 1–2 minutos. O app só exibe; não edita.
+
+## Como publicar
+- **Um arquivo por semana**, nomeado pela segunda-feira (ex.: semana de 9 a 15/11 → `web/plan/2026-11-09.json`).
+- **Mudou algo na semana?** Reescreva o arquivo inteiro da semana (não existe edição parcial).
+- **Caminho A (com acesso de escrita ao repositório):** criar/atualizar o arquivo e fazer commit na `main` com a mensagem `Plano da semana AAAA-MM-DD`.
+- **Caminho B (sem acesso de escrita):** entregar o JSON completo num bloco de código, com o nome do arquivo. O Luca cola em github.com/lucaverdade/REC-app → `web/plan/` → Add file → Create new file → Commit.
+- Antes de entregar, conferir que é JSON válido (aspas duplas, sem vírgula sobrando, sem comentários).
 
 ## Estrutura
 ```json
@@ -29,7 +36,7 @@ Fazer commit na branch `main` publica sozinho (Cloudflare). O app só exibe; nã
 - `modalidade`: `bike`, `corrida`, `natacao`, `hyrox`, `academia` (aceita variações como "ciclismo", "natação", "força").
 - `minutos`: usado para marcar o treino como **feito** (≥ 80% do tempo planejado) ou **parcial**.
 - `chave`: opcional; destaca a sessão principal do dia.
-- `zona`: usada também para o **Strain previsto** = minutos × peso médio da zona ("Z2" → 2/min; "Z1–Z2" → 1,5/min; sem zona → 2/min). Para sessões de intervalos, informe `strain` diretamente (ex.: aquecimento 15 min Z1 + 4×8 min Z4 + desaquecimento = 15×1 + 32×4 + rec/desaq. ≈ 160).
+- `zona`: usada também para o **Strain previsto** = minutos × peso médio da zona ("Z2" → 2/min; "Z1–Z2" → 1,5/min; sem zona → 2/min). Pesos: abaixo da Z1 = 0,5/min, Z1 = 1, Z2 = 2, Z3 = 3, Z4 = 4, Z5 = 5. Para sessões com blocos de intensidade diferente, informe `strain` somando os blocos (ex.: 15 min Z1 + 4×8 min Z4 + 12 min de recuperação Z1 + 10 min Z1 = 15 + 128 + 12 + 10 ≈ 165). Zonas de FC por modalidade, como configuradas no Garmin do Luca (bike tem zonas próprias).
 - `strain`: opcional; sobrescreve o previsto.
 - Dias sem treino: omitir a data ou usar lista vazia.
 
