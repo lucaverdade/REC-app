@@ -4,14 +4,14 @@ Lista viva do que o Luca pediu para depois.
 
 **Ordem sugerida (03/11)**, pensando na prova em 29/11: 1) previsões de prova; 2) modo prova (semana de 23/11); 3) aba Nutrição; 4) indicadores de forma; 5) Strava (descrições); 6) sono (dívida e regularidade).
 
-**Pendente de confirmação no app real**: FC de repouso e respiração vindo da API (Garmin → Testar conexão) e quantas atividades chegaram com zonas de FC.
+**Confirmado (03/11)**: a API entrega todos os campos (14 de 14 no teste de conexão).
 
 ## Métricas
 - [ ] ~~Strain no padrão hrTSS~~ — **não adotado** (03/11): o Strain fica no TRIMP de Edwards (zonas × 1…5). Reavaliar só se houver potência na bike ou limiar de FC confiável. Ver `Estudo_Carga_Treino.md`, seção 7.
 - [x] **Tempo em zonas** (03/11): seção em Tendências e barra em cada treino (Hoje e Treino).
-- [ ] **Previsões de prova (só corrida: 5 km, 10 km, 21 km, 42 km)**, no estilo do Strava, atualizando a cada corrida, com gráfico de tendência. Próximo passo: pesquisar como o Strava calcula as Performance Predictions e onde a Garmin guarda os melhores esforços/voltas. Bike e natação ficam de fora (pedido do Luca).
-- [ ] Necessidade de sono dinâmica / dívida de sono (Whoop).
-- [ ] Regularidade do sono: horário de deitar e acordar (API entrega).
+- [x] **Previsões de prova (corrida)** (03/11): regras do Strava (ao ar livre, 24 semanas, recentes pesam mais), motor aberto (VO2máx por pace + FC), tendência 1/3/6 meses, calibração opcional com os números do Strava. **Pendente: o Luca digitar as previsões atuais do Strava** (Tendências → Previsões → Ajustar).
+- [x] Dívida de sono e necessidade do dia (03/11), cochilos contam na dívida. Regra provisória do app (ver `src/sleep.ts`).
+- [x] Regularidade do sono (03/11): horário médio de deitar/acordar e variação em 14 noites. **Pendente: Garmin → Buscar 90 dias** para preencher os horários.
 - [ ] Indicadores de forma: pace na FC 145 (corrida), velocidade na FC 137 (bike), ritmo de natação por 100 m.
 
 - [x] **Zonas de FC por modalidade** (03/11): o Luca criou zonas de ciclismo no Garmin (%HRR; usar FC máx. da bike, ~185–186). Treinos novos já chegam com o tempo em zonas certo.
@@ -21,7 +21,7 @@ Lista viva do que o Luca pediu para depois.
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.
 - [ ] Aba Nutrição: registro em dois toques (carbo total, barriga).
-- [ ] Modo prova na semana de Aracaju.
+- [x] Modo prova (03/11): contagem, checklist salvo no servidor, carbo e plano de prova vindos de `web/plan/prova.json` (chat de treino). Aparece sozinho a partir de 23/11; prévia pelo rodapé da aba Hoje.
 - [x] Avisos de carga (03/11) na aba Hoje: razão aguda/crônica fora de 0,8–1,4; corrida da semana +15% sobre a média de 4 semanas.
 
 ## Integrações

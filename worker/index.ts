@@ -436,6 +436,42 @@ async function predictionsPayload(env: Env, months: number) {
   };
 }
 
+
+// --- modo prova ---
+const RACE_CHECKLIST = [
+  { grupo: 'Bike', itens: ['Bike revisada (freios, câmbio, pneus)', 'Pneus calibrados', 'Câmara reserva, CO2 e espátulas', 'Ferramenta multiuso', 'Caramanholas', 'Sapatilha', 'Capacete', 'Números da bike e do capacete colados', 'Ciclocomputador e relógio carregados'] },
+  { grupo: 'Kit', itens: ['Macaquinho de triathlon', 'Óculos de natação (e reserva)', 'Touca da prova', 'Tênis com cadarço elástico', 'Boné ou viseira', 'Óculos de sol', 'Protetor solar', 'Cinto porta-número', 'Chip de cronometragem', 'Documento e credenciamento', 'Sacolas de transição etiquetadas'] },
+  { grupo: 'Nutrição', itens: ['Carbo da bike separado', 'Carbo da corrida separado', 'Sais / isotônico', 'Café da manhã de prova', 'Caramanholas cheias na véspera'] },
+];
+const slug = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+async function racePayload(env: Env, req: Request) {
+  const today = brtToday();
+  let plan: any = null;
+  try { const r = await env.ASSETS.fetch(new Request(new URL('/plan/prova.json', req.url))); if (r.ok) plan = await r.json(); } catch {}
+  const groups = (Array.isArray(plan?.checklist) && plan.checklist.length ? plan.checklist : RACE_CHECKLIST)
+    .map((g: { grupo: string; itens: string[] }) => ({ grupo: g.grupo, itens: g.itens.map((t) => ({ id: slug(`${g.grupo}-${t}`), texto: t })) }));
+  const check = (await getSetting<Record<string, boolean>>(env, 'race_check')) ?? {};
+  const ln = await loadOn(env, today);
+  const rec = await env.DB.prepare('SELECT rec FROM rec_daily WHERE date = ?1').bind(today).first<{ rec: number | null }>();
+  const pred = await (async () => {
+    const { runs } = await runVdots(env, addDays(today, -170), today);
+    const v = vdotOn(today, runs);
+    if (!v) return null;
+    const f = (await getSetting<Partial<Record<DistKey, number>>>(env, 'pred_factors')) ?? {};
+    return predictAll(v.vdot, f).d21;
+  })();
+  return {
+    race: { ...RACE, days: daysBetween(today, RACE.date), raceWeek: daysBetween(today, RACE.date) <= 6 && daysBetween(today, RACE.date) >= -1 },
+    today: { rec: rec?.rec == null ? null : Math.round(rec.rec), formPct: ln.formPct, zone: ln.zone },
+    halfPrediction: pred,
+    groups, check,
+    carbo: Array.isArray(plan?.carbo) ? plan.carbo : null,
+    pace: plan?.pace ?? null,
+    notas: plan?.notas ?? null,
+  };
+}
+
 // --- avisos de carga (fato, sem conselho) ---
 async function loadAlerts(env: Env, date: string) {
   const out: { kind: string; text: string }[] = [];
@@ -515,7 +551,7 @@ async function todayPayload(env: Env, date: string) {
       regularity: regularity(nights),
     },
     isToday: date === brtToday(),
-    race: { ...RACE, days: daysBetween(date, RACE.date) },
+    race: { ...RACE, days: daysBetween(date, RACE.date), raceWeek: daysBetween(date, RACE.date) <= 6 && daysBetween(date, RACE.date) >= -1 },
     // app busca sozinho ao abrir quando a noite de hoje ainda não está no banco
     needsSync: date === brtToday() && !(await hasTonight(env, date)),
     // menos de 30 noites com HRV: o REC ainda não tem base; o app aponta para "Puxar histórico"
@@ -579,6 +615,15 @@ export default {
       }
       await setSetting(env, 'pred_factors', factors);
       return json({ ok: true, factors });
+    }
+    if (url.pathname === '/api/race' && req.method === 'GET') return json(await racePayload(env, req));
+    if (url.pathname === '/api/race/check' && req.method === 'POST') {
+      const b = await req.json<{ id?: string; done?: boolean }>().catch(() => ({}) as { id?: string; done?: boolean });
+      if (!b.id || typeof b.id !== 'string' || b.id.length > 120) return json({ error: 'id_invalido' }, 400);
+      const cur = (await getSetting<Record<string, boolean>>(env, 'race_check')) ?? {};
+      if (b.done) cur[b.id] = true; else delete cur[b.id];
+      await setSetting(env, 'race_check', cur);
+      return json({ ok: true });
     }
     if (url.pathname === '/api/week' && req.method === 'GET') {
       const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, 0), 156);

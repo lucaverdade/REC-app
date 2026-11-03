@@ -1,6 +1,7 @@
 // REC — app. Sem framework.
 import { renderTrends, zoneOfPct, FORM_ZONES } from './trends.js';
 import { renderTrain } from './train.js';
+import { renderRace } from './race.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -192,6 +193,8 @@ function render(d) {
       <span class="race">${esc(raceTxt)}</span>
     </header>
 
+    ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
+
     <button class="ring-wrap" aria-expanded="false" aria-controls="contrib"
       aria-label="${d.rec == null ? 'REC sem dados' : `REC ${d.rec}`}. Toque para ver o que compõe o número.">
       ${ringSvg(d.rec)}
@@ -238,7 +241,7 @@ function render(d) {
 
     <div class="foot">
       <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
-      <a class="foot-link" href="#garmin">Garmin</a>
+      <span class="foot-links"><a class="foot-link" href="#prova">Modo prova</a><a class="foot-link" href="#garmin">Garmin</a></span>
     </div>
   `;
 
@@ -478,13 +481,14 @@ function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
     const on = t.getAttribute('href') === (h === '#garmin' ? '#hoje' : h);
-    t.classList.toggle('is-active', on);
+    t.classList.toggle('is-active', on || (h === '#prova' && t.getAttribute('href') === '#hoje'));
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
   window.scrollTo(0, 0);
   if (h === '#garmin') renderGarmin();
   else if (h === '#tendencias') renderTrends(screen, api);
   else if (h === '#treino') renderTrain(screen, api);
+  else if (h === '#prova') renderRace(screen, api);
   else load();
 }
 window.addEventListener('hashchange', route);

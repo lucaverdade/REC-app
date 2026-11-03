@@ -38,3 +38,29 @@ Para cada sessão planejada, procura no mesmo dia uma atividade do Garmin da mes
 - encontrou e durou ≥ 80% → **feito**; menos → **parcial**;
 - não encontrou e o dia já passou → **não feito**; hoje ou futuro → **previsto**.
 Atividades sem sessão correspondente aparecem como extras.
+
+
+# Modo prova: `web/plan/prova.json`
+
+Publicado pelo chat de treino quando quiser (o app mostra "ainda não publicado" enquanto não existir).
+
+```json
+{
+  "carbo": [
+    { "data": "2026-11-27", "gramas": 500, "nota": "texto curto opcional" },
+    { "data": "2026-11-28", "gramas": 550 }
+  ],
+  "pace": {
+    "natacao": "texto curto (ex.: ritmo/esforço por trecho)",
+    "bike": "texto curto (ex.: faixa de FC ou potência)",
+    "corrida": "texto curto (ex.: pace por bloco de km)",
+    "nutricao": "texto curto (ex.: g/h de carbo, sódio, quando)"
+  },
+  "notas": "Uma frase opcional.",
+  "checklist": [
+    { "grupo": "Bike", "itens": ["Item 1", "Item 2"] }
+  ]
+}
+```
+- Todos os campos são opcionais. Sem `checklist`, o app usa uma lista padrão de bike, kit e nutrição.
+- O que o Luca marca no checklist fica salvo no servidor (vale em qualquer aparelho).
