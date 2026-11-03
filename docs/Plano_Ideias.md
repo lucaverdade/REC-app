@@ -26,7 +26,13 @@ Alerta de doença no histórico (backtest 368 dias): 15 dias de alerta em ~6 epi
 | 8 | **A1 · Relatório da manhã** | Hoje, primeira abertura do dia até 12 h | Cartão único: REC + direção, noite e dívida, Forma, treino planejado com Strain previsto, a frase do dia e alertas. Toca para fechar; volta no dia seguinte. |
 | 9 | **G1 · Resumo da semana** | Hoje (domingo à noite e segunda) e Treino | Números da semana (horas, Strain × faixa, REC médio, HRV × base, sono médio, distribuição 80/20) + texto do chat de treino se existir `web/plan/resumo-<segunda>.md`. |
 
-## Fase 3 — dados segundo a segundo (FIT / detalhes da atividade)
+## Fase 3 — FEITA em 03/11 (B2, B3)
+- A Personal API não tem "detalhes da atividade" em JSON; tem o **arquivo original** (`/download-service/files/activity/{id}`, ZIP com o .fit), como no cliente oficial em Python.
+- O Worker gratuito tem pouco tempo de CPU, então o servidor só **repassa** o arquivo; o **navegador lê o FIT** (SDK oficial da Garmin + fflate, via jsDelivr, carregados só quando há arquivo) e devolve só o resultado (`activity_fit`).
+- Sozinho: ao abrir a aba Hoje, lê até 3 treinos pendentes em segundo plano. Em lote: Garmin → Processar todos (bike e corrida ≥ 30 min, últimos 6 meses).
+- Telas: Tendências → Base aeróbica (desacoplamento por treino longo e leve, com linha de 5%; eficiência por grupo comparável: rua × rolo × esteira); Treino → Detalhes do treino mostra o desacoplamento.
+
+## Fase 3 — plano original (FIT / detalhes da atividade)
 | # | Ideia | Como |
 |---|---|---|
 | 10 | **Teste da API** | Rota de diagnóstico que tenta os caminhos de detalhe de atividade da Garmin Personal API (detalhes com séries de FC/ritmo/velocidade, voltas/splits, download do FIT) e devolve só o código de resposta e os nomes dos campos — nada de chave nem dados pessoais. O Luca abre a tela Garmin → "Testar detalhes". |

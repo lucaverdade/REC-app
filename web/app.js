@@ -3,6 +3,7 @@ import { renderTrends, zoneOfPct, FORM_ZONES } from './trends.js';
 import { renderTrain } from './train.js';
 import { renderRace } from './race.js';
 import { reviewHtml } from './review.js';
+import { processPending } from './fitwork.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -22,6 +23,7 @@ async function api(path, opts = {}) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `HTTP ${res.status}`);
   }
+  if (opts.raw) return res;
   return res.json();
 }
 
@@ -493,6 +495,13 @@ function render(d) {
     } catch { saved.textContent = 'Não salvou. Tente de novo.'; }
   });
 
+  // arquivos FIT novos: lê até 3 em segundo plano, uma vez por abertura
+  if (d.isToday && !window.__fitBg) {
+    window.__fitBg = true;
+    const go = () => processPending(api, { max: 3 }).catch(() => {});
+    'requestIdleCallback' in window ? requestIdleCallback(go, { timeout: 5000 }) : setTimeout(go, 3000);
+  }
+
   // relatório da manhã: fechar até amanhã
   screen.querySelector('.mr-close')?.addEventListener('click', () => { ls.set('rec.morning', todayIso); screen.querySelector('.morning')?.remove(); });
 
@@ -631,6 +640,14 @@ async function renderGarmin() {
     </section>
 
     <section class="block">
+      <h2>Arquivos dos treinos (FIT)</h2>
+      <p class="note">Baixa o arquivo segundo a segundo de cada pedal e corrida (≥ 30 min, últimos 6 meses) e calcula desacoplamento e eficiência. O app faz isso sozinho, aos poucos, ao abrir; aqui dá para testar ou processar tudo de uma vez.</p>
+      <button class="btn ghost" id="fit1" ${st.hasKey ? '' : 'disabled'}>Testar com o treino mais recente</button>
+      <button class="btn ghost" id="fitall" ${st.hasKey ? '' : 'disabled'}>Processar todos</button>
+      <p class="progress" id="fit-out" aria-live="polite"></p>
+    </section>
+
+    <section class="block">
       <h2>Zonas de FC do Garmin</h2>
       <p class="note">FC máxima, de repouso e limiar configurados no seu Garmin. São a base do cálculo de carga padrão do mercado (hrTSS).</p>
       <button class="btn ghost" id="zones" ${st.hasKey ? '' : 'disabled'}>Ver zonas</button>
@@ -641,6 +658,31 @@ async function renderGarmin() {
       <h2>Últimas sincronizações</h2>
       ${st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>'}
     </section>`;
+
+  // FIT: teste com 1 treino e processamento em lote
+  const fitOut = screen.querySelector('#fit-out');
+  const fitLine = ({ item, result, error }) => error ? `${item.date}: erro (${error})`
+    : `${item.date} ${item.sport === 'bike' ? 'bike' : 'corrida'} ${Math.round(item.min)} min: ${result.basis ? `eficiência por ${result.basis === 'power' ? 'potência' : 'velocidade'}` : 'sem velocidade/potência'}${result.decoupling != null ? `, desacoplamento ${String(result.decoupling).replace('.', ',')}%` : ''}`;
+  screen.querySelector('#fit1').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget; btn.disabled = true; fitOut.textContent = 'Baixando e lendo o arquivo…';
+    try {
+      const r = await processPending(api, { max: 1, onEach: (x) => { fitOut.textContent = fitLine(x); } });
+      if (!r.done && !fitOut.textContent.includes('erro')) fitOut.textContent = r.left === 0 ? 'Nada pendente: todos os treinos já foram lidos.' : fitOut.textContent;
+    } catch (e) { fitOut.textContent = `Falhou: ${e.message}`; }
+    btn.disabled = false;
+  });
+  screen.querySelector('#fitall').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget; btn.disabled = true;
+    let total = 0;
+    try {
+      for (;;) {
+        const r = await processPending(api, { max: 5, onEach: (x) => { total++; fitOut.textContent = `${total} lidos. ${fitLine(x)}`; } });
+        if (r.busy) { await new Promise((ok) => setTimeout(ok, 2000)); continue; }
+        if (!r.done || r.left <= 0) { fitOut.textContent = `${total} treinos processados.${r.left > 0 ? ` Faltam ${r.left}; a Garmin limitou, tenta de novo em alguns minutos.` : ' Pronto.'}`; break; }
+      }
+    } catch (e) { fitOut.textContent = `Parou: ${e.message}`; }
+    btn.disabled = false;
+  });
 
   screen.querySelector('#hist').addEventListener('click', async (ev) => {
     const btn = ev.currentTarget, out = screen.querySelector('#hist-out');

@@ -28,7 +28,8 @@ function zoneBar(z) {
 function sessionCard({ sport, title, sub, status, key, planned, done, detail, ex }) {
   const pct = planned && done != null ? Math.round((done / planned) * 100) : null;
   const cls = pct == null ? '' : pct >= 80 && pct <= 120 ? 'ok' : pct < 80 ? 'low' : 'high';
-  const facts = ex ? [ex.km >= 0.5 ? `${nf(ex.km, 1)} km` : null, ex.avghr ? `FC média ${Math.round(ex.avghr)}` : null, ex.rpe != null ? `RPE ${nf(ex.rpe)}` : null].filter(Boolean) : [];
+  const facts = ex ? [ex.km >= 0.5 ? `${nf(ex.km, 1)} km` : null, ex.avghr ? `FC média ${Math.round(ex.avghr)}` : null, ex.rpe != null ? `RPE ${nf(ex.rpe)}` : null,
+    ex.decoupling != null && (ex.min ?? 0) >= 60 ? `desacoplamento ${nf(ex.decoupling, 1)}%` : null].filter(Boolean) : [];
   return `<li class="ss s-${esc(sport)}-bar">
     <div class="ss-top">
       <div class="ss-name"><b>${esc(title)}</b>${key ? '<span class="key">chave</span>' : ''}<span class="ss-sub">${sub}</span></div>

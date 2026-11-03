@@ -3,6 +3,8 @@
 // Os formatos seguem os nomes usados pelo Garmin Connect; a conferência real é a tela de diagnóstico.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { zipSync } from 'fflate';
+import { makeFit } from './fitgen.ts';
 
 function csv(path: string) {
   const [h, ...ls] = readFileSync(path, 'utf8').trim().split(/\r?\n/);
@@ -32,6 +34,12 @@ createServer((req, res) => {
   if (!req.headers.authorization?.startsWith('Bearer h.')) return send(401, { error: 'token' });
 
   let m;
+  if ((m = u.pathname.match(/^\/download-service\/files\/activity\/(\d+)$/))) {
+    // arquivo sintético: duração e desvio variam com o id
+    const id = Number(m[1]), mins = 60 + (id % 60), drift = ((id % 9) + 1) / 100;
+    const zip = zipSync({ [`${id}_ACTIVITY.fit`]: makeFit(mins, drift) });
+    res.writeHead(200, { 'content-type': 'application/zip' }); return res.end(Buffer.from(zip));
+  }
   if ((m = u.pathname.match(/^\/hrv-service\/hrv\/daily\/(.+)\/(.+)$/)))
     return send(200, { hrvSummaries: range(m[1], m[2]).filter((d) => num(daily.get(d)?.hrv)).map((d) => ({ calendarDate: d, lastNightAvg: num(daily.get(d)!.hrv), weeklyAvg: 100, status: 'BALANCED' })) });
   if ((m = u.pathname.match(/^\/usersummary-service\/stats\/stress\/daily\/(.+)\/(.+)$/)))

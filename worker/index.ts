@@ -1,4 +1,5 @@
 // REC — Worker: API + rotina da manhã. Os arquivos do app (web/) são servidos como assets estáticos.
+import { fetchActivityFile } from './garmin.ts';
 import { computeRec, type Contributor, type DailyInput } from '../src/rec.ts';
 import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
@@ -387,8 +388,9 @@ async function weekPayload(env: Env, req: Request, offset: number) {
   const today = brtToday();
   const monday = addDays(mondayOf(today), -7 * offset), sunday = addDays(monday, 6);
   const { results: acts } = await env.DB.prepare(
-    `SELECT id, date, time, sport, min, km, avghr, maxhr, rpe, z1, z2, z3, z4, z5, ${STRAIN_SQL} strain
-     FROM activities WHERE date BETWEEN ?1 AND ?2 ORDER BY date, time`,
+    `SELECT a.id, a.date, a.time, a.sport, a.min, a.km, a.avghr, a.maxhr, a.rpe, a.z1, a.z2, a.z3, a.z4, a.z5, ${STRAIN_SQL.replace(/\b(min|z[1-5])\b/g, 'a.$1')} strain,
+       f.decoupling, f.ef, f.basis
+     FROM activities a LEFT JOIN activity_fit f ON f.id = a.id AND f.status = 'ok' WHERE a.date BETWEEN ?1 AND ?2 ORDER BY a.date, a.time`,
   ).bind(monday, sunday).all<Record<string, any>>();
   const { results: recs } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2')
     .bind(monday, addDays(sunday, 1)).all<{ date: string; rec: number | null }>();
@@ -410,6 +412,7 @@ async function weekPayload(env: Env, req: Request, offset: number) {
       return {
         id: a.id, time: a.time, sport: a.sport as Sport, label: SPORT_LABEL[a.sport as Sport], min: a.min, km: a.km, avghr: a.avghr, maxhr: a.maxhr,
         rpe: a.rpe, strain: a.strain == null ? null : Math.round(a.strain),
+        decoupling: a.decoupling ?? null, ef: a.ef ?? null, efBasis: a.basis ?? null,
         zones: hasZ ? [Math.max(0, (a.min ?? 0) - inZ), ...z].map((m) => Math.round(m)) : null,
         matched: false,
       };
@@ -792,6 +795,44 @@ async function weatherPayload(env: Env) {
   return { mode, days, rows, years: years ?? null, cached: false, availableFrom: addDays(RACE.date, -15) };
 }
 
+// --- base aeróbica (B2/B3): o servidor lista e repassa os arquivos; o navegador lê o FIT e devolve o resultado ---
+const FIT_SPORTS = "('bike','corrida')";
+const easyShare = (a: { min: number | null; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null }) => {
+  const z = [a.z1, a.z2, a.z3, a.z4, a.z5].map((v) => v ?? 0), inZ = z.reduce((x, y) => x + y, 0), m = a.min ?? 0;
+  return m ? (Math.max(0, m - inZ) + z[0] + z[1]) / m : 0;
+};
+const isIndoor = (type: string) => /indoor|virtual|treadmill|trainer/i.test(type);
+
+async function fitPending(env: Env, n: number) {
+  const { results } = await env.DB.prepare(
+    `SELECT id, date, type, sport, min FROM activities
+     WHERE sport IN ${FIT_SPORTS} AND min >= 30 AND date >= ?1 AND id NOT GLOB '*[^0-9]*'
+       AND id NOT IN (SELECT id FROM activity_fit) ORDER BY date DESC, time DESC LIMIT ?2`,
+  ).bind(addDays(brtToday(), -180), n).all<{ id: string; date: string; type: string; sport: Sport; min: number }>();
+  const left = await env.DB.prepare(
+    `SELECT COUNT(*) n FROM activities WHERE sport IN ${FIT_SPORTS} AND min >= 30 AND date >= ?1 AND id NOT GLOB '*[^0-9]*' AND id NOT IN (SELECT id FROM activity_fit)`,
+  ).bind(addDays(brtToday(), -180)).first<{ n: number }>();
+  return { pending: results, left: left?.n ?? 0 };
+}
+
+async function aerobicPayload(env: Env) {
+  const { results } = await env.DB.prepare(
+    `SELECT a.id, a.date, a.type, a.sport, a.min, a.z1, a.z2, a.z3, a.z4, a.z5, f.basis, f.ef, f.decoupling, f.hr
+     FROM activity_fit f JOIN activities a ON a.id = f.id WHERE f.status = 'ok' AND a.date >= ?1 ORDER BY a.date`,
+  ).bind(addDays(brtToday(), -365)).all<Record<string, any>>();
+  const rows = results.map((r) => ({
+    id: r.id, date: r.date, sport: r.sport as Sport, label: SPORT_LABEL[r.sport as Sport], min: Math.round(r.min ?? 0), indoor: isIndoor(r.type ?? ''),
+    easy: Math.round(easyShare(r as any) * 100), basis: r.basis, ef: r.ef, decoupling: r.decoupling, hr: r.hr,
+  }));
+  return {
+    // B2: treinos longos e leves (≥ 60 min, ≥ 70% até a Z2)
+    decoupling: rows.filter((r) => r.min >= 60 && r.easy >= 70 && r.decoupling != null),
+    // B3: eficiência em sessões leves comparáveis, separadas por modalidade e rolo/rua
+    ef: rows.filter((r) => r.easy >= 70 && r.ef != null),
+    done: rows.length,
+  };
+}
+
 // --- tendência do HRV (A2) ---
 async function hrvTrendOn(env: Env, date: string) {
   const from = addDays(date, -140);
@@ -916,6 +957,28 @@ export default {
     }
     if (url.pathname === '/api/habits' && req.method === 'GET') return json(await habitsPayload(env));
     if (url.pathname === '/api/weather' && req.method === 'GET') return json(await weatherPayload(env));
+    if (url.pathname === '/api/fit/pending' && req.method === 'GET') return json(await fitPending(env, Math.min(50, Number(url.searchParams.get('n')) || 3)));
+    if (url.pathname === '/api/fit/file' && req.method === 'GET') {
+      const id = url.searchParams.get('id') ?? '';
+      try {
+        const bytes = await fetchActivityFile(env, id);
+        return new Response(bytes, { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'no-store' } });
+      } catch (e) {
+        const st = e instanceof GarminError ? e.status : 500;
+        if (st === 404) await env.DB.prepare("INSERT OR REPLACE INTO activity_fit (id, status) VALUES (?1, 'sem_arquivo')").bind(id).run();
+        return json({ error: garminMsg(e), status: st }, st === 429 ? 429 : 502);
+      }
+    }
+    if (url.pathname === '/api/fit/result' && req.method === 'POST') {
+      const b = await req.json<any>().catch(() => ({}));
+      if (!/^\d+$/.test(String(b.id ?? ''))) return json({ error: 'id_invalido' }, 400);
+      const st = ['ok', 'sem_dados', 'erro'].includes(b.status) ? b.status : 'erro';
+      const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+      await env.DB.prepare(`INSERT OR REPLACE INTO activity_fit (id, status, basis, minutes, ef, ef1, ef2, decoupling, hr) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`)
+        .bind(String(b.id), st, b.basis === 'power' || b.basis === 'speed' ? b.basis : null, num(b.minutes), num(b.ef), num(b.ef1), num(b.ef2), num(b.decoupling), num(b.hr)).run();
+      return json({ ok: true });
+    }
+    if (url.pathname === '/api/aerobic' && req.method === 'GET') return json(await aerobicPayload(env));
     if (url.pathname === '/api/hrvtrend' && req.method === 'GET') return json(await hrvTrendOn(env, brtToday()));
     if (url.pathname === '/api/review' && req.method === 'GET') {
       const m = url.searchParams.get('monday');

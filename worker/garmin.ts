@@ -232,6 +232,17 @@ export async function fetchActivities(env: GarminEnv, from: string, to: string):
 
 export const hasKey = (env: GarminEnv) => !!env.GARMIN_API_KEY;
 
+/** Arquivo original da atividade (ZIP com o .fit). */
+export async function fetchActivityFile(env: GarminEnv, id: string): Promise<Uint8Array> {
+  if (!/^\d+$/.test(id)) throw new GarminError(400, 'id_invalido');
+  const call = async () => fetch((env.GARMIN_BASE_URL ?? BASE) + `/download-service/files/activity/${id}`,
+    { headers: { Accept: 'application/zip, application/x-zip-compressed, application/octet-stream', Authorization: `Bearer ${await token(env)}` } });
+  let r = await call();
+  if (r.status === 401) { cached = null; r = await call(); }
+  if (!r.ok) throw new GarminError(r.status, '/download-service/files');
+  return new Uint8Array(await r.arrayBuffer());
+}
+
 /** Zonas de FC configuradas no Garmin (FC máx., repouso, limiar). Formato ainda não confirmado: devolvido bruto. */
 export async function fetchHrZones(env: GarminEnv): Promise<unknown> {
   return get(env, '/biometric-service/heartRateZones/v2');
