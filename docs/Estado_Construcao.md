@@ -37,3 +37,12 @@ Lista completa e viva em `ToDo.md`. Próximo passo: hrTSS com as zonas do Garmin
 4. Aba Nutrição (registro em dois toques).
 5. Strava: descrições dos treinos.
 6. Avisos de carga (razão fora de 0,8–1,4; corrida +15% na semana).
+
+## Tendências (03/11, repaginada)
+Cada bloco responde uma pergunta, com uma frase no topo que lê o gráfico:
+1. **Strain semanal** (faixa 0,8–1,3 × média de 3 semanas; toque mostra os treinos da semana).
+2. **Estou evoluindo?** Um gráfico: Fitness (área azul) + Fadiga (linha rosa) + faixa colorida da Forma por dia. Janela 2/3/6 meses/1 ano.
+3. **Previsões de prova** com linha de melhora/piora.
+4. **Como treinei?** Período de calendário (semana…1 ano, com navegação): horas por modalidade, sessões, Strain e tempo em zonas numa barra única.
+5. **Meu corpo está recuperando?** Cartões REC, HRV, FC de repouso e sono com média de 7 dias, frase contra a base e mini-gráfico com a faixa normal (60 dias anteriores); toque amplia.
+Saíram: calendário de Strain por dia, gráficos separados de Forma e os gráficos de recuperação por período curto.

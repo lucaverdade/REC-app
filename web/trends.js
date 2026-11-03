@@ -1,5 +1,5 @@
 // Aba Tendências: períodos de calendário (semana seg–dom, mês, 3 e 6 meses, 1 ano) com navegação.
-import { barChart, fmtDay, lineChart, nf } from './charts.js';
+import { fmtDay, lineChart, nf } from './charts.js';
 
 const UNITS = [['semana', 'Semana'], ['mes', 'Mês'], ['3m', '3 meses'], ['6m', '6 meses'], ['ano', '1 ano']];
 const SPORTS = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
@@ -13,29 +13,18 @@ export const FORM_ZONES = [
 ];
 export const zoneOfPct = (p) => (p == null ? null : FORM_ZONES.find((z) => p < z.max));
 
-let unit = 'semana', offset = 0;
+let unit = 'semana', offset = 0; // período de 'Como treinei?'
 try { unit = localStorage.getItem('rec.unit') || 'semana'; if (!UNITS.some(([u]) => u === unit)) unit = 'semana'; } catch {}
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const signed = (v, d = 0) => (v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v), d));
 const zoneVar = (r) => (r == null ? null : r <= 33 ? 'var(--rec-red)' : r <= 66 ? 'var(--rec-yellow)' : 'var(--rec-green)');
 const hm = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
-const strainLevel = (v) => (!v ? 0 : v < 50 ? 1 : v < 100 ? 2 : v < 200 ? 3 : v < 300 ? 4 : 5);
 const legend = (keys) => `<div class="legend">${keys.map((k) => `<span><i class="dot s-${k}"></i>${SPORT_LABEL[k]}</span>`).join('')}</div>`;
 const row = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
 
+const ZSHORT = ['Abaixo Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 const ZONE_NAMES = ['Abaixo da Z1', 'Z1 Aquecimento', 'Z2 Leve', 'Z3 Aeróbico', 'Z4 Limiar', 'Z5 Máximo'];
-function zonesHtml(zones) {
-  const tot = zones.reduce((a, z) => a + (z.hours ?? 0), 0);
-  if (!tot) return '<p class="empty">Sem tempo em zonas neste período.</p>';
-  const max = Math.max(...zones.map((z) => z.hours ?? 0));
-  return `<ul class="zones">${zones.map((z) => `
-    <li><span class="zn">${ZONE_NAMES[z.zone]}</span>
-      <span class="zb"><i class="zc-${z.zone}" style="width:${((z.hours ?? 0) / max) * 100}%"></i></span>
-      <span class="zh">${hm(z.hours)}</span><span class="zp">${Math.round(((z.hours ?? 0) / tot) * 100)}%</span></li>`).join('')}</ul>
-    <p class="note">Bike, corrida, natação e Hyrox (academia fora). Zonas configuradas no seu Garmin.</p>`;
-}
-
 function periodTitle(d) {
   const o = { day: 'numeric', month: 'short' };
   const a = new Date(d.start + 'T12:00:00'), b = new Date(d.end + 'T12:00:00');
@@ -50,176 +39,212 @@ export async function renderTrends(screen, api) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   screen.innerHTML = `
     <header class="top"><h1>Tendências</h1></header>
-    <div class="seg" role="tablist" aria-label="Período">
-      ${UNITS.map(([u, l]) => `<button role="tab" data-u="${u}" aria-selected="${u === unit}">${l}</button>`).join('')}
+    <section class="block" id="sw"></section>
+    <section class="block" id="evo"></section>
+    <section class="block" id="pred"></section>
+    <section class="block" id="vol"></section>
+    <section class="block" id="recov"></section>`;
+  const box = screen;
+  strainWeeks(box, api);
+  evolve(box, api);
+  predictions(box, api);
+  volume(box, api);
+  recovery(box, api);
+}
+
+// ---------- janelas longas (Estou evoluindo? / Recuperação) ----------
+const WINS = [[56, '2 meses'], [91, '3 meses'], [182, '6 meses'], [365, '1 ano']];
+let evoWin = 56, recWin = 56;
+const winSeg = (cur, attr) => `<div class="seg seg-sm" role="tablist">${WINS.map(([d, l]) => `<button role="tab" data-${attr}="${d}" aria-selected="${d === cur}">${l}</button>`).join('')}</div>`;
+const ltCache = new Map();
+async function longtrend(api, days) {
+  if (!ltCache.has(days)) ltCache.set(days, api(`/api/longtrend?days=${days}`));
+  try { return await ltCache.get(days); } catch (e) { ltCache.delete(days); throw e; }
+}
+
+/** Gráfico de linha com faixa (lo/hi), base tracejada, área e marcadores; toque mostra o dia. */
+function bandLine(wrap, o) {
+  const W = 340, H = o.height ?? 120, n = o.dates.length;
+  const all = [...o.values, ...(o.lo ?? []), ...(o.hi ?? []), ...(o.extra ?? []).flatMap((e) => e.values)].filter((v) => v != null);
+  if (!all.length) { wrap.innerHTML = '<p class="empty">Sem dados no período.</p>'; return; }
+  let lo = o.min ?? Math.min(...all), hi = o.max ?? Math.max(...all);
+  const pad = (hi - lo) * 0.08 || 1; if (o.min == null) lo -= pad; if (o.max == null) hi += pad;
+  const x = (i) => (n === 1 ? W / 2 : (i / (n - 1)) * (W - 30));
+  const y = (v) => H - ((v - lo) / (hi - lo)) * H;
+  const path = (vals) => { let d = '', pen = false; vals.forEach((v, i) => { if (v == null) { pen = false; return; } d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; }); return d; };
+  let svg = '';
+  // faixa normal
+  if (o.lo && o.hi) {
+    const seg = []; let run = [];
+    o.lo.forEach((v, i) => { if (v == null || o.hi[i] == null) { if (run.length) seg.push(run); run = []; } else run.push(i); });
+    if (run.length) seg.push(run);
+    for (const r of seg) {
+      const top = r.map((i) => `${x(i).toFixed(1)},${y(o.hi[i]).toFixed(1)}`).join(' ');
+      const bot = r.slice().reverse().map((i) => `${x(i).toFixed(1)},${y(o.lo[i]).toFixed(1)}`).join(' ');
+      svg += `<polygon points="${top} ${bot}" class="bl-band" style="fill:${o.color}"/>`;
+    }
+  }
+  for (const b of o.hbands ?? []) svg += `<rect x="0" width="${W - 30}" y="${y(Math.min(b[1], hi))}" height="${Math.max(0, y(Math.max(b[0], lo)) - y(Math.min(b[1], hi)))}" class="bl-band" style="fill:${b[2] ?? o.color}"/>`;
+  if (o.ref != null) svg += `<line x1="0" x2="${W - 30}" y1="${y(o.ref)}" y2="${y(o.ref)}" class="bl-ref"/><text x="${W}" y="${y(o.ref) + 3}" class="ax" text-anchor="end">${o.refLabel ?? ''}</text>`;
+  if (o.base) svg += `<path d="${path(o.base)}" class="bl-base"/>`;
+  if (o.bars) {
+    const bw = Math.max(1.5, (W - 30) / n - 1.5);
+    o.values.forEach((v, i) => { if (v != null) svg += `<rect x="${x(i) - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(0.5, H - y(v))}" rx="1" style="fill:${o.barColor ? o.barColor(v) : o.color}"/>`; });
+  } else {
+    if (o.area) svg += `<path d="${path(o.values)} L${x(n - 1)},${H} L0,${H} Z" style="fill:${o.color};opacity:.12"/>`;
+    svg += `<path d="${path(o.values)}" class="bl-line" style="stroke:${o.color}"/>`;
+  }
+  for (const e of o.extra ?? []) svg += `<path d="${path(e.values)}" class="bl-line" style="stroke:${e.color};stroke-width:${e.width ?? 1.6}"/>`;
+  if (o.dots) o.values.forEach((v, i) => { if (v != null) { const c = o.dots(v, i); if (c) svg += `<circle cx="${x(i)}" cy="${y(v)}" r="${n > 120 ? 1.6 : 2.6}" style="fill:${c}"/>`; } });
+  // faixa de cores embaixo (ex.: zona da Forma por dia)
+  let strip = '';
+  if (o.strip) {
+    const sw = (W - 30) / n;
+    strip = o.strip.map((c, i) => (c ? `<rect x="${x(i) - sw / 2}" y="${H + 8}" width="${sw + 0.3}" height="8" style="fill:${c}"/>` : '')).join('');
+  }
+  const niceT = (v) => { const st = hi - lo > 60 ? 20 : hi - lo > 20 ? 10 : hi - lo > 6 ? 2 : 1; return Math.round(v / st) * st; };
+  const yTicks = o.yTicks ?? [niceT(lo + (hi - lo) * 0.2), niceT(lo + (hi - lo) * 0.8)];
+  const yt = o.axes === false ? '' : yTicks.map((v) => `<text x="${W}" y="${y(v) + 3}" class="ax" text-anchor="end">${o.yFmt ? o.yFmt(v) : nf(v)}</text>`).join('');
+  const xi = o.axes === false ? [] : [0, Math.round((n - 1) / 2), n - 1];
+  const xt = xi.map((i, k) => `<text x="${x(i)}" y="${H + (o.strip ? 30 : 14)}" class="ax" text-anchor="${k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}">${fmtDay(o.dates[i])}</text>`).join('');
+  const totalH = H + (o.strip ? 18 : 0) + (o.axes === false ? 2 : 18);
+  wrap.innerHTML = `<svg viewBox="0 -4 ${W} ${totalH + 4}" class="chart bl" role="img" aria-label="${esc(o.label ?? '')}">${svg}${strip}${yt}${xt}
+    <line class="bl-rule" y1="-4" y2="${H}" visibility="hidden"/><rect class="bl-hit" x="0" y="-4" width="${W}" height="${totalH}" fill="transparent"/></svg>
+    ${o.tip ? '<div class="tip" hidden></div>' : ''}`;
+  if (!o.tip) return;
+  const el = wrap.querySelector('svg'), rule = el.querySelector('.bl-rule'), tip = wrap.querySelector('.tip'), hit = el.querySelector('.bl-hit');
+  const show = (ev) => {
+    const b = el.getBoundingClientRect(); const px = ((ev.clientX - b.left) / b.width) * W;
+    const i = Math.max(0, Math.min(n - 1, Math.round((px / (W - 30)) * (n - 1))));
+    rule.setAttribute('x1', x(i)); rule.setAttribute('x2', x(i)); rule.setAttribute('visibility', 'visible');
+    tip.innerHTML = `<p>${fmtDay(o.dates[i])}</p>${o.tip(i)}`; tip.hidden = false;
+    const left = (x(i) / W) * b.width; tip.style.left = `${Math.min(Math.max(left - tip.offsetWidth / 2, 0), b.width - tip.offsetWidth)}px`;
+  };
+  hit.addEventListener('pointerdown', show); hit.addEventListener('pointermove', show);
+  hit.addEventListener('pointerleave', () => { rule.setAttribute('visibility', 'hidden'); tip.hidden = true; });
+  hit.style.touchAction = 'pan-y';
+}
+
+// ---------- Estou evoluindo? ----------
+async function evolve(box, api) {
+  const sec = box.querySelector('#evo'); if (!sec) return;
+  let t;
+  try { t = await longtrend(api, evoWin); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const sm = t.summary, z = zoneOfPct(sm.formPct);
+  const fitTxt = sm.fitness4wPct == null ? '' : sm.fitness4wPct === 0 ? 'Fitness estável nas últimas 4 semanas.' : `Fitness ${sm.fitness4wPct > 0 ? 'subiu' : 'caiu'} ${Math.abs(sm.fitness4wPct)}% em 4 semanas.`;
+  const fatTxt = sm.fatigueAboveDays > 0 ? `Fadiga acima do Fitness há ${sm.fatigueAboveDays} ${sm.fatigueAboveDays === 1 ? 'dia' : 'dias'}.` : 'Fadiga abaixo do Fitness: o cansaço está saindo.';
+  sec.innerHTML = `
+    <h2>Estou evoluindo?</h2>
+    <p class="headline">${fitTxt} ${fatTxt}${z ? ` Forma hoje: <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>.` : ''}</p>
+    <div class="evo-nums">
+      <span><i class="dot" style="background:var(--fitness)"></i>Fitness <b class="c-fit">${nf(sm.fitness)}</b></span>
+      <span><i class="dot" style="background:var(--fatigue)"></i>Fadiga <b class="c-fat">${nf(sm.fatigue)}</b></span>
     </div>
+    <div class="chart-wrap" id="ch-evo"></div>
+    <div class="legend form-legend">${FORM_ZONES.map((f) => `<span><i class="dot" style="background:var(--z-${f.key})"></i>${f.label}</span>`).join('')}</div>
+    ${winSeg(evoWin, 'ew')}
+    <details class="explain">
+      <summary>Como ler</summary>
+      <p><b>Fitness</b> (área azul): quanto treino seu corpo está acostumado a fazer, a média do seu Strain nas últimas 6 semanas. Subindo devagar = você está aumentando a carga de forma sustentável.</p>
+      <p><b>Fadiga</b> (linha rosa): a mesma conta para a última semana. Quando fica acima do Fitness, você está treinando mais que o seu normal.</p>
+      <p><b>Faixa colorida</b> embaixo: a Forma de cada dia, (Fitness − Fadiga) ÷ Fitness. Âmbar é bloco de treino, cinza equilibrado, azul descansado; rosa é cansaço demais. Antes de uma prova, o objetivo é terminar no azul.</p>
+      <p><b>Strain</b>: minutos em cada zona de FC × peso da zona (Z1 vale 1, Z5 vale 5). Método do TrainingPeaks e do Strava; compare você com você mesmo.</p>
+    </details>`;
+  const days = t.days;
+  bandLine(sec.querySelector('#ch-evo'), {
+    dates: days.map((x) => x.date), values: days.map((x) => x.fitness), color: 'var(--fitness)', area: true, height: 130, label: 'Fitness e fadiga',
+    extra: [{ values: days.map((x) => x.fatigue), color: 'var(--fatigue)' }],
+    strip: days.map((x) => (x.formPct == null ? null : `var(--z-${zoneOfPct(x.formPct).key})`)),
+    tip: (i) => row('Fitness', nf(days[i].fitness)) + row('Fadiga', nf(days[i].fatigue)) + row('Forma', days[i].formPct == null ? '–' : `${signed(days[i].formPct)}%`),
+  });
+  sec.querySelectorAll('[data-ew]').forEach((b) => b.addEventListener('click', () => { evoWin = Number(b.dataset.ew); evolve(box, api); }));
+}
+
+// ---------- Como treinei? (período de calendário) ----------
+async function volume(box, api) {
+  const sec = box.querySelector('#vol'); if (!sec) return;
+  let d;
+  try { d = await api(`/api/trends?unit=${unit}&offset=${offset}`); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const multi = d.weeks > 1.01;
+  const zt = d.zones.reduce((a, z) => a + (z.hours ?? 0), 0);
+  const easy = zt ? Math.round(((d.zones[0].hours + d.zones[1].hours + d.zones[2].hours) / zt) * 100) : null;
+  const perWeek = d.total.hours / d.weeks;
+  sec.innerHTML = `
+    <h2>Como treinei?</h2>
+    <div class="seg seg-sm" role="tablist">${UNITS.map(([u, l]) => `<button role="tab" data-u="${u}" aria-selected="${u === unit}">${l}</button>`).join('')}</div>
     <div class="vol-nav">
       <button type="button" data-step="1" aria-label="Período anterior">‹</button>
-      <span id="tr-title"></span>
-      <button type="button" data-step="-1" aria-label="Próximo período">›</button>
+      <span>${esc(periodTitle(d))}</span>
+      <button type="button" data-step="-1" aria-label="Próximo período" ${offset === 0 ? 'disabled' : ''}>›</button>
     </div>
-    <div id="tr-body"><p class="empty">Carregando…</p></div>`;
-  const seg = screen.querySelector('.seg');
-  seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-    unit = b.dataset.u; offset = 0;
-    try { localStorage.setItem('rec.unit', unit); } catch {}
-    seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-    body(screen, api);
+    <p class="headline">${d.totals.length ? `${multi ? `${hm(perWeek)} por semana` : `${hm(d.total.hours)} ${unit === 'semana' ? 'na semana' : 'até agora'}`}, ${nf(d.total.sessions)} sessões${easy != null ? `. ${easy}% do tempo leve (até Z2)` : ''}.` : 'Sem treinos neste período.'}</p>
+    ${d.totals.length ? `<ul class="acts sports">
+      <li class="head"><span>Modalidade</span><span>Horas</span><span>${multi ? '/semana' : 'Sessões'}</span><span>Strain</span></li>
+      ${d.totals.map((t) => `<li><span><i class="dot s-${t.sport}"></i>${esc(t.label)}</span><span>${hm(t.hours)}</span><span>${multi ? hm(t.perWeek) : t.sessions}</span><span>${nf(t.strain)}</span></li>`).join('')}
+      <li class="total"><span>Total</span><span>${hm(d.total.hours)}</span><span>${multi ? hm(perWeek) : d.total.sessions}</span><span>${nf(d.total.strain)}</span></li>
+    </ul>` : ''}
+    ${zt ? `<h3 class="sub">Tempo em zonas</h3>
+      <div class="zstack">${d.zones.map((z) => (z.hours ? `<i class="zc-${z.zone}" style="flex:${z.hours}"></i>` : '')).join('')}</div>
+      <ul class="zlist">${d.zones.filter((z) => z.hours > 0).map((z) => `<li><i class="zc-${z.zone}"></i><span>${ZSHORT[z.zone]}</span><b>${hm(z.hours)}</b><em>${Math.round(((z.hours ?? 0) / zt) * 100)}%</em></li>`).join('')}</ul>
+      <p class="note">Bike, corrida, natação e Hyrox (academia fora). Zonas do seu Garmin.</p>` : ''}`;
+  sec.querySelectorAll('[data-u]').forEach((b) => b.addEventListener('click', () => {
+    unit = b.dataset.u; offset = 0; try { localStorage.setItem('rec.unit', unit); } catch {} volume(box, api);
   }));
-  screen.querySelectorAll('.vol-nav button').forEach((b) => b.addEventListener('click', () => {
-    offset = Math.max(0, offset + Number(b.dataset.step)); body(screen, api);
-  }));
-  await body(screen, api);
+  sec.querySelectorAll('.vol-nav button').forEach((b) => b.addEventListener('click', () => { offset = Math.max(0, offset + Number(b.dataset.step)); volume(box, api); }));
 }
 
-async function body(screen, api) {
-  const box = screen.querySelector('#tr-body');
-  screen.querySelector('.vol-nav [data-step="-1"]').disabled = offset === 0;
-  let d;
-  try { d = await api(`/api/trends?unit=${unit}&offset=${offset}`); }
-  catch (e) { if (e.message !== '401') box.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
-  screen.querySelector('#tr-title').textContent = periodTitle(d);
-
-  const s = d.series, dates = s.map((x) => x.date), now = d.now, dl = now.delta;
-  const zone = zoneOfPct(now.formPct);
-  const lastLabel = d.last === d.end ? fmtDay(d.end) : 'hoje';
-  const multi = d.weeks > 1.01;
-  const head = (i) => `<p>${fmtDay(dates[i])}</p>`;
-
-  box.innerHTML = `
-    <section class="block">
-      <div class="trio">
-        <div><span class="big c-fit">${nf(now.fitness)}</span><span class="lab">Fitness</span><span class="delta">${dl ? signed(dl.fitness) : ''}</span></div>
-        <div><span class="big c-fat">${nf(now.fatigue)}</span><span class="lab">Fadiga</span><span class="delta">${dl ? signed(dl.fatigue) : ''}</span></div>
-        <div><span class="big z-${zone?.key ?? 'neutro'}">${signed(now.formPct)}%</span><span class="lab">Forma</span><span class="delta">${dl?.formPct != null ? `${signed(dl.formPct)} pts` : ''}</span></div>
-      </div>
-      <p class="note">${zone ? `<b class="z-${zone.key}">${zone.label}</b> ${lastLabel === 'hoje' ? 'hoje' : `em ${esc(lastLabel)}`}. ` : ''}Embaixo de cada número, quanto mudou no período.</p>
-      <details class="explain">
-        <summary>O que significa</summary>
-        <p><b>Strain</b> é a carga de cada treino: minutos em cada zona de FC do Garmin × peso da zona (Z1 vale 1, Z5 vale 5; abaixo da Z1, 0,5). Cresce com a duração e com a intensidade, e cai para o mesmo treino quando você fica mais condicionado (a FC fica mais baixa).</p>
-        <p><b>Fitness</b> é a média do seu Strain dos últimos 42 dias, com mais peso para os dias recentes. A cada dia ele anda 1/42 (2,4%) na direção do Strain do dia: um treino maior que a média sobe o Fitness, um dia de folga desce ~2,4%. Por isso oscila alguns pontos de um dia para o outro e só mostra tendência ao longo de semanas.</p>
-        <p><b>Fadiga</b> é a mesma conta com 7 dias. Sobe rápido depois de dias pesados e cai rápido com descanso.</p>
-        <p><b>Forma</b> = (Fitness − Fadiga de ontem) ÷ Fitness, em %. É como você acorda, antes do treino do dia. Faixas de referência (Joe Friel, adaptadas pelo intervals.icu): abaixo de −30% muito cansado; −30% a −10% em bloco de treino (fadiga acima do fitness, normal quando se está treinando); −10% a +5% equilibrado; +5% a +20% descansado (o que um polimento busca); acima de +20% perdendo forma. A Forma não diz se você está recuperado hoje: isso é o REC. Ela mede o equilíbrio entre a carga recente e a das últimas semanas.</p>
-        <p>Método do TrainingPeaks e do Strava (modelo de Banister). Compare você com você mesmo; a escala é diferente da deles.</p>
-      </details>
-    </section>
-
-    <section class="block" id="sw"></section>
-
-    <section class="block" id="pred"></section>
-
-    <section class="block">
-      <h2>Fitness, Fadiga e Forma</h2>
-      <div class="chart-wrap" id="ch-pmc"></div>
-      <h3 class="sub">Forma (%)</h3>
-      <div class="chart-wrap" id="ch-form"></div>
-    </section>
-
-
-    <section class="block">
-      <h2>Strain por dia</h2>
-      <div id="heat"></div>
-      <p class="heat-cap" id="heat-cap" aria-live="polite"></p>
-      <div class="heat-legend"><span>leve</span>${[1, 2, 3, 4, 5].map((i) => `<i class="hl-${i}"></i>`).join('')}<span>pesado</span></div>
-
-    </section>
-
-    <section class="block">
-      <h2>Volume</h2>
-      <ul class="acts sports">
-        <li class="head"><span>Modalidade</span><span>Horas</span><span>${multi ? '/semana' : 'Strain'}</span><span>${multi ? 'Strain' : 'Sessões'}</span></li>
-        ${d.totals.map((t) => `<li><span><i class="dot s-${t.sport}"></i>${esc(t.label)}</span><span>${hm(t.hours)}</span><span>${multi ? hm(t.perWeek) : nf(t.strain)}</span><span>${multi ? nf(t.strain) : t.sessions}</span></li>`).join('')
-          || '<li><span class="empty">Sem treinos neste período.</span></li>'}
-        ${d.totals.length ? `<li class="total"><span>Total</span><span>${hm(d.total.hours)}</span><span>${multi ? hm(d.total.hours / d.weeks) : nf(d.total.strain)}</span><span>${multi ? nf(d.total.strain) : d.total.sessions}</span></li>` : ''}
-      </ul>
-      ${multi ? `<p class="note">${nf(d.total.sessions)} sessões em ${nf(d.weeks, 1)} semanas.</p>` : ''}
-    </section>
-
-    <section class="block">
-      <h2>Tempo em zonas</h2>
-      ${zonesHtml(d.zones)}
-    </section>
-
-    <section class="block">
-      <h2>Recuperação</h2>
-      <h3 class="sub">REC</h3>
-      <div class="chart-wrap" id="ch-rec"></div>
-      <h3 class="sub"><i class="dot" style="background:var(--hrv)"></i>HRV e base</h3>
-      <div class="chart-wrap" id="ch-hrv"></div>
-      <h3 class="sub"><i class="dot" style="background:var(--rhr)"></i>FC de repouso e base</h3>
-      <div class="chart-wrap" id="ch-rhr"></div>
-      <h3 class="sub"><i class="dot" style="background:var(--sleep)"></i>Sono</h3>
-      <div class="chart-wrap" id="ch-sleep"></div>
-    </section>`;
-
-  lineChart(box.querySelector('#ch-pmc'), [
-    { name: 'Fitness', values: s.map((x) => x.fitness), cls: 'fit', label: true },
-    { name: 'Fadiga', values: s.map((x) => x.fatigue), cls: 'fat', label: true },
-  ], { dates, label: 'Fitness e fadiga', area: '--fitness', tip: (i) => head(i) + row('Fitness', nf(s[i].fitness)) + row('Fadiga', nf(s[i].fatigue)) });
-
-  const fv = s.map((x) => x.formPct).filter((v) => v != null);
-  const flo = Math.min(-40, ...fv.map((v) => v - 5)), fhi = Math.max(25, ...fv.map((v) => v + 5));
-  lineChart(box.querySelector('#ch-form'), [{ name: 'Forma', values: s.map((x) => x.formPct), cls: 'formln' }], {
-    dates, height: 110, range: [flo, fhi], label: 'Forma em %', yFmt: (v) => `${nf(v)}%`,
-    zoneBands: [{ lo: -1000, hi: -30, cls: 'zbk-risco' }, { lo: -30, hi: -10, cls: 'zbk-produtivo' }, { lo: -10, hi: 5, cls: 'zbk-neutro' }, { lo: 5, hi: 20, cls: 'zbk-descansado' }, { lo: 20, hi: 1000, cls: 'zbk-perdendo' }],
-    dots: (i, v) => `var(--z-${zoneOfPct(v).key})`,
-    tip: (i) => head(i) + row('Forma', s[i].formPct == null ? '–' : `${signed(s[i].formPct)}%`) + (s[i].formPct == null ? '' : row('', zoneOfPct(s[i].formPct).label)),
-  });
-
-  const bars = d.bars;
-  const barHead = (i) => `<p>${d.daily ? fmtDay(bars[i].start) : `Semana de ${fmtDay(bars[i].start)}`}</p>`;
-  strainHeat(box, d);
-  predictions(box, api);
-  strainWeeks(box, api);
-
-  lineChart(box.querySelector('#ch-rec'), [{ name: 'REC', values: s.map((x) => x.rec), cls: 'recl' }], { area: '--rec-line',
-    dates, range: [0, 100], bands: [[33.5, 66.5]], dots: (i, v) => zoneVar(v), label: 'REC',
-    tip: (i) => head(i) + row('REC', s[i].rec ?? '–'),
-  });
-  lineChart(box.querySelector('#ch-hrv'), [
-    { name: 'HRV', values: s.map((x) => x.hrv), cls: 'hrv', label: true },
-    { name: 'base', values: s.map((x) => x.hrvBase), cls: 'base', label: true },
-  ], { dates, label: 'HRV', area: '--hrv', tip: (i) => head(i) + row('HRV', `${nf(s[i].hrv)} ms`) + row('Base', `${nf(s[i].hrvBase)} ms`) });
-  lineChart(box.querySelector('#ch-rhr'), [
-    { name: 'FC', values: s.map((x) => x.rhr), cls: 'rhr', label: true },
-    { name: 'base', values: s.map((x) => x.rhrBase), cls: 'base', label: true },
-  ], { dates, label: 'FC de repouso', area: '--rhr', tip: (i) => head(i) + row('FC', `${nf(s[i].rhr)} bpm`) + row('Base', `${nf(s[i].rhrBase)} bpm`) });
-  barChart(box.querySelector('#ch-sleep'), s.map((x) => x.sleep), {
-    dates, label: 'Sono', refs: [{ v: 7.5, label: '7,5 h' }], yFmt: (v) => `${nf(v)} h`, fill: '--sleep',
-    tip: (i) => head(i) + row('Sono', hm(s[i].sleep)),
-  });
-}
-
-// ---------- Strain por dia: calendário de calor ----------
-function strainHeat(box, d) {
-  const el = box.querySelector('#heat'), cap = box.querySelector('#heat-cap');
-  const days = d.series;
-  const wd = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
-  const cellTip = (x) => `${fmtDay(x.date)}: ${x.strain == null ? 'ainda não aconteceu' : x.strain ? `Strain ${x.strain}` : 'sem treino'}`;
-  const cell = (x, extra = '') => `<button type="button" class="hc hl-${x.strain == null ? 'f' : strainLevel(x.strain)}" data-i="${days.indexOf(x)}" aria-label="${esc(cellTip(x))}">${extra}</button>`;
-
-  if (d.unit === 'semana') {
-    el.className = 'heat heat-week';
-    el.innerHTML = days.map((x, i) => `<div class="hw">${cell(x, `<span>${x.strain ? x.strain : x.strain == null ? '' : '–'}</span>`)}<small>${wd[i]}</small></div>`).join('');
-  } else if (d.unit === 'mes') {
-    el.className = 'heat heat-month';
-    const lead = (new Date(days[0].date + 'T12:00:00').getDay() + 6) % 7;
-    el.innerHTML = wd.map((w) => `<small>${w}</small>`).join('') + '<i></i>'.repeat(lead)
-      + days.map((x) => cell(x, `<em>${Number(x.date.slice(8))}</em><span>${x.strain ? x.strain : ''}</span>`)).join('');
-  } else {
-    el.className = 'heat heat-grid';
-    const lead = (new Date(days[0].date + 'T12:00:00').getDay() + 6) % 7;
-    const cols = Math.ceil((lead + days.length) / 7);
-    el.style.setProperty('--cols', cols);
-    el.innerHTML = '<i></i>'.repeat(lead) + days.map((x) => cell(x)).join('');
-  }
-  cap.textContent = 'Toque num dia para ver o Strain.';
-  el.addEventListener('click', (e) => {
-    const b = e.target.closest('.hc'); if (!b) return;
-    el.querySelectorAll('.hc.sel').forEach((x) => x.classList.remove('sel'));
-    b.classList.add('sel');
-    cap.textContent = cellTip(days[Number(b.dataset.i)]);
-  });
+// ---------- Meu corpo está recuperando? ----------
+let recOpen = null;
+async function recovery(box, api) {
+  const sec = box.querySelector('#recov'); if (!sec) return;
+  let t;
+  try { t = await longtrend(api, recWin); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const sm = t.summary, days = t.days, dates = days.map((x) => x.date), need = t.sleepNeed;
+  const pct = (v) => (v == null ? '' : v === 0 ? 'igual à' : `${Math.abs(v)}% ${v > 0 ? 'acima da' : 'abaixo da'}`);
+  const cards = [
+    { k: 'rec', title: 'REC', color: 'var(--rec-line)', val: sm.rec7 == null ? '–' : Math.round(sm.rec7), unitTxt: 'média 7 dias',
+      txt: sm.rec7 == null || sm.recPrev7 == null ? '' : `${Math.round(sm.rec7 - sm.recPrev7) === 0 ? 'Igual' : `${Math.abs(Math.round(sm.rec7 - sm.recPrev7))} pontos ${sm.rec7 > sm.recPrev7 ? 'acima' : 'abaixo'}`} da semana anterior.`,
+      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.rec), color: 'rgba(255,255,255,.55)', min: 0, max: 100, height: big ? 120 : 44, axes: big,
+        hbands: [[33.5, 66.5, 'rgba(255,255,255,.5)']], dots: (v) => zoneVar(v), yTicks: [33, 66], label: 'REC', tip: big ? (i) => row('REC', days[i].rec ?? '–') : null }) },
+    { k: 'hrv', title: 'HRV', color: 'var(--hrv)', val: sm.hrv7 == null ? '–' : Math.round(sm.hrv7), unitTxt: 'ms, média 7 noites',
+      txt: sm.hrvPct == null ? '' : `${pct(sm.hrvPct)} sua base (${nf(sm.hrvBase)} ms).${sm.hrvOut ? ` ${sm.hrvOut} de 7 noites abaixo da faixa normal.` : ''}`,
+      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.hrv), lo: days.map((x) => x.hrvLo), hi: days.map((x) => x.hrvHi), base: big ? days.map((x) => x.hrvBase) : null,
+        color: 'var(--hrv)', height: big ? 120 : 44, axes: big, label: 'HRV', tip: big ? (i) => row('HRV', `${nf(days[i].hrv)} ms`) + row('Faixa normal', `${nf(days[i].hrvLo)}–${nf(days[i].hrvHi)}`) : null }) },
+    { k: 'rhr', title: 'FC de repouso', color: 'var(--rhr)', val: sm.rhr7 == null ? '–' : nf(sm.rhr7), unitTxt: 'bpm, média 7 dias',
+      txt: sm.rhrDiff == null ? '' : `${sm.rhrDiff === 0 ? 'Igual à' : `${nf(Math.abs(sm.rhrDiff), 1)} bpm ${sm.rhrDiff > 0 ? 'acima da' : 'abaixo da'}`} sua base (${nf(sm.rhrBase)} bpm).${sm.rhrOut ? ` ${sm.rhrOut} de 7 dias acima da faixa normal.` : ''}`,
+      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.rhr), lo: days.map((x) => x.rhrLo), hi: days.map((x) => x.rhrHi), base: big ? days.map((x) => x.rhrBase) : null,
+        color: 'var(--rhr)', height: big ? 120 : 44, axes: big, label: 'FC de repouso', tip: big ? (i) => row('FC', `${nf(days[i].rhr)} bpm`) + row('Faixa normal', `${nf(days[i].rhrLo)}–${nf(days[i].rhrHi)}`) : null }) },
+    { k: 'sleep', title: 'Sono', color: 'var(--sleep)', val: hm(sm.sleep7), unitTxt: 'média 7 noites',
+      txt: `Sua necessidade: ${hm(need)}.${sm.sleepShort ? ` ${sm.sleepShort} de 7 noites com mais de 30 min a menos.` : ' Nenhuma noite curta na semana.'}`,
+      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.sleep), bars: true, color: 'var(--sleep)', min: 0, ref: need, refLabel: big ? hm(need) : '',
+        barColor: (v) => (v < need - 0.5 ? 'color-mix(in srgb, var(--sleep) 45%, #000)' : 'var(--sleep)'), height: big ? 110 : 44, axes: big, label: 'Sono', yTicks: [4, 8], yFmt: (v) => `${nf(v)} h`,
+        tip: big ? (i) => row('Sono', hm(days[i].sleep)) : null }) },
+  ];
+  sec.innerHTML = `
+    <h2>Meu corpo está recuperando?</h2>
+    <p class="note">Faixa sombreada = o seu normal dos 60 dias anteriores a cada dia. Toque num cartão para ampliar.</p>
+    <div class="rgrid">${cards.map((c) => `
+      <button type="button" class="rcard${recOpen === c.k ? ' open' : ''}" data-k="${c.k}">
+        <span class="rc-t"><i class="dot" style="background:${c.color}"></i>${c.title}</span>
+        <span class="rc-v">${c.val}</span><small class="rc-u">${c.unitTxt}</small>
+        <span class="rc-x">${c.txt}</span>
+        <span class="rc-g"></span>
+      </button>`).join('')}</div>
+    <div class="rbig" ${recOpen ? '' : 'hidden'}><h3 class="sub" id="rbig-t"></h3><div class="chart-wrap" id="rbig-c"></div></div>
+    ${winSeg(recWin, 'rw')}`;
+  cards.forEach((c) => c.draw(sec.querySelector(`.rcard[data-k="${c.k}"] .rc-g`), false));
+  const openBig = (k) => {
+    const c = cards.find((x) => x.k === k), big = sec.querySelector('.rbig');
+    if (!c) { big.hidden = true; return; }
+    big.hidden = false; sec.querySelector('#rbig-t').textContent = c.title; c.draw(sec.querySelector('#rbig-c'), true);
+  };
+  if (recOpen) openBig(recOpen);
+  sec.querySelectorAll('.rcard').forEach((b) => b.addEventListener('click', () => {
+    recOpen = recOpen === b.dataset.k ? null : b.dataset.k;
+    sec.querySelectorAll('.rcard').forEach((x) => x.classList.toggle('open', x.dataset.k === recOpen));
+    openBig(recOpen);
+  }));
+  sec.querySelectorAll('[data-rw]').forEach((b) => b.addEventListener('click', () => { recWin = Number(b.dataset.rw); recovery(box, api); }));
 }
 
 // ---------- Previsões de prova (corrida) ----------

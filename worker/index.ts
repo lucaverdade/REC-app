@@ -5,6 +5,7 @@ import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
 import { debtLevel, personalNeed, regularity, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
+import { longTrend } from '../src/longtrend.ts';
 import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
@@ -674,6 +675,17 @@ export default {
       } else return json({ error: 'acao_invalida' }, 400);
       await setSetting(env, 'race_items', items);
       return json({ items });
+    }
+    if (url.pathname === '/api/longtrend' && req.method === 'GET') {
+      const end = url.searchParams.get('end');
+      const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 56, 28), 400);
+      const e = isDate(end) && end <= brtToday() ? end : brtToday();
+      const from = addDays(e, -(days - 1));
+      const loads = await dailyLoads(env, addDays(from, -400), e);
+      const { results: dm } = await env.DB.prepare('SELECT date, hrv, rhr, sleep_h, nap_h FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+        .bind(addDays(from, -130), e).all<{ date: string; hrv: number | null; rhr: number | null; sleep_h: number | null; nap_h: number | null }>();
+      const { results: rc } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2').bind(addDays(from, -14), e).all<{ date: string; rec: number | null }>();
+      return json(longTrend({ from, to: e, loads, metrics: dm, recs: rc }));
     }
     if (url.pathname === '/api/strain-weeks' && req.method === 'GET') {
       const n = Math.min(Math.max(Number(url.searchParams.get('weeks')) || 16, 4), 52);
