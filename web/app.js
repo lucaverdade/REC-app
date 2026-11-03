@@ -14,7 +14,10 @@ async function api(path, opts = {}) {
     headers: { 'content-type': 'application/json', authorization: `Bearer ${store.get()}`, ...(opts.headers || {}) },
   });
   if (res.status === 401) { store.clear(); renderGate('Código não aceito. Confira e entre de novo.'); throw new Error('401'); }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -37,7 +40,7 @@ function renderGate(err = '') {
   screen.querySelector('form').addEventListener('submit', (e) => {
     e.preventDefault();
     store.set(screen.querySelector('#code').value.trim());
-    load();
+    route();
   });
 }
 
@@ -126,6 +129,7 @@ function render(d) {
 
     ${d.alerts.map((a) => `<p class="alert" role="status">${esc(a.text)}</p>`).join('')}
 
+    ${d.needsHistory ? '<p class="alert">O histórico ainda não foi carregado, então o REC não tem base. <a href="#garmin">Puxar histórico da Garmin</a></p>' : ''}
     <p class="comment">${esc(d.comment)}</p>
     ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}
 
@@ -143,7 +147,10 @@ function render(d) {
       <span class="saved" aria-live="polite"></span>
     </section>
 
-    <button class="sync" type="button">Atualizar dados</button>
+    <div class="foot">
+      <button class="sync" type="button">Atualizar dados</button>
+      <a class="foot-link" href="#garmin">Garmin</a>
+    </div>
   `;
 
   // anel: animação única ao abrir
@@ -199,10 +206,100 @@ async function load() {
   catch (e) { if (e.message !== '401') screen.innerHTML = '<p class="comment" style="margin-top:40vh">Sem conexão com o servidor. Abra de novo em instantes.</p>'; }
 }
 
+
+// ---------- Garmin: estado, teste e histórico ----------
+const HISTORY_FROM = '2025-05-01'; // HRV existe desde set/2025; 4 meses antes dão a base de FC de repouso
+const addDaysIso = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const ERR = {
+  sem_chave: 'A chave da Garmin ainda não está cadastrada. No Cloudflare: Worker rec → Settings → Variables and Secrets → secret GARMIN_API_KEY.',
+};
+const errText = (e) => ERR[e.message] || e.message;
+
+async function renderGarmin() {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  screen.innerHTML = '<header class="top"><h1>Garmin</h1><a class="foot-link" href="#hoje">Voltar</a></header><p class="empty">Carregando…</p>';
+  let st;
+  try { st = await api('/api/garmin/status'); } catch (e) { if (e.message !== '401') screen.querySelector('.empty').textContent = errText(e); return; }
+  const n = (v) => (v ?? 0).toLocaleString('pt-BR');
+  const fmt = (iso) => (iso ? fmtDate(iso, { day: 'numeric', month: 'short', year: 'numeric' }) : '–');
+  screen.innerHTML = `
+    <header class="top"><h1>Garmin</h1><a class="foot-link" href="#hoje">Voltar</a></header>
+    <ul class="acts kv">
+      <li><span>Chave</span><span class="meta">${st.hasKey ? 'cadastrada' : 'não cadastrada'}</span></li>
+      <li><span>Dias no banco</span><span class="meta">${n(st.dias.n)} (${fmt(st.dias.first)} a ${fmt(st.dias.last)})</span></li>
+      <li><span>Noites com HRV</span><span class="meta">${n(st.dias.hrv)}</span></li>
+      <li><span>Dias com REC</span><span class="meta">${n(st.recs)}</span></li>
+      <li><span>Atividades</span><span class="meta">${n(st.atividades.n)}</span></li>
+    </ul>
+    ${st.hasKey ? '' : `<p class="alert">${esc(ERR.sem_chave)}</p>`}
+
+    <section class="block">
+      <h2>Histórico</h2>
+      <p class="note">Busca tudo desde ${fmt(HISTORY_FROM)} direto da API, em blocos de 14 dias. Só precisa uma vez; depois o app se atualiza sozinho.</p>
+      <button class="btn" id="hist" ${st.hasKey ? '' : 'disabled'}>Puxar histórico</button>
+      <p class="progress" id="hist-out" aria-live="polite"></p>
+    </section>
+
+    <section class="block">
+      <h2>Teste da conexão</h2>
+      <p class="note">Busca os últimos 14 dias e mostra quais campos a API entrega.</p>
+      <button class="btn ghost" id="check" ${st.hasKey ? '' : 'disabled'}>Testar conexão</button>
+      <div id="check-out"></div>
+    </section>
+
+    <section class="block">
+      <h2>Últimas sincronizações</h2>
+      ${st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>'}
+    </section>`;
+
+  screen.querySelector('#hist').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, out = screen.querySelector('#hist-out');
+    btn.disabled = true;
+    const today = st.hoje, chunks = [];
+    for (let d = HISTORY_FROM; d <= today; d = addDaysIso(d, 14)) chunks.push([d, addDaysIso(d, 13) > today ? today : addDaysIso(d, 13)]);
+    let dias = 0, ativ = 0;
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        out.textContent = `Buscando bloco ${i + 1} de ${chunks.length}…`;
+        const r = await api(`/api/garmin/backfill?from=${chunks[i][0]}&to=${chunks[i][1]}`, { method: 'POST' });
+        dias += r.dias; ativ += r.atividades;
+      }
+      for (let d = '2025-09-01'; d <= today; d = addDaysIso(d, 60)) {
+        out.textContent = `Calculando o REC até ${fmt(d)}…`;
+        const to = addDaysIso(d, 59) > today ? today : addDaysIso(d, 59);
+        await api(`/api/recompute?to=${to}&keep=60`, { method: 'POST' });
+      }
+      out.textContent = `Pronto: ${n(dias)} dias e ${n(ativ)} atividades.`;
+      setTimeout(renderGarmin, 1500);
+    } catch (e) {
+      out.textContent = `Parou: ${errText(e)} Toque de novo para continuar; o que já veio fica salvo.`;
+      btn.disabled = false;
+    }
+  });
+
+  screen.querySelector('#check').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, out = screen.querySelector('#check-out');
+    btn.disabled = true; out.innerHTML = '<p class="progress">Testando…</p>';
+    try {
+      const r = await api('/api/garmin/check?days=14');
+      const LABEL = { hrv: 'HRV', rhr: 'FC de repouso', sleep_h: 'Sono', sleep_score: 'Score do sono', resp: 'Respiração', stress: 'Estresse' };
+      out.innerHTML = `
+        <ul class="acts">${r.fields.map((f) => `<li><span>${LABEL[f.field]}</span><span class="meta">${f.api} de 14 dias${f.ambos ? `, ${f.iguais}/${f.ambos} iguais ao banco` : ''}</span></li>`).join('')}</ul>
+        <details class="raw"><summary>Detalhes técnicos</summary><pre>${esc(JSON.stringify({ campos: r.raw, amostra: r.sample }, null, 1))}</pre></details>`;
+    } catch (e) { out.innerHTML = `<p class="alert">${esc(errText(e))}</p>`; }
+    btn.disabled = false;
+  });
+}
+
+function route() {
+  if (location.hash === '#garmin') renderGarmin(); else load();
+}
+window.addEventListener('hashchange', route);
+
 // ao voltar para o app: recarrega (pega a noite se chegou e troca o dia se virou)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && store.get()) { autoTried = ''; load(); }
+  if (document.visibilityState === 'visible' && store.get() && location.hash !== '#garmin') { autoTried = ''; load(); }
 });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-load();
+route();

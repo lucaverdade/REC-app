@@ -28,9 +28,16 @@ npm run seed && npm run db:schema:local && npm run db:seed:local
 npm run dev    # http://localhost:8787
 ```
 
-## Publicar (Cloudflare, plano gratuito)
-1. `npx wrangler login`
-2. `npx wrangler d1 create rec` → copie o `database_id` para `wrangler.jsonc`.
-3. `npm run db:schema:remote && npm run db:seed:remote`
-4. `npx wrangler secret put APP_TOKEN` (código de acesso do app) e, quando a integração estiver pronta, `npx wrangler secret put GARMIN_API_KEY`.
-5. `npm run deploy` → abra a URL no Safari do iPhone → Compartilhar → Adicionar à Tela de Início.
+## Publicar (Cloudflare, plano gratuito, sem linha de comando)
+1. Banco D1 `rec` criado no painel (o ID já está em `wrangler.jsonc`).
+2. Workers & Pages → Create → Import a repository → `REC-app` → Deploy. Todo push na `main` publica sozinho.
+3. Worker `rec` → Settings → Variables and Secrets: secrets `APP_TOKEN` (código de acesso do app) e `GARMIN_API_KEY`.
+4. Abrir a URL no Safari do iPhone → Compartilhar → Adicionar à Tela de Início.
+5. No app: rodapé → Garmin → **Puxar histórico** (uma vez) e **Testar conexão**.
+
+As tabelas são criadas sozinhas no primeiro acesso. O seed por CSV (`npm run seed`) continua disponível só para testes locais.
+
+## Garmin
+- Endpoints conforme o cliente oficial `garmin/connect-personal-api-python`.
+- `worker/garmin.ts`: troca chave → token (24 h, cache em memória), HRV, estresse e resumo diário por faixa de datas, sono por dia, atividades.
+- Teste local sem chave real: `npm run mock:garmin` e, no `.dev.vars`, `GARMIN_API_KEY=qualquer` + `GARMIN_BASE_URL=http://127.0.0.1:9999`.

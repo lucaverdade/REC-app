@@ -118,6 +118,21 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .feel.unset input[type=range]::-webkit-slider-thumb { background: var(--text-3); }
 .feel .saved { font-size: 13px; color: var(--text-3); min-height: 1.2em; }
 
+/* --- rodapé e tela Garmin --- */
+.foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; }
+.foot-link { color: var(--text-3); font-size: 13px; text-decoration: none; }
+.alert a, .note a { color: var(--text); }
+.note { margin: 0 0 12px; color: var(--text-2); font-size: 14px; max-width: 34em; }
+.btn {
+  background: var(--text); color: #000; border: 0; border-radius: 10px; padding: 12px 18px; font-weight: 600; cursor: pointer;
+}
+.btn.ghost { background: none; color: var(--text); border: 1px solid var(--line); }
+.btn[disabled] { opacity: .4; cursor: default; }
+.progress { color: var(--text-2); font-size: 14px; min-height: 1.3em; margin: 10px 0 0; }
+.kv { margin-bottom: 26px; }
+.raw { margin-top: 12px; color: var(--text-3); font-size: 13px; }
+.raw pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; color: var(--text-2); }
+
 /* --- acesso --- */
 .gate { min-height: 70dvh; display: grid; align-content: center; gap: 14px; }
 .gate h1 { font: 200 56px/1 var(--font-display); letter-spacing: -0.03em; margin: 0 0 8px; }
