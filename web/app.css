@@ -312,15 +312,17 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 
 .raw-pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; color: var(--text-2); max-height: 320px; overflow: auto; }
 
-/* --- tempo em zonas: rampa de uma cor (intensidade) --- */
+/* --- tempo em zonas --- */
 .zones { list-style: none; margin: 0; padding: 0; }
-.zones li { display: grid; grid-template-columns: 7.5em 1fr 4.2em 2.6em; gap: 10px; align-items: center; padding: 7px 0; font-size: 14px; }
-.zones .zn { color: var(--text-2); }
+.zones li { display: grid; grid-template-columns: 8.6em 1fr 4.2em 2.6em; gap: 10px; align-items: center; padding: 7px 0; font-size: 14px; }
+.zones .zn { color: var(--text); white-space: nowrap; }
+.zones li:first-child .zn { color: var(--text-2); }
 .zones .zb { height: 8px; background: var(--line-soft); border-radius: 4px; overflow: hidden; }
 .zones .zb i { display: block; height: 100%; border-radius: 4px; }
 .zones .zh, .zones .zp { text-align: right; color: var(--text-2); }
-.zc-0 { background: #4a4a50; } .zc-1 { background: #ffd2b3; } .zc-2 { background: #ffb07a; }
-.zc-3 { background: #ff8d47; } .zc-4 { background: #f56a1e; } .zc-5 { background: #d9480f; }
+/* cores das zonas no padrão que Garmin e Strava usam: cinza, azul, verde, laranja, vermelho */
+.zc-0 { background: #3e3e45; } .zc-1 { background: #9aa9bb; } .zc-2 { background: #4c9dff; }
+.zc-3 { background: #34d17f; } .zc-4 { background: #ff9f3a; } .zc-5 { background: #ff4f5e; }
 
 /* --- aba Treino --- */
 .wk-sum .big { font-size: 36px; }
