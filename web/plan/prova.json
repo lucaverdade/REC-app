@@ -1,0 +1,36 @@
+{
+  "carbo": [
+    {
+      "data": "2026-11-25",
+      "gramas": 400,
+      "nota": "6 g/kg; dia normal com mais carbo"
+    },
+    {
+      "data": "2026-11-26",
+      "gramas": 450,
+      "nota": "7 g/kg; começar a reduzir fibra"
+    },
+    {
+      "data": "2026-11-27",
+      "gramas": 520,
+      "nota": "carga de carbo; pouca fibra, nada novo"
+    },
+    {
+      "data": "2026-11-28",
+      "gramas": 560,
+      "nota": "carga de carbo; líquidos e arroz branco, jantar cedo"
+    },
+    {
+      "data": "2026-11-29",
+      "gramas": 140,
+      "nota": "só até a largada: café ~110 g 3 h antes + ~30 g até 15 min antes"
+    }
+  ],
+  "pace": {
+    "natacao": "Largar fora da briga; 1:28–1:33/100 m (RPE 5–6), sem sprint nos primeiros 200 m. Meta 28–30 min.",
+    "bike": "RPE 6, FC 147–153; primeiros 20 min FC ≤148; não passar de 155 fora de subida. Meta ~30–31 km/h.",
+    "corrida": "Três primeiros km FC ≤150 (5:50–6:10/km), depois FC 155–160 (5:15–5:35/km); teto 165; folga nos primeiros 14 km; caminhar 10–15 s nos postos de água. Se o simulado mostrar queda, largar a 6:10–6:20/km.",
+    "nutricao": "Bike 65–70 g/h do min 30 (garrafa e barras), corrida 40–50 g/h (gel 25 g aos 20 min + garrafa); sódio ~1,5–2 g por garrafa pela taxa de suor medida em 15/11. Nada novo."
+  },
+  "notas": "Plano-base; ajusto depois do simulado de 07/11 e do longão de 15/11."
+}
