@@ -4,7 +4,9 @@ import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
-import { debtLevel, personalNeed, regularity, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
+import { bedtimeTarget, debtLevel, irregularNights, personalNeed, regularity, regularityScore, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
+import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
+import { ARACAJU, climatology, parseForecast, type HourRow } from '../src/weather.ts';
 import { longTrend } from '../src/longtrend.ts';
 import { dailySummary, recTrend } from '../src/daily.ts';
 import { strainTargetV2 } from '../src/target.ts';
@@ -648,6 +650,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const acts = await env.DB.prepare(`SELECT time, type, sport, min, km, avghr, maxhr, rpe, z1, z2, z3, z4, z5, ${STRAIN_SQL} strain FROM activities WHERE date = ?1 ORDER BY time`)
     .bind(date).all<{ time: string; type: string; sport: Sport; min: number; km: number; avghr: number; maxhr: number | null; rpe: number | null; strain: number | null; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null }>();
   const feel = await env.DB.prepare('SELECT value FROM feel_notes WHERE date = ?1').bind(date).first<{ value: number }>();
+  const { results: tagRows } = await env.DB.prepare('SELECT tag FROM habit_tags WHERE date = ?1').bind(date).all<{ tag: string }>();
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
   const planned = await (async () => {
@@ -705,6 +708,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       };
     }),
     feel: feel?.value ?? null,
+    habits: { defs: HABITS, on: tagRows.map((t) => t.tag) },
     load: ln,
     day: (() => {
       const recR = t.rec == null ? null : Math.round(t.rec);
@@ -726,6 +730,8 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       personalNeed: Math.round(need * 100) / 100,
       need: sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null),
       regularity: regularity(nights),
+      regularityScore: regularityScore(regularity(nights)),
+      bedtime: bedtimeTarget(nights, sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null).total, addDays(date, 1)),
     },
     isToday: date === brtToday(),
     race: { ...RACE, days: daysBetween(date, RACE.date), raceWeek: daysBetween(date, RACE.date) <= 6 && daysBetween(date, RACE.date) >= -1 },
@@ -737,6 +743,68 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     lastSync,
     minsSinceSync,
     syncIssue,
+  };
+}
+
+// --- clima de Aracaju no dia da prova (F4) ---
+async function weatherPayload(env: Env) {
+  const today = brtToday();
+  const days = daysBetween(today, RACE.date);
+  const mode = days <= 15 ? 'previsao' : 'historico';
+  type Cache = { at: number; mode: string; rows: HourRow[]; years?: number };
+  const c = await getSetting<Cache>(env, 'weather');
+  const ttl = mode === 'previsao' ? 3 * 3600e3 : 30 * 86400e3;
+  if (c && c.mode === mode && Date.now() - c.at < ttl && c.rows.length) return { mode, days, rows: c.rows, years: c.years ?? null, cached: true, availableFrom: addDays(RACE.date, -15) };
+  const q = `latitude=${ARACAJU.lat}&longitude=${ARACAJU.lon}&timezone=${encodeURIComponent(ARACAJU.tz)}`;
+  let rows: HourRow[] = [], years: number | undefined;
+  try {
+    if (mode === 'previsao') {
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation_probability,wind_speed_10m,uv_index&start_date=${RACE.date}&end_date=${RACE.date}`);
+      if (r.ok) rows = parseForecast(await r.json(), RACE.date);
+    } else {
+      const y0 = Number(today.slice(0, 4)) - 1, md = RACE.date.slice(5);
+      const yrs = Array.from({ length: 10 }, (_, i) => y0 - i);
+      const res = await Promise.all(yrs.map(async (y) => {
+        const mid = `${y}-${md}`;
+        const r = await fetch(`https://archive-api.open-meteo.com/v1/archive?${q}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&start_date=${addDays(mid, -7)}&end_date=${addDays(mid, 7)}`);
+        return r.ok ? r.json() : null;
+      }));
+      const ok = res.filter(Boolean);
+      rows = climatology(ok); years = ok.length;
+    }
+  } catch { /* sem rede: devolve o cache antigo, se houver */ }
+  if (!rows.length) return c ? { mode: c.mode, days, rows: c.rows, years: c.years ?? null, cached: true, stale: true, availableFrom: addDays(RACE.date, -15) } : { mode, days, rows: [], error: 'sem_resposta', availableFrom: addDays(RACE.date, -15) };
+  await setSetting(env, 'weather', { at: Date.now(), mode, rows, years });
+  return { mode, days, rows, years: years ?? null, cached: false, availableFrom: addDays(RACE.date, -15) };
+}
+
+// --- O que mexe no meu REC (E2 + C2) ---
+async function habitsPayload(env: Env) {
+  await ensureSchema(env);
+  const today = brtToday();
+  const from = addDays(today, -180);
+  const { results: recs } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string; rec: number | null }>();
+  const recBy = new Map(recs.map((r) => [r.date, r.rec]));
+  const { results: tags } = await env.DB.prepare('SELECT date, tag FROM habit_tags WHERE date >= ?1').bind(from).all<{ date: string; tag: string }>();
+  const first = tags.reduce<string | null>((a, t) => (a == null || t.date < a ? t.date : a), null);
+  const rows = [];
+  if (first) {
+    // dias desde o primeiro uso do diário até ontem; o REC lido é o da manhã seguinte
+    const days: string[] = [];
+    for (let d = first; d < today; d = addDays(d, 1)) days.push(d);
+    const has = new Set(tags.map((t) => `${t.date}|${t.tag}`));
+    for (const h of HABITS) rows.push(impact(h.key, h.label, days.map((d) => ({ flag: has.has(`${d}|${h.key}`), rec: recBy.get(addDays(d, 1)) ?? null }))));
+  }
+  // horário de sono irregular (automático, sem marcar): a noite que termina no dia D afeta o REC de D
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+    .bind(addDays(from, -20), today).all<SleepNight>();
+  const irr = irregularNights(nights).filter((x) => x.date >= from);
+  const auto = impact('irregular', 'Horário de sono irregular (± 1 h do seu normal)', irr.map((x) => ({ flag: x.irregular, rec: recBy.get(x.date) ?? null })), true);
+  const marked = rows.filter((r) => r.with.n > 0);
+  return {
+    since: first, minDays: 5,
+    rows: [...marked.sort((a, b) => (b.ready ? 1 : 0) - (a.ready ? 1 : 0) || Math.abs(b.diff ?? 0) - Math.abs(a.diff ?? 0)), auto],
+    unmarked: rows.filter((r) => r.with.n === 0).map((r) => r.label),
   };
 }
 
@@ -770,6 +838,17 @@ export default {
         ON CONFLICT(date) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`).bind(date, v).run();
       return json({ ok: true });
     }
+    if (url.pathname === '/api/tags' && req.method === 'POST') {
+      const body = await req.json<{ date?: string; tag?: string; on?: boolean }>().catch(() => ({}) as { date?: string; tag?: string; on?: boolean });
+      const date = isDate(body.date ?? null) ? body.date! : brtToday();
+      if (!body.tag || !HABIT_KEYS.has(body.tag)) return json({ error: 'tag_invalida' }, 400);
+      if (body.on) await env.DB.prepare('INSERT OR IGNORE INTO habit_tags (date, tag) VALUES (?1, ?2)').bind(date, body.tag).run();
+      else await env.DB.prepare('DELETE FROM habit_tags WHERE date = ?1 AND tag = ?2').bind(date, body.tag).run();
+      const { results } = await env.DB.prepare('SELECT tag FROM habit_tags WHERE date = ?1').bind(date).all<{ tag: string }>();
+      return json({ ok: true, on: results.map((r) => r.tag) });
+    }
+    if (url.pathname === '/api/habits' && req.method === 'GET') return json(await habitsPayload(env));
+    if (url.pathname === '/api/weather' && req.method === 'GET') return json(await weatherPayload(env));
     if (url.pathname === '/api/refresh' && req.method === 'POST') {
       const auto = url.searchParams.get('auto') === '1';
       return json(await morningRoutine(env, auto ? 'open' : 'manual'));

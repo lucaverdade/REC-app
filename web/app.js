@@ -307,11 +307,14 @@ function sleepCard(d) {
         <div><span class="debt-${s.level?.key ?? 'nenhuma'}">${s.debt == null ? '–' : s.debt < 1 / 6 ? 'nenhuma' : hmm(s.debt)}</span><small>Dívida (14 dias)${s.level && s.level.key !== 'nenhuma' ? `, ${s.level.label}` : ''}</small></div>
         <div><span>${hmm(need.total)}</span><small>${d.isToday ? 'Meta para hoje à noite' : 'Meta para a noite seguinte'}${extra.length ? ` (${extra.join(', ')})` : ''}</small></div>
       </div>
-      ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).</p>` : ''}
+      ${s.bedtime && d.isToday ? `<p class="sl-bed">Deitar até <b>${esc(s.bedtime.bedtime)}</b><span>para acordar por volta de ${esc(s.bedtime.wake)} com a meta de ${hmm(need.total)}</span></p>` : ''}
+      ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).${s.regularityScore != null ? ` Regularidade <b>${s.regularityScore}</b>/100.` : ''}</p>` : ''}
       ${s.napYesterday ? `<p class="sl-reg">Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}: <b>${Math.round(s.napYesterday * 60)} min</b> (conta na dívida).</p>` : ''}
       <details class="explain sl-exp"><summary>Como é calculado</summary>
         <p><b>Sua necessidade</b> é a média das suas últimas 90 noites, sem as 10% mais curtas e as 10% mais longas (como a Oura faz). Cochilos contam.</p>
         <p><b>Dívida</b>: nos últimos 14 dias, quanto você dormiu abaixo da sua necessidade, com as noites recentes pesando mais (uma noite curta perde metade do peso a cada 7 dias). Noites acima da necessidade e cochilos pagam a dívida. Faixas da Oura: baixa até 2 h, moderada de 2 a 5 h, alta acima de 5 h.</p>
+        <p><b>Deitar até</b>: horário em que você costuma acordar (mediana das últimas noites do mesmo tipo de dia, útil ou fim de semana) − a meta − o tempo que você costuma ficar acordado na cama − 15 min para pegar no sono.</p>
+        <p><b>Regularidade</b>: 100 menos a variação média dos horários de deitar e acordar nas últimas 14 noites (variação de 15 min ≈ 82; de 30 min ≈ 64).</p>
         <p><b>Meta de hoje</b>: sua necessidade + até 30 min por causa da dívida + até 30 min pelo treino do dia − cochilo de hoje (como o Whoop). Não é preciso pagar a dívida de uma vez: ela some aos poucos com noites um pouco mais longas, cochilos e o próprio tempo.</p>
       </details>
     </section>`;
@@ -425,6 +428,12 @@ function render(d) {
       <span class="saved" aria-live="polite"></span>
     </section>
 
+    ${d.habits ? `<section class="block habits">
+      <h2>${d.isToday ? 'Diário de hoje' : 'Diário do dia'}</h2>
+      <div class="hb-list">${d.habits.defs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>
+      <p class="hb-note">Marque à noite o que aconteceu no dia. Conta para o REC de amanhã.</p>
+    </section>` : ''}
+
     <div class="foot">
       <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
       <span class="foot-links"><a class="foot-link" href="#prova">Modo prova</a><a class="foot-link" href="#garmin">Garmin</a><a class="foot-link" href="#tema">Tema</a></span>
@@ -456,6 +465,14 @@ function render(d) {
       saved.textContent = 'Nota salva.';
     } catch { saved.textContent = 'Não salvou. Tente de novo.'; }
   });
+
+  // diário de hábitos
+  screen.querySelectorAll('.hb').forEach((b) => b.addEventListener('click', async () => {
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', String(on));
+    try { await api('/api/tags', { method: 'POST', body: JSON.stringify({ date: todayIso, tag: b.dataset.tag, on }) }); }
+    catch { b.setAttribute('aria-pressed', String(!on)); }
+  }));
 
   // atualizar
   const sync = screen.querySelector('.sync');

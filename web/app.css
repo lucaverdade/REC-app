@@ -747,3 +747,27 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .ss-more .zbar { margin-top: 10px; }
 .td .next-rec { font-size: 15px; margin: 12px 0 0; }
 .how { margin: 22px 0 8px; }
+
+/* diário de hábitos */
+.hb-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.hb { font: inherit; font-size: 15px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--text-2); cursor: pointer; }
+.hb[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+.hb-note { margin: 10px 0 0; font-size: 13px; color: var(--text-3); }
+/* deitar até */
+.sl-bed { margin: 14px 0 4px; display: grid; gap: 2px; font-size: 15px; color: var(--text-2); }
+.sl-bed b { font: 300 26px/1.1 var(--font-display); color: var(--sleep); }
+.sl-bed span { font-size: 13px; }
+/* O que mexe no meu REC */
+.hab-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hab-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-soft); }
+.hab-rows .hl { font-size: 15px; color: var(--text); }
+.hab-rows .hs { display: block; font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.hab-rows .hd { font: 400 24px/1 var(--font-display); }
+.hab-rows .hd.neg { color: var(--bad); } .hab-rows .hd.pos { color: var(--good); } .hab-rows .hd.wait { font-size: 13px; color: var(--text-3); }
+
+/* clima da prova */
+.wx { display: grid; gap: 2px; margin: 0 0 10px; font-size: 14px; }
+.wx-r { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); color: var(--text-2); text-align: right; }
+.wx-r span:first-child { text-align: left; }
+.wx-r b { color: var(--text); font-weight: 500; }
+.wx-h { font-size: 12px; color: var(--text-3); }

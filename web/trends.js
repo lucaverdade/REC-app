@@ -43,13 +43,38 @@ export async function renderTrends(screen, api) {
     <section class="block" id="evo"></section>
     <section class="block" id="pred"></section>
     <section class="block" id="vol"></section>
-    <section class="block" id="recov"></section>`;
+    <section class="block" id="recov"></section>
+    <section class="block" id="habs"></section>`;
   const box = screen;
   strainWeeks(box, api);
   evolve(box, api);
   predictions(box, api);
   volume(box, api);
   recovery(box, api);
+  habits(box, api);
+}
+
+// ---------- O que mexe no meu REC (diário + regularidade do sono) ----------
+async function habits(box, api) {
+  const sec = box.querySelector('#habs');
+  sec.innerHTML = '<h2>O que mexe no meu REC</h2><p class="empty">Carregando…</p>';
+  let d; try { d = await api('/api/habits'); } catch (e) { sec.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
+  const row = (r) => {
+    const n = d.minDays;
+    const val = r.ready
+      ? `<span class="hd ${r.diff < 0 ? 'neg' : r.diff > 0 ? 'pos' : ''}">${r.diff > 0 ? '+' : r.diff < 0 ? '−' : ''}${Math.abs(r.diff)}</span>`
+      : `<span class="hd wait">faltam ${Math.max(0, n - r.with.n) + Math.max(0, n - r.without.n)} dias</span>`;
+    const sub = r.ready
+      ? `REC ${String(r.with.avg).replace('.', ',')} com × ${String(r.without.avg).replace('.', ',')} sem · ${r.with.n} e ${r.without.n} dias`
+      : `${r.with.n} ${r.with.n === 1 ? 'dia' : 'dias'} com, ${r.without.n} sem (precisa de ${n} de cada)`;
+    return `<li><div><span class="hl">${r.label.replace(/[&<>]/g, '')}</span><span class="hs">${sub}</span></div>${val}</li>`;
+  };
+  sec.innerHTML = `
+    <h2>O que mexe no meu REC</h2>
+    <p class="note">Diferença de pontos no REC da manhã seguinte, com × sem cada marcação do diário${d.since ? ` (desde ${new Date(d.since + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '')})` : ''}. O horário de sono irregular é automático.</p>
+    <ul class="hab-rows">${d.rows.map(row).join('')}</ul>
+    ${!d.since ? '<p class="note">Comece marcando o diário na aba Hoje, à noite.</p>' : ''}
+    <p class="note">É associação, não causa: outros fatores do dia também mudam o REC. Fica mais confiável com mais dias.</p>`;
 }
 
 // ---------- janelas longas (Estou evoluindo? / Recuperação) ----------

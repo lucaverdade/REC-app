@@ -37,6 +37,8 @@ export async function renderRace(screen, api) {
 
     ${projHtml(d.projection, r.date)}
 
+    <section class="block" id="wx"><h2>Clima em Aracaju no dia</h2><p class="empty">Carregando…</p></section>
+
     <section class="block" id="chk"></section>
 
     <section class="block">
@@ -55,6 +57,28 @@ export async function renderRace(screen, api) {
     </section>`;
 
   renderChecklist(screen.querySelector('#chk'), d.items, api);
+  renderWeather(screen.querySelector('#wx'), api);
+}
+
+// Clima do dia da prova: previsão hora a hora (a partir de 16 dias antes) ou o que costuma fazer
+async function renderWeather(sec, api) {
+  let w; try { w = await api('/api/weather'); } catch (e) { sec.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
+  if (!w.rows?.length) { sec.querySelector('.empty').textContent = 'Clima indisponível agora. Tenta de novo mais tarde.'; return; }
+  const prev = w.mode === 'previsao';
+  const max = Math.max(...w.rows.map((r) => r.temp ?? 0)), min = Math.min(...w.rows.map((r) => r.temp ?? 99));
+  const hum = Math.round(w.rows.reduce((a, r) => a + (r.hum ?? 0), 0) / w.rows.length);
+  const head = prev
+    ? `Previsão para domingo, 5 h às 13 h: <b>${min}–${max} °C</b>, umidade ~${hum}%.`
+    : `O que costuma fazer em 29/11 entre 5 h e 13 h: <b>${min}–${max} °C</b>, umidade ~${hum}%.`;
+  sec.innerHTML = `
+    <h2>Clima em Aracaju no dia</h2>
+    <p class="proj-head">${head}</p>
+    <div class="wx" role="table" aria-label="Clima por hora">
+      <div class="wx-r wx-h" role="row"><span>Hora</span><span>°C</span>${prev ? '<span>Sensação</span>' : ''}<span>Umidade</span><span>Vento</span><span>Chuva</span></div>
+      ${w.rows.map((r) => `<div class="wx-r" role="row"><span>${r.h} h</span><span><b>${r.temp ?? '–'}</b></span>${prev ? `<span>${r.feels ?? '–'}</span>` : ''}<span>${r.hum ?? '–'}%</span><span>${r.wind ?? '–'} km/h</span><span>${r.rain ?? '–'}%</span></div>`).join('')}
+    </div>
+    <p class="note">${prev ? 'Previsão Open-Meteo, atualizada a cada 3 h. Chuva = chance de chover.'
+      : `Média de ${w.years ?? 10} anos (22/11 a 06/12), Open-Meteo. Chuva = % das horas com chuva. A previsão do dia entra sozinha a partir de ${new Date(w.availableFrom + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' })}.`}</p>`;
 }
 
 // Forma projetada até a prova: últimos 14 dias reais + dias com plano publicado

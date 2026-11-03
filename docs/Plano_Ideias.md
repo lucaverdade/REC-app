@@ -1,8 +1,12 @@
 # REC — plano de ação das ideias aprovadas (03/11/2026)
 
-Aprovadas pelo Luca: todas do `Estudo_Ideias_Apps.md` **menos D1 (recordes) e F4 (clima)**. Nutrição (N) fica para depois. Strava (B7) fora do app.
+Aprovadas pelo Luca: todas do `Estudo_Ideias_Apps.md` **menos D1 (recordes) e D2 (ritmo de natação)**; F4 (clima) entrou depois. Nutrição (N) fica para depois. Strava (B7) fora do app.
 
-## Fase 1 — começa já (o diário precisa de dias de dados)
+## Fase 1 — FEITA em 03/11 (E1, E2, C1, C2, F4)
+
+| F4 | **Clima de Aracaju** | Modo prova | Open-Meteo, sem chave: até 15 dias antes mostra o que costuma fazer (29/11 ± 7 dias, 10 anos, 5–13 h); depois, previsão hora a hora (temperatura, sensação, umidade, vento, chance de chuva), cache de 3 h. |
+
+## Fase 1 — detalhes (o diário precisa de dias de dados)
 | # | Ideia | Onde aparece | Como |
 |---|---|---|---|
 | 1 | **E1 · Diário de hábitos** | Hoje, abaixo de "Como me sinto" | Marcações em um toque: álcool, cafeína depois das 16 h, jantar tarde, tela tarde, calor, viagem, doente, estresse alto. Salvo por dia no servidor (tabela nova). Marca à noite; vale para o REC da manhã seguinte. |
@@ -25,7 +29,6 @@ Aprovadas pelo Luca: todas do `Estudo_Ideias_Apps.md` **menos D1 (recordes) e F4
 | 10 | **Teste da API** | Rota de diagnóstico que tenta os caminhos de detalhe de atividade da Garmin Personal API (detalhes com séries de FC/ritmo/velocidade, voltas/splits, download do FIT) e devolve só o código de resposta e os nomes dos campos — nada de chave nem dados pessoais. O Luca abre a tela Garmin → "Testar detalhes". |
 | 11 | **B2 · Desacoplamento aeróbico** | Treinos ≥ 60 min de bike/corrida com ≥ 70% do tempo até a Z2: (ritmo ou velocidade ÷ FC) da 1ª metade × 2ª metade, sem os 10 primeiros min. < 5% = base aeróbica boa. No cartão do treino e em Tendências (evolução). |
 | 12 | **B3 · Eficiência** | Velocidade ÷ FC só em sessões comparáveis: rolo indoor Z2 (bike) e corridas planas Z2. Linha de tendência em Tendências. |
-| 13 | **D2 · Ritmo da natação** | Voltas/séries da natação: ritmo por 100 m nas séries de mesma distância; tendência e CSS estimado (400 m e 200 m). |
 
 Plano B da fase 3: se a API não entregar séries nem voltas, B2/B3 ficam com o que vier por volta (lap); se nem isso, ficam fora até haver exportação.
 

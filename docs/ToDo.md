@@ -33,6 +33,8 @@ Lista viva do que o Luca pediu para depois.
 - [x] **Aviso de sincronização** (03/11): no topo da aba Hoje quando a última busca falhou, a noite não chegou até 11:00 ou a busca automática parou há mais de 90 min.
 - [x] **Forma até a prova** (03/11): no Modo prova, Forma real de 14 dias + projetada com o Strain previsto do plano publicado; mostra a Forma prevista em 29/11 quando o plano das últimas semanas existir.
 
+- [x] **Fase 1 das ideias** (03/11): diário de hábitos, "O que mexe no meu REC" (com horário irregular automático), deitar até, nota de regularidade, clima de Aracaju. Próximo: fase 2 (`Plano_Ideias.md`).
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 

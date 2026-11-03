@@ -74,3 +74,46 @@ export function regularity(nights: SleepNight[]) {
   const wake = meanSd(w.map((n) => minsFromNoon(n.sleep_end as string)));
   return { nights: w.length, bedtime: toClock(bed.mean), bedSd: Math.round(bed.sd), wake: toClock(wake.mean), wakeSd: Math.round(wake.sd) };
 }
+
+const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
+const isWeekend = (d: string) => { const w = new Date(d + 'T12:00:00Z').getUTCDay(); return w === 0 || w === 6; };
+
+/**
+ * Horário para deitar (C1): acordar típico − meta da noite − tempo acordado na cama − 15 min para pegar no sono.
+ * Acordar típico = mediana das últimas 28 noites do mesmo tipo de dia (útil × fim de semana) do dia em que vai acordar;
+ * tempo acordado = mediana de (janela do sono − horas dormidas) nas últimas 14 noites.
+ */
+export function bedtimeTarget(nights: SleepNight[], tonightH: number, wakeDay: string) {
+  const withT = nights.filter((n) => n.sleep_start && n.sleep_end && n.sleep_h != null);
+  if (withT.length < 5) return null;
+  const same = withT.slice(-28).filter((n) => isWeekend(n.date) === isWeekend(wakeDay));
+  const pool = same.length >= 4 ? same : withT.slice(-14);
+  const wake = median(pool.map((n) => minsFromNoon(n.sleep_end as string)));
+  const awake = median(withT.slice(-14).map((n) => {
+    const win = (Date.parse((n.sleep_end as string).replace(' ', 'T') + 'Z') - Date.parse((n.sleep_start as string).replace(' ', 'T') + 'Z')) / 60000;
+    return Math.max(0, Math.min(90, win - (n.sleep_h as number) * 60));
+  }));
+  const bed = wake - tonightH * 60 - awake - 15;
+  return { bedtime: toClock(bed), wake: toClock(wake), awakeMin: Math.round(awake), latencyMin: 15, weekend: isWeekend(wakeDay) };
+}
+
+/** Nota de regularidade 0–100 (C2): 100 − 1,2 × média do desvio-padrão de deitar e acordar (min), 14 noites. */
+export function regularityScore(r: { bedSd: number; wakeSd: number } | null) {
+  if (!r) return null;
+  return Math.max(0, Math.min(100, Math.round(100 - 1.2 * ((r.bedSd + r.wakeSd) / 2))));
+}
+
+/** Noites irregulares: deitar ou acordar > 60 min longe da mediana das 14 noites anteriores. */
+export function irregularNights(nights: SleepNight[]) {
+  const t = nights.filter((n) => n.sleep_start && n.sleep_end);
+  const out: { date: string; irregular: boolean }[] = [];
+  t.forEach((n, i) => {
+    const prev = t.slice(Math.max(0, i - 14), i);
+    if (prev.length < 7) return;
+    const mb = median(prev.map((x) => minsFromNoon(x.sleep_start as string)));
+    const mw = median(prev.map((x) => minsFromNoon(x.sleep_end as string)));
+    const db = Math.abs(minsFromNoon(n.sleep_start as string) - mb), dw = Math.abs(minsFromNoon(n.sleep_end as string) - mw);
+    out.push({ date: n.date, irregular: db > 60 || dw > 60 });
+  });
+  return out;
+}

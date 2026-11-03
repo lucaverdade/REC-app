@@ -47,6 +47,13 @@ CREATE TABLE IF NOT EXISTS feel_notes (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- diário de hábitos (marcado à noite; vale para o REC da manhã seguinte)
+CREATE TABLE IF NOT EXISTS habit_tags (
+  date TEXT NOT NULL,
+  tag  TEXT NOT NULL,
+  PRIMARY KEY (date, tag)
+);
+
 -- registro de execução da rotina diária
 CREATE TABLE IF NOT EXISTS sync_log (
   id      INTEGER PRIMARY KEY AUTOINCREMENT,
