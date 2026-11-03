@@ -113,6 +113,34 @@ function actsHtml(acts) {
   }).join('')}</ul>`;
 }
 
+// ---------- anéis do topo (REC, Forma, Strain) ----------
+const RC = 2 * Math.PI * 40;
+function ringTile({ id, value, frac, color, label, sub, aria }) {
+  const f1 = Math.max(0, Math.min(1, frac)), f2 = Math.max(0, Math.min(1, frac - 1)); // segunda volta (Strain acima de 100%)
+  return `<button type="button" class="rtile" data-ring="${id}" aria-label="${esc(aria)}" ${id === 'rec' ? 'aria-expanded="false" aria-controls="contrib"' : ''}>
+    <span class="rt-ring">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="40" class="rt-track"/>
+        <circle cx="50" cy="50" r="40" class="rt-arc" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f1)}"/>
+        ${f2 > 0 ? `<circle cx="50" cy="50" r="40" class="rt-arc rt-lap" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f2)}"/>` : ''}
+      </svg>
+      <span class="rt-val"><span>${value}</span></span>
+    </span>
+    <span class="rt-label">${esc(label)}</span>
+    <span class="rt-sub">${esc(sub)}</span>
+  </button>`;
+}
+
+// chips: cada contribuinte do REC com seta para cima/baixo
+function chipsHtml(list) {
+  return list.filter((c) => c.pull != null).map((c) => {
+    const dir = c.pull >= 0.25 ? 'up' : c.pull <= -0.25 ? 'down' : 'flat';
+    const arrow = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
+    const short = { 'FC de repouso': 'FC repouso', 'Estresse de ontem': 'Estresse' }[c.label] ?? c.label;
+    return `<span class="chip ${dir}" role="listitem">${esc(short)} <b>${arrow}</b></span>`;
+  }).join('');
+}
+
 // ---------- Sono: noite, dívida, necessidade e regularidade ----------
 const hmm = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)}\u00a0h\u00a0${String(m % 60).padStart(2, '0')}`; };
 function sleepCard(d) {
@@ -202,32 +230,38 @@ function render(d) {
 
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
 
-    <button class="ring-wrap" aria-expanded="false" aria-controls="contrib"
-      aria-label="${d.rec == null ? 'REC sem dados' : `REC ${d.rec}`}. Toque para ver o que compõe o número.">
-      ${ringSvg(d.rec)}
-      <span class="ring-value">
-        <span class="num">${d.rec == null ? '–' : d.rec}</span>
-        <span class="hint">REC</span>
-      </span>
-    </button>
+    <section class="rings" aria-label="Resumo do dia">
+      ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, frac: d.rec == null ? 0 : d.rec / 100, color: zoneVar(z),
+        label: 'REC', sub: d.rec == null ? 'sem dados' : 'recuperação', aria: 'REC. Toque para ver o que compõe o número.' })}
+      ${ringTile({ id: 'forma', value: d.load?.formPct == null ? '–' : `${d.load.formPct > 0 ? '+' : d.load.formPct < 0 ? '−' : ''}${Math.abs(d.load.formPct)}<small>%</small>`,
+        frac: d.load?.formPct == null ? 0 : Math.min(1, Math.max(0, (d.load.formPct + 50) / 90)), color: `var(--z-${d.load?.zone?.key ?? 'neutro'})`,
+        label: 'Forma', sub: d.load?.zone?.label ?? '', aria: 'Forma. Toque para ver as tendências.' })}
+      ${ringTile({ id: 'strain', value: d.load?.strain ?? '–', frac: d.load?.fitness ? d.load.strain / d.load.fitness : 0, color: 'var(--strain)',
+        label: 'Strain', sub: d.load?.fitness ? `${Math.round((d.load.strain / d.load.fitness) * 100)}% do dia médio` : '', aria: 'Strain do dia. Toque para ver os treinos.' })}
+    </section>
 
-    <ol class="week" aria-label="Últimos 7 dias">
-      ${d.week.map((w) => `
-        <li class="${w.date === todayIso ? 'is-today' : ''}" title="${w.rec ?? '–'}">
-          <i style="background:${w.rec == null ? 'var(--line)' : zoneVar(zoneOf(w.rec))}"></i>
-          ${esc(fmtDate(w.date, { weekday: 'narrow' }))}
-        </li>`).join('')}
-    </ol>
+    ${d.load ? `<div class="ff-row">
+      <span><i class="dot" style="background:var(--fitness)"></i>Fitness <b class="c-fit">${d.load.fitness}</b></span>
+      <span><i class="dot" style="background:var(--fatigue)"></i>Fadiga <b class="c-fat">${d.load.fatigue}</b></span>
+    </div>` : ''}
 
-    <div class="contrib" id="contrib"><div><ul>${contribHtml(d.contributors)}</ul></div></div>
+    <div class="chips" role="list" aria-label="O que puxou o REC">${chipsHtml(d.contributors)}</div>
+
+    <div class="contrib" id="contrib"><div>
+      <p class="comment">${esc(d.comment)}</p>
+      <ul>${contribHtml(d.contributors)}</ul>
+      <ol class="week" aria-label="REC nos últimos 7 dias">
+        ${d.week.map((w) => `
+          <li class="${w.date === todayIso ? 'is-today' : ''}" title="${w.rec ?? '–'}">
+            <i style="background:${w.rec == null ? 'var(--line)' : zoneVar(zoneOf(w.rec))}"></i>
+            ${esc(fmtDate(w.date, { weekday: 'narrow' }))}
+          </li>`).join('')}
+      </ol>
+      ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}
+    </div></div>
 
     ${d.alerts.map((a) => `<p class="alert" role="status">${esc(a.text)}</p>`).join('')}
-
     ${d.needsHistory ? '<p class="alert">O histórico ainda não foi carregado, então o REC não tem base. <a href="#garmin">Puxar histórico da Garmin</a></p>' : ''}
-    <p class="comment">${esc(d.comment)}</p>
-    ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}
-
-    ${d.load ? formCard(d) : ''}
     ${d.sleep ? sleepCard(d) : ''}
 
     <section class="block">
@@ -252,17 +286,19 @@ function render(d) {
     </div>
   `;
 
-  // anel: animação única ao abrir
-  const arc = screen.querySelector('.arc');
-  requestAnimationFrame(() => requestAnimationFrame(() => { arc.style.strokeDashoffset = arc.dataset.target; }));
+  // anéis: animação única ao abrir
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    screen.querySelectorAll('.rt-arc').forEach((a) => { a.style.strokeDashoffset = a.dataset.target; });
+  }));
 
-  // contribuintes ao tocar
-  const ringBtn = screen.querySelector('.ring-wrap');
+  // REC: abre os contribuintes; Forma: Tendências; Strain: treinos do dia
   const contrib = screen.querySelector('#contrib');
-  ringBtn.addEventListener('click', () => {
-    const open = contrib.classList.toggle('is-open');
-    ringBtn.setAttribute('aria-expanded', String(open));
-  });
+  const recBtn = screen.querySelector('[data-ring="rec"]');
+  const toggle = () => { const open = contrib.classList.toggle('is-open'); recBtn.setAttribute('aria-expanded', String(open)); };
+  recBtn.addEventListener('click', toggle);
+  screen.querySelector('.chips')?.addEventListener('click', toggle);
+  screen.querySelector('[data-ring="forma"]').addEventListener('click', () => { location.hash = '#tendencias'; });
+  screen.querySelector('[data-ring="strain"]').addEventListener('click', () => screen.querySelector('.act-cards, .empty')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 
   // nota opcional
   const feel = screen.querySelector('.feel');
