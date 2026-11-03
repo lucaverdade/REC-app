@@ -258,10 +258,25 @@ async function renderGarmin() {
     for (let d = HISTORY_FROM; d <= today; d = addDaysIso(d, 14)) chunks.push([d, addDaysIso(d, 13) > today ? today : addDaysIso(d, 13)]);
     let dias = 0, ativ = 0;
     try {
+      // retoma de onde parou (o que já veio fica salvo no banco)
+      let done = ''; try { done = localStorage.getItem('rec.histDone') || ''; } catch {}
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       for (let i = 0; i < chunks.length; i++) {
-        out.textContent = `Buscando bloco ${i + 1} de ${chunks.length}…`;
-        const r = await api(`/api/garmin/backfill?from=${chunks[i][0]}&to=${chunks[i][1]}`, { method: 'POST' });
-        dias += r.dias; ativ += r.atividades;
+        if (chunks[i][1] <= done && chunks[i][1] < addDaysIso(today, -3)) continue;
+        for (let tent = 1; ; tent++) {
+          out.textContent = `Buscando bloco ${i + 1} de ${chunks.length}…`;
+          try {
+            const r = await api(`/api/garmin/backfill?from=${chunks[i][0]}&to=${chunks[i][1]}`, { method: 'POST' });
+            dias += r.dias; ativ += r.atividades;
+            try { localStorage.setItem('rec.histDone', chunks[i][1]); } catch {}
+            break;
+          } catch (e) {
+            // Garmin recusou por excesso de chamadas: espera e tenta de novo sozinho
+            if (!/limite|429/.test(e.message) || tent >= 15) throw e;
+            for (let s = 60; s > 0; s--) { out.textContent = `A Garmin pediu uma pausa. Bloco ${i + 1} de ${chunks.length}, retomando em ${s} s…`; await sleep(1000); }
+          }
+        }
+        await sleep(1500); // ritmo mais leve para não estourar o limite
       }
       for (let d = '2025-09-01'; d <= today; d = addDaysIso(d, 60)) {
         out.textContent = `Calculando o REC até ${fmt(d)}…`;
