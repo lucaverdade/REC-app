@@ -21,6 +21,8 @@ Lista viva do que o Luca pediu para depois.
 
 - [ ] **Conferir Strain previsto × feito a partir de 04/11** (zonas de ciclismo e natação atualizadas no Garmin em 03/11). Se continuar desproporcional: (a) chat de treino informar `strain` em toda sessão usando as zonas do Garmin; (b) app estimar o previsto pelo histórico (Strain/min médio de sessões da mesma modalidade e zona) quando o plano não trouxer `strain`. Caso de 03/11: rolo planejado "Z1" 60 min → previsto 60 (60 × 1); feito 31 (58,6 min abaixo da Z1 a 0,5/min, zonas antigas, FC média 107).
 
+- [ ] **Meta de Strain do dia v2 (usar o histórico)**. Hoje: Fitness (carga de 42 dias) × fator do REC (que já usa bases de 60–120 dias) × ajuste da Forma. Melhorar com: (a) quanto ainda cabe na **faixa semanal** (0,8–1,3 × média de 3 semanas) dividido pelos dias que faltam; (b) razão aguda/crônica e tendência da Fadiga; (c) dias desde o último dia pesado; (d) Strain previsto da sessão do plano; (e) a resposta de recuperação de 7 dias, não só o REC do dia. Validar contra o histórico: dias em que o Strain passou da meta deveriam ser seguidos de REC mais baixo.
+
 ## Abas e telas
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.
@@ -30,6 +32,9 @@ Lista viva do que o Luca pediu para depois.
 
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
+
+## Visual
+- [ ] **Temas de cor**: sair do preto puro para tons escuros (cinza grafite, verde muito escuro, azul-marinho) e deixar escolher entre 3 temas pré-definidos num ajuste do app (guardado no aparelho).
 
 ## Depois (pode ter custo)
 - [ ] Login / Face ID (quando o app for disponibilizado).
