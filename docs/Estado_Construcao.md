@@ -46,3 +46,6 @@ Cada bloco responde uma pergunta, com uma frase no topo que lê o gráfico:
 4. **Como treinei?** Período de calendário (semana…1 ano, com navegação): horas por modalidade, sessões, Strain e tempo em zonas numa barra única.
 5. **Meu corpo está recuperando?** Cartões REC, HRV, FC de repouso e sono com média de 7 dias, frase contra a base e mini-gráfico com a faixa normal (60 dias anteriores); toque amplia.
 Saíram: calendário de Strain por dia, gráficos separados de Forma e os gráficos de recuperação por período curto.
+
+### Resposta "Meu corpo está recuperando?" (03/11)
+Regras em `src/verdict.ts` (últimos 7 dias contra o normal dos 60 dias anteriores). Sinais: HRV ≥ 5% abaixo da base ou 3+ noites abaixo da faixa; FC ≥ 2 bpm acima ou 3+ dias acima; sono < necessidade − 30 min ou 3+ noites curtas; REC médio < 40. 0 sinais = recuperando bem; 1 = atenção; 2 = parcialmente; 3–4 = não totalmente. A frase de carga cruza com a faixa da Forma e os dias seguidos com Fadiga acima do Fitness.

@@ -5,6 +5,7 @@
 //  - Sono: necessidade pessoal (ver sleep.ts)
 import { formZone, pmc } from './load.ts';
 import { personalNeed } from './sleep.ts';
+import { recoveryVerdict } from './verdict.ts';
 
 interface Metric { date: string; hrv: number | null; rhr: number | null; sleep_h: number | null; nap_h: number | null }
 const r1 = (x: number | null | undefined) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 10) / 10);
@@ -54,8 +55,15 @@ export function longTrend(o: { from: string; to: string; loads: { date: string; 
   const outRhr = last7.filter((x) => x.rhr != null && x.rhrHi != null && x.rhr > x.rhrHi).length;
   const z = formZone(last.formPct);
 
+  const sleep7 = avg(last7.map((x) => x.sleep)), rec7 = avg(last7.map((x) => x.rec));
+  const verdict = recoveryVerdict({
+    hrvPct: hrv7 != null && hrvB ? Math.round(((hrv7 - hrvB) / hrvB) * 100) : null, hrvOut: outHrv,
+    rhrDiff: rhr7 != null && rhrB != null ? Math.round((rhr7 - rhrB) * 10) / 10 : null, rhrOut: outRhr,
+    sleep7, sleepShort: last7.filter((x) => x.sleep != null && x.sleep < need - 0.5).length, sleepNeed: need, rec7,
+    zoneKey: z?.key ?? null, fatigueAboveDays: streak,
+  });
   return {
-    from: o.from, to: o.to, sleepNeed: r1(need), days,
+    from: o.from, to: o.to, sleepNeed: r1(need), days, verdict,
     summary: {
       fitness: last.fitness, fatigue: last.fatigue, formPct: last.formPct, zone: z && { key: z.key, label: z.label },
       fitness4wPct: d28?.fitness ? Math.round(((last.fitness! - d28.fitness) / d28.fitness) * 100) : null,

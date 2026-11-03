@@ -222,6 +222,12 @@ async function recovery(box, api) {
   ];
   sec.innerHTML = `
     <h2>Meu corpo está recuperando?</h2>
+    ${t.verdict ? `<div class="verdict v-${t.verdict.level}">
+      <p class="v-answer">${esc(t.verdict.answer)}</p>
+      <p class="v-load">${esc(t.verdict.load)}</p>
+      <ul class="v-sig">${t.verdict.signals.map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.label)}: ${esc(g.txt)}</li>`).join('')}</ul>
+      <p class="v-foot">Últimos 7 dias contra o seu normal dos 60 dias anteriores. Leitura por regras; em modo sombra, os portões do plano continuam valendo.</p>
+    </div>` : ''}
     <p class="note">Faixa sombreada = o seu normal dos 60 dias anteriores a cada dia. Toque num cartão para ampliar.</p>
     <div class="rgrid">${cards.map((c) => `
       <button type="button" class="rcard${recOpen === c.k ? ' open' : ''}" data-k="${c.k}">
