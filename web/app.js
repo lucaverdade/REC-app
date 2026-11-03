@@ -341,6 +341,13 @@ async function renderGarmin() {
     </section>
 
     <section class="block">
+      <h2>Zonas de FC do Garmin</h2>
+      <p class="note">FC máxima, de repouso e limiar configurados no seu Garmin. São a base do cálculo de carga padrão do mercado (hrTSS).</p>
+      <button class="btn ghost" id="zones" ${st.hasKey ? '' : 'disabled'}>Ver zonas</button>
+      <div id="zones-out"></div>
+    </section>
+
+    <section class="block">
       <h2>Últimas sincronizações</h2>
       ${st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>'}
     </section>`;
@@ -383,6 +390,13 @@ async function renderGarmin() {
       out.textContent = `Parou: ${errText(e)} Toque de novo para continuar; o que já veio fica salvo.`;
       btn.disabled = false;
     }
+  });
+
+  screen.querySelector('#zones').addEventListener('click', async (ev) => {
+    const out = screen.querySelector('#zones-out');
+    out.innerHTML = '<p class="progress">Buscando…</p>';
+    try { out.innerHTML = `<pre class="raw-pre">${esc(JSON.stringify(await api('/api/garmin/zones'), null, 1))}</pre>`; }
+    catch (e) { out.innerHTML = `<p class="alert">${esc(errText(e))}</p>`; }
   });
 
   screen.querySelector('#check').addEventListener('click', async (ev) => {

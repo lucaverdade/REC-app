@@ -3,7 +3,7 @@ import { computeRec, type Contributor, type DailyInput } from '../src/rec.ts';
 import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc } from '../src/load.ts';
-import { fetchActivities, fetchDays, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
+import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
 export interface Env {
@@ -369,6 +369,10 @@ export default {
       if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);
       const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 14, 3), 28);
       try { return json(await garminCheck(env, days)); } catch (e) { return json({ error: garminMsg(e) }, 502); }
+    }
+    if (url.pathname === '/api/garmin/zones' && req.method === 'GET') {
+      if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);
+      try { return json(await fetchHrZones(env)); } catch (e) { return json({ error: garminMsg(e) }, 502); }
     }
     if (url.pathname === '/api/garmin/backfill' && req.method === 'POST') {
       if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);

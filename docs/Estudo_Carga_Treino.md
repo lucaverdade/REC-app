@@ -58,3 +58,18 @@ Carga Garmin por hora de treino, em 2026:
 - O Strain com k = 116 foi calibrado na sua distribuição de nov/2025 a nov/2026; recalibrar uma vez por temporada.
 
 Fontes: Strava Support (Fitness & Freshness); manual Garmin (Acute Load); WHOOP (How does Strain work 101); análise nos dados exportados.
+
+## 6. Como as empresas calculam a carga (pesquisa de 03/11, tarde)
+| Quem | Métrica | Base | Público? |
+|---|---|---|---|
+| TrainingPeaks | TSS / hrTSS | Potência ou pace contra o limiar; sem potência, FC contra o **limiar de FC (LTHR)**. 1 h no limiar = 100. | Conceito público; fórmula exata do hrTSS não |
+| intervals.icu | HRSS ("TRIMP normalizado") | TRIMP de FC normalizado; precisa de FC de repouso e de limiar | Método do Elevate |
+| Strava | Relative Effort | Baseado no TRIMP de Banister, tempo em zonas com pesos crescentes, normalizado com a base global do Strava; usa FC máx. | Pesos não publicados |
+| Garmin (Firstbeat) | Carga / EPOC | Estimativa do "oxigênio extra" pós-treino a partir da FC | Não |
+| Whoop | Strain 0–21 | Carga cardiovascular (FC) + muscular, escala logarítmica | Não |
+
+Leitura:
+- O padrão aberto e mais usado para quem não tem potência é o **hrTSS / HRSS**: TRIMP de Banister (FC acima do repouso, com peso exponencial para intensidade) normalizado para **100 = 1 h no limiar de FC**. Na mesma escala do TSS, então as referências do TrainingPeaks (ritmo de 5–8 pontos de Fitness por semana etc.) passam a valer.
+- O que o app usa desde 03/11 (minutos por zona × 1…5) é o **TRIMP de Edwards**, método publicado (1993) e base de vários relógios, mas sem normalização pelo limiar.
+- Limite conhecido de qualquer carga por FC: subestima intervalos curtos acima do limiar (a FC demora a subir). Vale para o Hyrox.
+- Protótipo com limiar estimado (90% de FC máx. 200) deu valores baixos demais. **Decisão pendente**: usar o limiar e as zonas configurados no Garmin (endpoint de zonas da API) antes de trocar.

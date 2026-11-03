@@ -27,7 +27,10 @@ Complementa `App_Backlog_e_Especificacao_REC.md`. Onde houver conflito, vale est
 - REC mantém o semáforo, levemente dessaturado (`#e2584f`, `#e7be45`, `#3fbf7f`). Inspiração: Oura usa uma cor por métrica, todas dessaturadas sobre preto.
 - Gráficos com cor própria e degradê: Strain laranja, HRV verde-menta, FC de repouso âmbar, sono lavanda, REC com bolinhas no semáforo; faixas da Forma de rosé (risco) a azul (descansado).
 
-## Falta (ordem sugerida)
+## Falta
+Lista completa e viva em `ToDo.md`. Próximo passo: hrTSS com as zonas do Garmin.
+
+## Falta (ordem sugerida, versão antiga)
 1. Confirmar FC de repouso e respiração no teste real da Garmin.
 2. Aba Treino (plano da semana publicado pelo Claude, planejado × executado, impacto no REC do dia seguinte).
 3. Modo prova (semana de Aracaju) e previsão de prova.

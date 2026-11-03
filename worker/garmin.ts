@@ -217,3 +217,8 @@ export async function fetchActivities(env: GarminEnv, from: string, to: string):
 }
 
 export const hasKey = (env: GarminEnv) => !!env.GARMIN_API_KEY;
+
+/** Zonas de FC configuradas no Garmin (FC máx., repouso, limiar). Formato ainda não confirmado: devolvido bruto. */
+export async function fetchHrZones(env: GarminEnv): Promise<unknown> {
+  return get(env, '/biometric-service/heartRateZones/v2');
+}
