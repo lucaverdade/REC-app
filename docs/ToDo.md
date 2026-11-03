@@ -17,6 +17,8 @@ Lista viva do que o Luca pediu para depois.
 - [x] **Zonas de FC por modalidade** (03/11): o Luca criou zonas de ciclismo no Garmin (%HRR; usar FC máx. da bike, ~185–186). Treinos novos já chegam com o tempo em zonas certo.
 - [ ] Opcional: recalcular o histórico baixando a FC segundo a segundo (arquivo FIT) e aplicando as zonas de cada esporte.
 
+- [x] Strain semanal com faixa (03/11), estilo Relative Effort do Strava: faixa = 0,8–1,3 × média das 3 semanas anteriores; 16 semanas em Tendências.
+
 ## Abas e telas
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.

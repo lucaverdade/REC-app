@@ -107,6 +107,8 @@ async function body(screen, api) {
       <div class="chart-wrap" id="ch-form"></div>
     </section>
 
+    <section class="block" id="sw"></section>
+
     <section class="block" id="pred"></section>
 
     <section class="block">
@@ -163,6 +165,7 @@ async function body(screen, api) {
   const barHead = (i) => `<p>${d.daily ? fmtDay(bars[i].start) : `Semana de ${fmtDay(bars[i].start)}`}</p>`;
   strainHeat(box, d);
   predictions(box, api);
+  strainWeeks(box, api);
 
   lineChart(box.querySelector('#ch-rec'), [{ name: 'REC', values: s.map((x) => x.rec), cls: 'recl' }], { area: '--rec-line',
     dates, range: [0, 100], bands: [[33.5, 66.5]], dots: (i, v) => zoneVar(v), label: 'REC',
@@ -280,6 +283,7 @@ async function predictions(box, api) {
   sec.querySelector('[data-reset]')?.addEventListener('click', async () => {
     await api('/api/predictions/calibrate', { method: 'POST', body: '{}' }).catch(() => {});
     predictions(box, api);
+  strainWeeks(box, api);
   });
 
   // gráfico: tempo invertido (para cima = mais rápido)
@@ -289,4 +293,56 @@ async function predictions(box, api) {
     dots: pMonths > 1 ? () => 'var(--pred)' : null,
     tip: (i) => `<p>${pMonths > 1 ? 'Semana de ' : ''}${fmtDay(pts[i].date)}</p>` + row(PD.find(([k]) => k === pDist)[1], tfmt(pts[i].times?.[pDist])),
   });
+}
+
+// ---------- Strain semanal com faixa (como o Relative Effort do Strava) ----------
+let swSel = null;
+const SW_STATUS = {
+  abaixo: { label: 'Abaixo da faixa', txt: 'Semana mais leve que o seu normal recente.' },
+  dentro: { label: 'Dentro da faixa', txt: 'Carga parecida com as 3 semanas anteriores.' },
+  acima: { label: 'Acima da faixa', txt: 'Semana mais pesada que o seu normal recente.' },
+  bem_acima: { label: 'Bem acima da faixa', txt: 'Mais de 50% acima da média das 3 semanas anteriores.' },
+};
+async function strainWeeks(box, api) {
+  const sec = box.querySelector('#sw');
+  if (!sec) return;
+  let r;
+  try { r = await api('/api/strain-weeks?weeks=16'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const ws = r.weeks;
+  const i = swSel == null ? ws.length - 1 : Math.min(swSel, ws.length - 1);
+  const w = ws[i], st = SW_STATUS[w.status] ?? null;
+  const end = (() => { const d = new Date(w.start + 'T12:00:00'); d.setDate(d.getDate() + 6); return d.toISOString().slice(0, 10); })();
+  // escala das barras: o maior dia da semana ou um quinto do teto da faixa (semana leve não vira barra gigante)
+  const maxDay = Math.max(1, ...w.days.map((v) => v ?? 0), w.hi / 5);
+  const wd = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+  const left = w.current && w.status !== 'acima' && w.status !== 'bem_acima' ? Math.max(0, w.hi - w.total) : null;
+
+  sec.innerHTML = `
+    <h2>Strain semanal</h2>
+    <div class="sw-card sw-${w.status ?? 'none'}">
+      <div class="sw-head">
+        <span class="meta">${w.current ? 'Esta semana, ' : ''}${fmtDay(w.start)} – ${fmtDay(end)}</span>
+        <b class="sw-total">${nf(w.total)}</b>
+        ${st ? `<span class="sw-status">${st.label}</span>` : ''}
+        <p class="sw-txt">${st ? st.txt : ''} Faixa: <b>${nf(w.lo)}–${nf(w.hi)}</b> (média das 3 semanas anteriores: ${nf(w.avg3)}).${left != null ? ` Até ${nf(w.hi)} fica dentro da faixa: faltam ${nf(left)}.` : ''}</p>
+      </div>
+      <div class="sw-days">${w.days.map((v, k) => `<div><span class="sw-bar" style="height:${v ? Math.max(4, (v / maxDay) * 100) : 0}%" title="${v ?? '–'}"></span><small>${wd[k]}</small></div>`).join('')}</div>
+    </div>
+    <div class="chart-wrap" id="ch-sw"></div>
+    <p class="note">Toque num ponto para ver a semana. A faixa sombreada é 0,8 a 1,3 vezes a média das 3 semanas anteriores: subir dentro dela é progressão gradual; acima dela, a carga cresceu rápido.</p>`;
+
+  // gráfico: faixa (área entre lo e hi) + pontos semanais
+  const svgW = 340, h = 120;
+  const vals = ws.flatMap((x) => [x.total, x.hi]);
+  const hiV = Math.max(...vals) * 1.08, x = (k) => 6 + (k / (ws.length - 1)) * (svgW - 40), y = (v) => h - (v / hiV) * h;
+  const band = ws.map((q, k) => `${x(k).toFixed(1)},${y(q.hi).toFixed(1)}`).join(' ') + ' ' + ws.slice().reverse().map((q, k) => `${x(ws.length - 1 - k).toFixed(1)},${y(q.lo).toFixed(1)}`).join(' ');
+  const ticks = [0, Math.round(ws.length / 3), Math.round((2 * ws.length) / 3), ws.length - 1];
+  sec.querySelector('#ch-sw').innerHTML = `<svg viewBox="0 -8 ${svgW} ${h + 26}" class="chart sw-chart" role="img" aria-label="Strain semanal e faixa">
+    <polygon points="${band}" class="sw-band"/>
+    <line x1="${x(i)}" x2="${x(i)}" y1="-8" y2="${h}" class="sw-sel"/>
+    ${ws.map((q, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(q.total).toFixed(1)}" r="${k === i ? 6 : 4.5}" class="sw-dot sw-${q.status ?? 'none'}${k === i ? ' on' : ''}" data-k="${k}"/>`).join('')}
+    ${ticks.map((k) => `<text x="${x(k)}" y="${h + 16}" class="ax" text-anchor="middle">${fmtDay(ws[k].start)}</text>`).join('')}
+    <text x="${svgW}" y="${y(Math.max(...ws.map((q) => q.total))) + 4}" class="ax" text-anchor="end">${nf(Math.max(...ws.map((q) => q.total)))}</text>
+  </svg>`;
+  sec.querySelectorAll('.sw-dot').forEach((c) => c.addEventListener('click', () => { swSel = Number(c.dataset.k); strainWeeks(box, api); }));
 }

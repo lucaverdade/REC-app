@@ -474,6 +474,32 @@ async function racePayload(env: Env, req: Request) {
   };
 }
 
+
+// --- Strain semanal com faixa (estilo Relative Effort do Strava) ---
+// Faixa da semana = média das 3 semanas anteriores × 0,8 a 1,3 (razão aguda/crônica; "sweet spot" de Gabbett).
+async function strainWeeksPayload(env: Env, weeks: number) {
+  const today = brtToday();
+  const thisMon = mondayOf(today);
+  const first = addDays(thisMon, -7 * (weeks + 3 - 1));
+  const loads = await dailyLoads(env, first, addDays(thisMon, 6) > today ? today : addDays(thisMon, 6));
+  const byDate = new Map(loads.map((x) => [x.date, x.load]));
+  const all: { start: string; days: (number | null)[]; total: number }[] = [];
+  for (let i = 0; i < weeks + 3; i++) {
+    const start = addDays(first, 7 * i);
+    const days = [0, 1, 2, 3, 4, 5, 6].map((k) => { const d = addDays(start, k); return d > today ? null : Math.round(byDate.get(d) ?? 0); });
+    all.push({ start, days, total: days.reduce<number>((a, v) => a + (v ?? 0), 0) });
+  }
+  const out = all.slice(3).map((w, i) => {
+    const prev = all.slice(i, i + 3);
+    const avg = prev.reduce((a, x) => a + x.total, 0) / 3;
+    const lo = Math.round(avg * 0.8), hi = Math.round(avg * 1.3);
+    const ratio = avg > 0 ? w.total / avg : null;
+    const status = !avg ? null : w.total < lo ? 'abaixo' : w.total <= hi ? 'dentro' : ratio! <= 1.5 ? 'acima' : 'bem_acima';
+    return { ...w, avg3: Math.round(avg), lo, hi, ratio: ratio == null ? null : Math.round(ratio * 100) / 100, status, current: w.start === thisMon };
+  });
+  return { today, weeks: out };
+}
+
 // --- avisos de carga (fato, sem conselho) ---
 async function loadAlerts(env: Env, date: string) {
   const out: { kind: string; text: string }[] = [];
@@ -642,6 +668,10 @@ export default {
       } else return json({ error: 'acao_invalida' }, 400);
       await setSetting(env, 'race_items', items);
       return json({ items });
+    }
+    if (url.pathname === '/api/strain-weeks' && req.method === 'GET') {
+      const n = Math.min(Math.max(Number(url.searchParams.get('weeks')) || 16, 4), 52);
+      return json(await strainWeeksPayload(env, n));
     }
     if (url.pathname === '/api/week' && req.method === 'GET') {
       const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, 0), 156);
