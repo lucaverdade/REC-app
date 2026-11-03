@@ -581,9 +581,9 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .sw-chart .sw-dot.on { fill: var(--strain); stroke: var(--strain); }
 .sw-chart .sw-dot.sw-acima { stroke: var(--z-produtivo); } .sw-chart .sw-dot.sw-bem_acima { stroke: var(--z-risco); }
 
-.ls-row { display: grid; grid-template-columns: 4.8em 3.2ch minmax(0, 1fr) 64px; white-space: nowrap; align-items: center; gap: 8px; }
-.ls-row .spark, .ls-row .wk-dots { width: 64px; height: 26px; margin: 0; }
-.ls-row .ls-d { font-size: 12px; }
+.ls-row { display: grid; grid-template-columns: 4.3em 50px minmax(0, 1fr) 52px; column-gap: 6px; white-space: nowrap; align-items: center; }
+.ls-row .spark, .ls-row .wk-dots { width: 52px; height: 26px; margin: 0; }
+.ls-row .ls-d { font-size: 12px; padding-left: 4px; overflow: hidden; text-overflow: ellipsis; }
 .ls-row b { font-size: 28px; }
 .ls-note { margin: 0; font-size: 11px; color: var(--text-3); }
 
@@ -648,7 +648,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 
 /* --- resumo do dia e meta de Strain --- */
 .day-summary { margin: -4px 0 16px; padding: 10px 14px; border-radius: 12px; text-align: center; font-size: 16px; font-weight: 600; background: var(--card); border: 1px solid var(--line-soft); }
-.day-summary { color: var(--text); font-weight: 500; text-align: left; border-left: 3px solid var(--sumc, var(--line)); }
+.day-summary { color: var(--text-2); font-size: 14px; font-weight: 400; line-height: 1.4; text-align: center; padding: 8px 12px; border: 0; background: none; }
 .day-summary.s-green { --sumc: var(--rec-green); } .day-summary.s-yellow { --sumc: var(--rec-yellow); } .day-summary.s-red { --sumc: var(--rec-red); }
 .st-card { display: flex; align-items: center; gap: 16px; margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-soft); }
 .st-ring { position: relative; width: 84px; flex: none; aspect-ratio: 1; }
