@@ -1,0 +1,112 @@
+{
+  "semana": "2026-11-02",
+  "fase": "Semana do simulado de prova",
+  "notas": "Tudo leve até sábado; o simulado de 07/11 decide o ritmo da prova e a semana de 09/11.",
+  "dias": {
+    "2026-11-03": [
+      {
+        "modalidade": "bike",
+        "titulo": "Bike leve da manhã",
+        "minutos": 60,
+        "zona": "Z1",
+        "detalhe": "RPE 2, FC abaixo de 131 (feito)"
+      },
+      {
+        "modalidade": "natacao",
+        "titulo": "Natação: 7×200 m",
+        "minutos": 40,
+        "zona": "Z1–Z2",
+        "detalhe": "8 min aquec. 400 m fácil; 26 min principais 7×200 m a 1:32–1:38/100 m RPE 3–4, 30 s de pausa; 6 min solta (200 m + 100 m educativo). Nutri: pré ~30 g, só água, total 30 g.",
+        "chave": true,
+        "strain": 66
+      }
+    ],
+    "2026-11-04": [
+      {
+        "modalidade": "hyrox",
+        "titulo": "Hyrox com os amigos",
+        "minutos": 50,
+        "zona": "Z3",
+        "detalhe": "8 min aquec.; 34 min principais sem correr, RPE ≤6, teto de FC ~165; 8 min solta. Meta: Relative Effort ≤~40. Nutri: pré 50 g, durante 30 g/h (25 g em 500 ml), total 75 g.",
+        "chave": true,
+        "strain": 125
+      },
+      {
+        "modalidade": "corrida",
+        "titulo": "Teste do pé",
+        "minutos": 20,
+        "zona": "Z1",
+        "detalhe": "5 min caminhada, 10 min a 7:00/km (FC ≤140), 5 min caminhada. Passa se dor ≤2/10; conto na quinta de manhã.",
+        "strain": 15
+      }
+    ],
+    "2026-11-05": [
+      {
+        "modalidade": "bike",
+        "titulo": "Brick: bike",
+        "minutos": 70,
+        "zona": "Z1–Z2",
+        "detalhe": "10 min Z1 (FC <131), 50 min Z2 (FC 131–146, RPE 3–4), 10 min Z1. Só vai se HRV ≥100, FC de repouso ≤41, sem catarro, perna ≤4/10 e pé liberado; senão, só bike Z2 de 70 min. Nutri: pré 50 g 90 min antes; bike 60 g/h = 70 g (garrafa 750 ml); total 135 g com a corrida.",
+        "chave": true,
+        "strain": 120
+      },
+      {
+        "modalidade": "corrida",
+        "titulo": "Brick: corrida",
+        "minutos": 25,
+        "zona": "Z1–Z2",
+        "detalhe": "T2 em até 3 min. 5 min a 6:45–7:15/km; 15 min a 6:10–6:40/km (FC 141–156); 5 min soltura. 250 ml com ~15 g de carbo (~35 g/h).",
+        "strain": 40
+      }
+    ],
+    "2026-11-06": [
+      {
+        "modalidade": "bike",
+        "titulo": "Bike com 3 piques",
+        "minutos": 40,
+        "zona": "Z1–Z2",
+        "detalhe": "10 min Z1; 20 min Z2 com 3×1 min a RPE 6 e 2 min fácil; 10 min Z1. Pré 40 g. Revisar pneus, câmara, CO2, freios e corrente; treinar a troca de câmara em casa.",
+        "chave": true,
+        "strain": 63
+      },
+      {
+        "modalidade": "natacao",
+        "titulo": "Natação: ativação",
+        "minutos": 40,
+        "zona": "Z1–Z2",
+        "detalhe": "8 min aquec. 400 m; 22 min principais: 400 m Z2 + 6×100 m a 1:26–1:30 RPE 5–6 com 20 s de pausa + 300 m fácil; 10 min solta. Carbo do dia 440–500 g, pouca fibra à noite, cama às 22:00, sono ≥7 h.",
+        "strain": 72
+      }
+    ],
+    "2026-11-07": [
+      {
+        "modalidade": "bike",
+        "titulo": "SIMULADO: bike",
+        "minutos": 150,
+        "zona": "Z3",
+        "detalhe": "Só se HRV ≥95 e FC de repouso ≤41; senão bike Z2 e decido a corrida na hora. 10 min aquec. FC 120–140; 130 min em ritmo de prova RPE 6, FC 147–153; 10 min Z2 antes da T2. Teste de fala aos 60 min. Nutri: pré 50 g 90 min antes; 65 g/h = 163 g, garrafa e barras do min 30 (113 g).",
+        "chave": true,
+        "strain": 425
+      },
+      {
+        "modalidade": "corrida",
+        "titulo": "SIMULADO: corrida",
+        "minutos": 60,
+        "zona": "Z2–Z3",
+        "detalhe": "T2 em até 3 min. 5 min a 6:00–6:10/km; 45 min em ritmo de prova, FC 155–160, nunca mais rápido que 5:15/km; 10 min Z1 a 6:45–7:15/km. Pare se FC >165, dor no pé ou mal-estar. Nutri: gel 25 g aos 20 min + 500 ml com 20 g (~45 g/h); total do dia ~208 g.",
+        "strain": 142
+      }
+    ],
+    "2026-11-08": [
+      {
+        "modalidade": "bike",
+        "titulo": "Bike de soltura",
+        "minutos": 60,
+        "zona": "Z1",
+        "detalhe": "5 min aquec.; 50 min Z1, FC abaixo de 131, RPE 2; 5 min solta. Recuperação: 70 g de carbo + 20 g de proteína na primeira hora após o simulado. À noite me mande os dados do simulado e do pé.",
+        "chave": true,
+        "strain": 60
+      }
+    ]
+  }
+}
