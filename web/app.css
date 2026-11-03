@@ -37,6 +37,13 @@
   --rhr: #ffab5c;
   --sleep: #9d8cff;
 
+  /* faixas do REC (tons do semáforo) */
+  --rb1: #d9363e;
+  --rb2: #ff6a52;
+  --rb3: #ffa94d;
+  --rb4: #ffd23f;
+  --rb5: #34d17f;
+
   /* faixas da Forma (% do Fitness) */
   --z-risco: #ff5f8f;
   --z-produtivo: #ffb547;
@@ -634,3 +641,20 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .vm-alto { border-color: color-mix(in srgb, var(--rec-green) 50%, transparent); color: var(--rec-green); }
 .vm-sem { opacity: .4; }
 .v-how { margin: 10px 0 0; }
+
+/* --- resumo do dia e meta de Strain --- */
+.day-summary { margin: -4px 0 16px; padding: 10px 14px; border-radius: 12px; text-align: center; font-size: 16px; font-weight: 600; background: #0e0f12; border: 1px solid var(--line-soft); }
+.day-summary.s-green { color: var(--rec-green); } .day-summary.s-yellow { color: var(--rec-yellow); } .day-summary.s-red { color: var(--rec-red); }
+.st-card { display: flex; align-items: center; gap: 16px; margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; background: #0e0f12; border: 1px solid var(--line-soft); }
+.st-ring { position: relative; width: 84px; flex: none; aspect-ratio: 1; }
+.st-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.st-ring .rt-val > span { font-size: 22px; }
+.st-arc { stroke: var(--strain); }
+.st-tick { stroke: #fff; stroke-width: 2.5; stroke-linecap: round; }
+.st-txt { display: grid; gap: 3px; }
+.st-txt b { font-weight: 600; } .st-txt b span { color: var(--text-2); font-weight: 400; }
+.st-txt > span { font-size: 14px; color: var(--strain); }
+.st-txt small { font-size: 11px; color: var(--text-3); }
+.planned li > span:first-child { flex: 1; min-width: 0; }
+.planned .meta { display: block; font-size: 13px; }
+.pl-strain { white-space: nowrap; align-self: center; }

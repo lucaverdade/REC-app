@@ -130,6 +130,44 @@ function formSegments(pct) {
   return `${segs}<circle cx="${50 + 40 * Math.cos(ang)}" cy="${50 + 40 * Math.sin(ang)}" r="6" class="rt-mark" style="fill:var(--z-${cur[2]})"/>`;
 }
 
+// REC: 5 faixas em tons do semáforo, faixa atual acesa e marcador no valor
+const RZ = [[0, 20, '--rb1'], [20, 33.5, '--rb2'], [33.5, 50, '--rb3'], [50, 66.5, '--rb4'], [66.5, 100, '--rb5']];
+function recSegments(rec) {
+  const pos = (v) => Math.min(100, Math.max(0, v)) / 100;
+  const cur = rec == null ? null : RZ.find(([lo, hi]) => rec < hi) ?? RZ[RZ.length - 1];
+  const segs = RZ.map(([lo, hi, c]) => {
+    const a = pos(lo) + 0.008, b = pos(hi) - 0.008;
+    return `<circle cx="50" cy="50" r="40" class="rt-seg" style="stroke:var(${c});opacity:${cur && cur[2] === c ? 1 : 0.28}"
+      stroke-dasharray="${(b - a) * RC} ${RC}" stroke-dashoffset="${-a * RC}"/>`;
+  }).join('');
+  if (rec == null) return segs;
+  const ang = pos(rec) * 2 * Math.PI;
+  return `${segs}<circle cx="${50 + 40 * Math.cos(ang)}" cy="${50 + 40 * Math.sin(ang)}" r="6" class="rt-mark" style="fill:var(${cur[2]})"/>`;
+}
+
+// anel de Strain com meta do dia: enche com o feito; tracinho na meta (2/3 da volta)
+function strainRing(done, target) {
+  const scale = Math.max(target * 1.5, done);
+  const f = Math.min(1, done / scale), tA = (target / scale) * 2 * Math.PI;
+  const pct = target ? Math.round((done / target) * 100) : null;
+  const left = Math.max(0, target - done);
+  return `<div class="st-card">
+    <span class="st-ring">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="40" class="rt-track"/>
+        <circle cx="50" cy="50" r="40" class="rt-arc st-arc" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f)}"/>
+        <line x1="${50 + 33 * Math.cos(tA)}" y1="${50 + 33 * Math.sin(tA)}" x2="${50 + 49 * Math.cos(tA)}" y2="${50 + 49 * Math.sin(tA)}" class="st-tick"/>
+      </svg>
+      <span class="rt-val"><span>${pct ?? '–'}<small>%</small></span></span>
+    </span>
+    <div class="st-txt">
+      <b>Strain ${done} <span>de ${target}</span></b>
+      <span>${done >= target ? `Meta de hoje atingida${done > target * 1.15 ? `: ${done - target} acima` : ''}.` : `Cabem mais ${left} hoje.`}</span>
+      <small>Meta calculada pelo REC e pela Forma a partir do seu dia médio. Modo sombra: o plano manda.</small>
+    </div>
+  </div>`;
+}
+
 function ringTile({ id, value, frac = 0, color, label, sub, aria, segments }) {
   const f1 = Math.max(0, Math.min(1, frac)), f2 = Math.max(0, Math.min(1, frac - 1)); // segunda volta (Strain acima de 100%)
   return `<button type="button" class="rtile" data-ring="${id}" aria-label="${esc(aria)}" ${id === 'rec' ? 'aria-expanded="false" aria-controls="contrib"' : ''}>
@@ -330,11 +368,13 @@ function render(d) {
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
 
     <section class="rings rings-2" aria-label="Estou pronto hoje?">
-      ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, frac: d.rec == null ? 0 : d.rec / 100, color: zoneVar(z),
-        label: 'REC', sub: recSub(d), aria: 'REC. Toque para ver o que compõe o número.' })}
+      ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, segments: recSegments(d.rec),
+        label: 'REC', sub: d.day?.trend ? `${d.day.trend.dir === 'up' ? '↑' : d.day.trend.dir === 'down' ? '↓' : '→'} ${d.day.trend.txt.replace('REC ', '')}` : '', aria: 'REC. Toque para ver o que compõe o número.' })}
       ${ringTile({ id: 'forma', value: d.load?.formPct == null ? '–' : `${d.load.formPct > 0 ? '+' : d.load.formPct < 0 ? '−' : ''}${Math.abs(d.load.formPct)}<small>%</small>`,
         segments: formSegments(d.load?.formPct), label: 'Forma', sub: shortZone(d.load?.zone?.key), aria: 'Forma. Toque para ver as tendências.' })}
     </section>
+
+    ${d.day?.summary ? `<p class="day-summary s-${zoneOf(d.rec)}">${esc(d.day.summary)}</p>` : ''}
 
     ${d.load ? loadStrip(d.load) : ''}
 
@@ -359,6 +399,7 @@ function render(d) {
 
     <section class="block">
       <h2>${d.isToday ? 'Treino de hoje' : 'Treinos do dia'}</h2>
+      ${d.day?.strainTarget ? strainRing(d.load?.strain ?? 0, d.day.strainTarget) : ''}
       ${d.planned?.length ? plannedHtml(d.planned, d.activities) : ''}
       ${actsHtml(d.activities)}
     </section>

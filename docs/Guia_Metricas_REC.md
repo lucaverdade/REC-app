@@ -91,6 +91,12 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - Respiração + FC acima do normal 2 dias seguidos → "padrão de início de doença", acima de qualquer leitura de carga.
 - Recalcula a cada noite nova.
 
+## 8b. Resumo do dia e meta de Strain
+(`src/daily.ts`)
+- Frase entre os anéis: cruza a cor do REC (verde/amarelo/vermelho) com a Forma (descansado ou equilibrado / em bloco de treino / muito cansado). Ex.: amarelo + bloco = "Treino moderado; o forte fica para quando o REC subir".
+- Direção do REC: dias seguidos subindo ou caindo (diferença mínima de 2 pontos).
+- Meta de Strain do dia = Fitness (dia médio) × 1,5 (REC verde), 1,0 (amarelo) ou 0,5 (vermelho); × 0,75 se muito cansado; × 1,25 se descansado. O anel enche com o Strain feito e o tracinho marca a meta.
+
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)
 - Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.

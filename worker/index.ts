@@ -6,6 +6,7 @@ import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
 import { debtLevel, personalNeed, regularity, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
 import { longTrend } from '../src/longtrend.ts';
+import { dailySummary, recTrend, strainTarget } from '../src/daily.ts';
 import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
@@ -579,6 +580,14 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     }),
     feel: feel?.value ?? null,
     load: ln,
+    day: (() => {
+      const recR = t.rec == null ? null : Math.round(t.rec);
+      return {
+        summary: dailySummary(recR, ln.zone?.key ?? null),
+        trend: recTrend([...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec == null ? null : Math.round(r.rec) }))),
+        strainTarget: strainTarget(recR, ln.zone?.key ?? null, ln.fitness),
+      };
+    })(),
     planned: await (async () => {
       if (!req) return [];
       const plan = await readPlan(env, req, mondayOf(date));

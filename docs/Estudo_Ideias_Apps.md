@@ -27,7 +27,7 @@ Legenda de esforço: **P** = pequeno (horas) · **M** = médio (1–2 dias) · *
 ## 2. Banco de ideias
 
 ### A. Recuperação e prontidão
-- **A0 · Ideias do Luca (03/11)**:
+- **A0 · Ideias do Luca (03/11)** — **feitas em 03/11** (regras em `src/daily.ts`):
   - **A0a · Anel do REC segmentado** em 5 faixas de cor, como o da Forma. *P*.
   - **A0b · Resumo do dia entre os dois anéis** no lugar de "média da semana": uma frase que cruza REC e Forma (ex.: "Dia para treinar forte", "Foco em recuperação hoje") e a direção do REC (subindo/caindo). *P*.
   - **A0c · Anel de Strain com meta do dia** (como o app que o Luca usa): o anel enche com o Strain feito e um tracinho marca até onde dá para ir hoje, calculado pelo REC e pela Forma. Mostra quanto já fez e quanto ainda cabe. *M*. Ligado a A3.
