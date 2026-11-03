@@ -4,7 +4,7 @@ import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
-import { regularity, sleepDebt, sleepNeed, type SleepNight } from '../src/sleep.ts';
+import { debtLevel, personalNeed, regularity, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
 import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
@@ -511,8 +511,9 @@ async function todayPayload(env: Env, date: string) {
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
   const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
-    .bind(addDays(date, -20), date).all<SleepNight>();
-  const debt = sleepDebt(nights);
+    .bind(addDays(date, -95), date).all<SleepNight>();
+  const need = personalNeed(nights.filter((n) => n.date <= date));
+  const debt = sleepDebt(nights, need, date);
   const lastNight = nights.find((n) => n.date === date) ?? null;
   const yesterdayNap = nights.find((n) => n.date === addDays(date, -1))?.nap_h ?? null;
 
@@ -541,8 +542,10 @@ async function todayPayload(env: Env, date: string) {
     sleep: {
       night: lastNight && { hours: lastNight.sleep_h, start: lastNight.sleep_start?.slice(11) ?? null, end: lastNight.sleep_end?.slice(11) ?? null },
       napYesterday: yesterdayNap,
-      debt: debt == null ? null : Math.round(debt * 10) / 10,
-      need: sleepNeed(debt, ln.strain),
+      debt: debt == null ? null : Math.round(debt * 100) / 100,
+      level: debtLevel(debt),
+      personalNeed: Math.round(need * 100) / 100,
+      need: sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null),
       regularity: regularity(nights),
     },
     isToday: date === brtToday(),

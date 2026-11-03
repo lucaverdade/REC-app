@@ -1,34 +1,55 @@
-// Sono: dívida, necessidade do dia e regularidade de horários.
+// Sono: necessidade pessoal, dívida, necessidade de hoje e regularidade.
 //
-// Regras do app (provisórias, revisar quando houver notas matinais suficientes — ver Estudo_Metrica_Recovery.md §8):
-// - Base: 7,5 h por noite (a mesma necessidade usada no REC).
-// - Dívida (7 noites) = Σ (7,5 h − sono da noite − cochilo do dia anterior), com sono acima da base
-//   pagando a dívida e o total nunca abaixo de zero. Cochilos contam (como no Whoop); o REC não usa cochilos.
-// - Necessidade de hoje = 7,5 h + ¼ da dívida (máx. +1 h) + carga de ontem (Strain acima de 100 soma até +30 min).
-//   O Whoop também soma dívida e esforço do dia à necessidade; os pesos dele não são públicos.
-// - Regularidade: desvio-padrão (min) dos horários de deitar e de acordar nas últimas 14 noites.
+// Método (03/11), baseado no que Oura e Whoop publicam:
+// - Necessidade pessoal (Oura): média das últimas 90 noites, sem as 10% mais curtas e as 10% mais longas
+//   (sono da noite + cochilos). Limitada entre 6 h 30 e 9 h.
+// - Dívida (Oura): últimos 14 dias, noites recentes pesam mais (meia-vida de 7 dias), cochilos contam;
+//   noites acima da necessidade pagam a dívida; nunca abaixo de zero.
+//   Faixas da Oura: nenhuma (0), baixa (< 2 h), moderada (2–5 h), alta (> 5 h).
+// - Necessidade de hoje à noite (Whoop): necessidade pessoal + parte da dívida (¼, até +30 min)
+//   + treino do dia (Strain acima de 100, até +30 min) − cochilo de hoje.
+// O REC continua usando a necessidade fixa de 7,5 h da especificação v1.1.
 
-export const BASE_NEED_H = 7.5;
+export const REC_NEED_H = 7.5;
 
 export interface SleepNight { date: string; sleep_h: number | null; nap_h?: number | null; sleep_start?: string | null; sleep_end?: string | null }
 
-/** Dívida de sono (h) ao acordar no último dia da lista (usa as 7 noites mais recentes). */
-export function sleepDebt(nights: SleepNight[]): number | null {
-  const last7 = nights.slice(-7).filter((n) => n.sleep_h != null);
-  if (last7.length < 4) return null;
-  let debt = 0;
-  for (const n of last7) {
-    const got = Math.min(n.sleep_h as number, 9.5) + (n.nap_h ?? 0);
-    debt = Math.max(0, debt + (BASE_NEED_H - got));
-  }
-  return debt;
+const total = (n: SleepNight) => (n.sleep_h ?? 0) + (n.nap_h ?? 0);
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400_000);
+
+/** Necessidade pessoal (h) a partir das noites dos últimos 90 dias. */
+export function personalNeed(nights: SleepNight[]): number {
+  const xs = nights.filter((n) => n.sleep_h != null).slice(-90).map(total).sort((a, b) => a - b);
+  if (xs.length < 14) return REC_NEED_H;
+  const lo = Math.floor(xs.length * 0.1), hi = Math.ceil(xs.length * 0.9);
+  const core = xs.slice(lo, hi);
+  const mean = core.reduce((a, b) => a + b, 0) / core.length;
+  return Math.min(9, Math.max(6.5, mean));
 }
 
-/** Necessidade de sono para a próxima noite. */
-export function sleepNeed(debt: number | null, strainToday: number | null) {
-  const fromDebt = Math.min(1, (debt ?? 0) / 4);
+/** Dívida (h) ao acordar em `day`: 14 dias, recentes pesam mais. */
+export function sleepDebt(nights: SleepNight[], need: number, day: string): number | null {
+  const w = nights.filter((n) => n.sleep_h != null && n.date <= day && daysBetween(n.date, day) < 14);
+  if (w.length < 5) return null;
+  let debt = 0;
+  for (const n of w) debt += 0.5 ** (daysBetween(n.date, day) / 7) * (need - total(n));
+  return Math.max(0, debt);
+}
+
+export function debtLevel(debt: number | null) {
+  if (debt == null) return null;
+  if (debt < 1 / 6) return { key: 'nenhuma', label: 'nenhuma' };
+  if (debt < 2) return { key: 'baixa', label: 'baixa' };
+  if (debt <= 5) return { key: 'moderada', label: 'moderada' };
+  return { key: 'alta', label: 'alta' };
+}
+
+/** Necessidade para a próxima noite. */
+export function sleepNeedTonight(need: number, debt: number | null, strainToday: number | null, napToday: number | null) {
+  const fromDebt = Math.min(0.5, (debt ?? 0) / 4);
   const fromStrain = Math.min(0.5, Math.max(0, ((strainToday ?? 0) - 100) / 400));
-  return { total: BASE_NEED_H + fromDebt + fromStrain, base: BASE_NEED_H, fromDebt, fromStrain };
+  const nap = Math.min(napToday ?? 0, need);
+  return { total: Math.max(0, need + fromDebt + fromStrain - nap), base: need, fromDebt, fromStrain, nap };
 }
 
 /** Minutos desde o meio-dia (para média de horários que cruzam a meia-noite). */
@@ -51,9 +72,5 @@ export function regularity(nights: SleepNight[]) {
   if (w.length < 5) return null;
   const bed = meanSd(w.map((n) => minsFromNoon(n.sleep_start as string)));
   const wake = meanSd(w.map((n) => minsFromNoon(n.sleep_end as string)));
-  return {
-    nights: w.length,
-    bedtime: toClock(bed.mean), bedSd: Math.round(bed.sd),
-    wake: toClock(wake.mean), wakeSd: Math.round(wake.sd),
-  };
+  return { nights: w.length, bedtime: toClock(bed.mean), bedSd: Math.round(bed.sd), wake: toClock(wake.mean), wakeSd: Math.round(wake.sd) };
 }

@@ -117,23 +117,30 @@ function actsHtml(acts) {
 const hmm = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)}\u00a0h\u00a0${String(m % 60).padStart(2, '0')}`; };
 function sleepCard(d) {
   const s = d.sleep, n = s.night, need = s.need;
-  const pct = n?.hours != null ? Math.min(1.25, n.hours / 7.5) : 0;
+  const pn = s.personalNeed ?? 7.5;
+  const pct = n?.hours != null ? Math.min(1.25, n.hours / pn) : 0;
   const extra = [];
   if (need.fromDebt >= 1 / 60) extra.push(`dívida +${Math.round(need.fromDebt * 60)} min`);
   if (need.fromStrain >= 1 / 60) extra.push(`treino +${Math.round(need.fromStrain * 60)} min`);
+  if (need.nap >= 1 / 60) extra.push(`cochilo −${Math.round(need.nap * 60)} min`);
   const r = s.regularity;
   return `
     <section class="sleep-card" aria-label="Sono">
       <div class="sl-head"><span class="sl-title">Sono</span>
         ${n?.start && n?.end ? `<span class="meta">${esc(n.start)} → ${esc(n.end)}</span>` : ''}</div>
-      <div class="sl-main"><b>${hmm(n?.hours)}</b><span>de 7\u00a0h\u00a030</span></div>
+      <div class="sl-main"><b>${hmm(n?.hours)}</b><span>de ${hmm(pn)} (sua necessidade)</span></div>
       <div class="sl-bar"><i style="width:${(pct / 1.25) * 100}%"></i><em style="left:${(1 / 1.25) * 100}%"></em></div>
       <div class="sl-stats">
-        <div><span>${s.debt == null ? '–' : s.debt < 1 / 60 ? 'zerada' : hmm(s.debt)}</span><small>Dívida (7 noites)</small></div>
-        <div><span>${hmm(need.total)}</span><small>${d.isToday ? 'Precisa hoje à noite' : 'Precisava na noite seguinte'}${extra.length ? ` (${extra.join(', ')})` : ''}</small></div>
+        <div><span class="debt-${s.level?.key ?? 'nenhuma'}">${s.debt == null ? '–' : s.debt < 1 / 6 ? 'nenhuma' : hmm(s.debt)}</span><small>Dívida (14 dias)${s.level && s.level.key !== 'nenhuma' ? `, ${s.level.label}` : ''}</small></div>
+        <div><span>${hmm(need.total)}</span><small>${d.isToday ? 'Meta para hoje à noite' : 'Meta para a noite seguinte'}${extra.length ? ` (${extra.join(', ')})` : ''}</small></div>
       </div>
       ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).</p>` : ''}
       ${s.napYesterday ? `<p class="sl-reg">Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}: <b>${Math.round(s.napYesterday * 60)} min</b> (conta na dívida).</p>` : ''}
+      <details class="explain sl-exp"><summary>Como é calculado</summary>
+        <p><b>Sua necessidade</b> é a média das suas últimas 90 noites, sem as 10% mais curtas e as 10% mais longas (como a Oura faz). Cochilos contam.</p>
+        <p><b>Dívida</b>: nos últimos 14 dias, quanto você dormiu abaixo da sua necessidade, com as noites recentes pesando mais (uma noite curta perde metade do peso a cada 7 dias). Noites acima da necessidade e cochilos pagam a dívida. Faixas da Oura: baixa até 2 h, moderada de 2 a 5 h, alta acima de 5 h.</p>
+        <p><b>Meta de hoje</b>: sua necessidade + até 30 min por causa da dívida + até 30 min pelo treino do dia − cochilo de hoje (como o Whoop). Não é preciso pagar a dívida de uma vez: ela some aos poucos com noites um pouco mais longas, cochilos e o próprio tempo.</p>
+      </details>
     </section>`;
 }
 

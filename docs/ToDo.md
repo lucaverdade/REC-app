@@ -10,7 +10,7 @@ Lista viva do que o Luca pediu para depois.
 - [ ] ~~Strain no padrão hrTSS~~ — **não adotado** (03/11): o Strain fica no TRIMP de Edwards (zonas × 1…5). Reavaliar só se houver potência na bike ou limiar de FC confiável. Ver `Estudo_Carga_Treino.md`, seção 7.
 - [x] **Tempo em zonas** (03/11): seção em Tendências e barra em cada treino (Hoje e Treino).
 - [x] **Previsões de prova (corrida)** (03/11): regras do Strava (ao ar livre, 24 semanas, recentes pesam mais), motor aberto (VO2máx por pace + FC), tendência 1/3/6 meses, calibração opcional com os números do Strava. **Pendente: o Luca digitar as previsões atuais do Strava** (Tendências → Previsões → Ajustar).
-- [x] Dívida de sono e necessidade do dia (03/11), cochilos contam na dívida. Regra provisória do app (ver `src/sleep.ts`).
+- [x] Sono (03/11, revisado): necessidade pessoal (média de 90 noites sem extremos, como a Oura), dívida de 14 dias com noites recentes pesando mais e faixas da Oura, meta da noite estilo Whoop (necessidade + dívida + treino − cochilo). O REC segue com 7,5 h fixas (spec v1.1); alinhar na calibração.
 - [x] Regularidade do sono (03/11): horário médio de deitar/acordar e variação em 14 noites. **Pendente: Garmin → Buscar 90 dias** para preencher os horários.
 - [ ] Indicadores de forma: pace na FC 145 (corrida), velocidade na FC 137 (bike), ritmo de natação por 100 m.
 
