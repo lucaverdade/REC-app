@@ -67,6 +67,27 @@ Legenda de esforço: **P** = pequeno (horas) · **M** = médio (1–2 dias) · *
 - **F3 · Aclimatação ao calor** (Garmin): sessões de calor da semana e marcador simples. *P*. Já no backlog original (item 14).
 - **F4 · Clima de Aracaju** no modo prova (previsão para o dia). *P · depende de API de clima gratuita*. Opinião: média.
 
+
+### N. Nutrição
+**Situação**: o backlog original definiu a aba Nutrição só para **nutrição dos treinos** (pré, durante, g/h, registro em dois toques) e deixou contagem de calorias **fora do app**. O Luca agora quer avaliar trazer calorias. Abaixo, opções nos dois níveis.
+
+**Nutrição do treino (o que estava previsto)**
+- **N1 · Carbo planejado por sessão**: o chat de treino já escreve a nutrição no `detalhe`; passar a mandar campos próprios no plano (`carbo_g_h`, `carbo_total_g`, `pre`, `sodio_mg_h`). O app mostra no cartão do treino e na aba Nutrição. *P · Dados: plano*. **Opinião: alta**, custo baixo e é o que mais importa para o 70.3.
+- **N2 · Registro em dois toques depois do treino**: carbo que realmente tomou (g) + barriga (ok / pesada / ruim). *P*. **Opinião: alta**; com N1 vira "planejado × feito" da nutrição.
+- **N3 · Progressão do carbo na bike**: gráfico de g/h nos longões até a prova (treinar o intestino). *P · depende de N2*. Opinião: alta até a prova.
+- **N4 · Taxa de suor**: peso antes e depois do treino + líquido bebido → litros/hora por modalidade e calor. *P · Dados: o Garmin tem peso se você pesar na balança conectada; senão digitado*. Opinião: média; útil para o plano de hidratação da prova.
+- **N5 · Carga de carbo da semana da prova**: já vem no `prova.json`; mostrar na aba Nutrição com check por dia. *P*. Opinião: alta (curto prazo).
+
+**Gasto e ingestão (calorias)**
+- **N6 · Gasto calórico do Garmin**: calorias ativas, em repouso (metabolismo basal) e totais por dia e por semana. A API entrega no resumo diário (`data.calories`). *P · Dados: API ✓*. **Opinião: alta**, custo baixo, dá a noção que você pediu.
+- **N7 · Calorias por treino**: gasto de cada sessão no cartão do treino. *P · Dados: atividades (campo de calorias, a confirmar)*. Opinião: média.
+- **N8 · Registro do que comeu (ingestão)**, três caminhos:
+  - **Foto com IA**: tira foto, a IA estima alimentos e gramas. É o mais prático, mas **precisa de IA paga** (visão computacional por API) e a precisão de porção ainda é limitada. Os próprios fabricantes falam em ~15–25% de erro na porção, números não verificados de forma independente. *G · custo mensal*. Fica para a versão com IA.
+  - **Código de barras + tabela brasileira**: Open Food Facts (gratuito, produtos industrializados) e Tabela TACO (alimentos in natura). Busca por nome + gramas. *M · grátis*. Mais trabalho de digitar.
+  - **Continuar fora do app** (como decidido no backlog) e só importar o total do dia de outro app, se ele exportar. *?*
+  **Opinião**: começar por N6 (gasto) e manter ingestão fora do app por enquanto. Se quiser ingestão, o caminho grátis é código de barras + TACO; foto com IA entra junto com a IA no app.
+- **N9 · Balanço do dia**: gasto (N6) − ingestão (N8) e carbo por kg nos dias de treino forte. *M · depende de N8*. Opinião: depois.
+
 ### G. Visual e uso
 - **G1 · Resumo semanal no app** (cartão de domingo à noite com os números da semana; o texto pode vir do chat de treino). *P*. Previsto no backlog (item 10).
 - **G2 · Notificações/widgets**: só em app nativo (v2).
@@ -84,7 +105,8 @@ Body Battery · SpO2 noturno · passos e minutos de intensidade · hidratação 
 4. **B4** meta de Forma para 29/11
 5. **A2** tendência do HRV (CV + classificação)
 6. **E1 + E2** diário e impacto dos hábitos
-7. **B2** desacoplamento aeróbico (depois da prova, se o FIT for simples de baixar)
+7. **N1 + N2 + N6** nutrição do treino planejada × feita e gasto calórico do Garmin (se mantivermos a aba Nutrição)
+8. **B2** desacoplamento aeróbico (depois da prova, se o FIT for simples de baixar)
 
 ## 4. Fontes
-WHOOP (press release mai/2026; Strain e sono) · Oura (Sleep debt; heart health) · Garmin (Training Readiness, manual; the5krunner) · HRV4Training (CV; normal values; big picture) · Strava (Relative Effort; Performance Predictions; Fitness & Freshness) · TrainingPeaks (glossário; TSS × hrTSS) · lifestack.ai (Bevel × Athlytic) · intervals.icu (conhecimento geral sobre os recursos).
+WHOOP (press release mai/2026; Strain e sono) · Oura (Sleep debt; heart health) · Garmin (Training Readiness, manual; the5krunner) · HRV4Training (CV; normal values; big picture) · Strava (Relative Effort; Performance Predictions; Fitness & Freshness) · TrainingPeaks (glossário; TSS × hrTSS) · lifestack.ai (Bevel × Athlytic) · intervals.icu (conhecimento geral sobre os recursos) · Nutrola (métodos de contagem de calorias; números do fabricante, não verificados).
