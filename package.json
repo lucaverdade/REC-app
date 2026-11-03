@@ -1,0 +1,9 @@
+{
+  "name": "rec-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ref": "python3 scripts/dump_reference.py data/daily_metrics.csv",
+    "test": "node test/rec.parity.test.ts"
+  }
+}
