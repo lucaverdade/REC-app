@@ -9,9 +9,9 @@
   --text-3: #5d5d63;
 
   /* REC: semáforo, levemente dessaturado para conversar com o resto */
-  --rec-red: #e2584f;
-  --rec-yellow: #e7be45;
-  --rec-green: #3fbf7f;
+  --rec-red: #ff5a52;
+  --rec-yellow: #ffcb3d;
+  --rec-green: #34d17f;
 
   /* modalidades (validadas para daltonismo e contraste sobre o preto) */
   --bike: #3f93d4;
@@ -22,24 +22,24 @@
   --outro: #48484d;
 
   /* carga: Fitness azul, Fadiga rosé (como TrainingPeaks) */
-  --fitness: #5e97e0;
-  --fatigue: #d46a94;
+  --fitness: #4c9dff;
+  --fatigue: #ff5f8f;
 
   /* Strain e linha do REC */
-  --strain: #e08a4f;
+  --strain: #ff8a4c;
   --rec-line: #c9c4b8;
 
   /* recuperação */
-  --hrv: #5fc4a5;
-  --rhr: #e39b57;
-  --sleep: #8e86e8;
+  --hrv: #3fe0b0;
+  --rhr: #ffab5c;
+  --sleep: #9d8cff;
 
   /* faixas da Forma (% do Fitness) */
-  --z-risco: #d46a94;
-  --z-produtivo: #e0a35a;
-  --z-neutro: #7c7c84;
-  --z-descansado: #5e97e0;
-  --z-perdendo: #9db0c8;
+  --z-risco: #ff5f8f;
+  --z-produtivo: #ffb547;
+  --z-neutro: #c9c9d1;
+  --z-descansado: #4c9dff;
+  --z-perdendo: #8fd3ff;
 
   /* destaque de interface */
   --accent: #8fb6ec;
@@ -298,8 +298,9 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 }
 .gauge-wrap { position: relative; width: min(64vw, 240px); margin: 0 auto; }
 .gauge { width: 100%; height: auto; display: block; overflow: visible; }
-.gauge .gseg { fill: none; stroke-width: 9; stroke-linecap: round; }
-.gauge .gmark { stroke: #000; stroke-width: 3; }
+.gauge .gseg { fill: none; stroke-width: 10; stroke-linecap: round; }
+.gauge .gseg.on { filter: drop-shadow(0 0 6px currentColor); }
+.gauge .gmark { stroke: #000; stroke-width: 3; filter: drop-shadow(0 0 5px rgba(255,255,255,.35)); }
 .gauge-val { position: absolute; left: 0; right: 0; bottom: 2px; display: grid; justify-items: center; }
 .gauge-val .num { font: 200 40px/1 var(--font-display); letter-spacing: -0.03em; }
 .gauge-val .num.z-neutro { color: var(--text); }

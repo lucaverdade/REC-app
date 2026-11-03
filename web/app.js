@@ -108,7 +108,7 @@ function gaugeSvg(pct) {
     const hi = Math.min(z.max, G.max);
     const [x1, y1] = pt(lo + 0.6), [x2, y2] = pt(hi - 0.6);
     const on = pct != null && zoneOfPct(pct).key === z.key;
-    segs += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" class="gseg" style="stroke:var(--z-${z.key});opacity:${on ? 1 : 0.28}"/>`;
+    segs += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" class="gseg${on ? ' on' : ''}" style="stroke:var(--z-${z.key});color:var(--z-${z.key});opacity:${on ? 1 : 0.4}"/>`;
     lo = hi;
   }
   let marker = '';

@@ -45,11 +45,11 @@ export function pmc(daily: { date: string; load: number }[]): PmcDay[] {
 
 /** Faixas da Forma em % do Fitness (Joe Friel, adaptadas pelo intervals.icu). */
 export const FORM_ZONES = [
-  { max: -30, key: 'risco', label: 'Risco alto' },
-  { max: -10, key: 'produtivo', label: 'Treino produtivo' },
-  { max: 5, key: 'neutro', label: 'Neutro' },
+  { max: -30, key: 'risco', label: 'Sobrecarga' },
+  { max: -10, key: 'produtivo', label: 'Carregado (produtivo)' },
+  { max: 5, key: 'neutro', label: 'Equilibrado' },
   { max: 20, key: 'descansado', label: 'Descansado' },
-  { max: Infinity, key: 'perdendo', label: 'Perdendo forma' },
+  { max: Infinity, key: 'perdendo', label: 'Destreinando' },
 ] as const;
 
 export function formZone(pct: number | null) {

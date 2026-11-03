@@ -5,11 +5,11 @@ const UNITS = [['semana', 'Semana'], ['mes', 'Mês'], ['3m', '3 meses'], ['6m', 
 const SPORTS = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
 const SPORT_LABEL = { bike: 'Bike', corrida: 'Corrida', natacao: 'Natação', hyrox: 'Hyrox', academia: 'Academia', outro: 'Outro' };
 export const FORM_ZONES = [
-  { max: -30, key: 'risco', label: 'Risco alto' },
-  { max: -10, key: 'produtivo', label: 'Treino produtivo' },
-  { max: 5, key: 'neutro', label: 'Neutro' },
+  { max: -30, key: 'risco', label: 'Sobrecarga' },
+  { max: -10, key: 'produtivo', label: 'Carregado (produtivo)' },
+  { max: 5, key: 'neutro', label: 'Equilibrado' },
   { max: 20, key: 'descansado', label: 'Descansado' },
-  { max: Infinity, key: 'perdendo', label: 'Perdendo forma' },
+  { max: Infinity, key: 'perdendo', label: 'Destreinando' },
 ];
 export const zoneOfPct = (p) => (p == null ? null : FORM_ZONES.find((z) => p < z.max));
 
@@ -84,9 +84,9 @@ async function body(screen, api) {
       <details class="explain">
         <summary>O que significa</summary>
         <p><b>Strain</b> é a carga de cada treino: minutos em cada zona de FC do Garmin × peso da zona (Z1 vale 1, Z5 vale 5; abaixo da Z1, 0,5). Cresce com a duração e com a intensidade, e cai para o mesmo treino quando você fica mais condicionado (a FC fica mais baixa).</p>
-        <p><b>Fitness</b> é a média do seu Strain dos últimos 42 dias, com mais peso para os dias recentes. Sobe devagar com constância e cai devagar quando você para.</p>
+        <p><b>Fitness</b> é a média do seu Strain dos últimos 42 dias, com mais peso para os dias recentes. A cada dia ele anda 1/42 (2,4%) na direção do Strain do dia: um treino maior que a média sobe o Fitness, um dia de folga desce ~2,4%. Por isso oscila alguns pontos de um dia para o outro e só mostra tendência ao longo de semanas.</p>
         <p><b>Fadiga</b> é a mesma conta com 7 dias. Sobe rápido depois de dias pesados e cai rápido com descanso.</p>
-        <p><b>Forma</b> = (Fitness − Fadiga de ontem) ÷ Fitness, em %. É como você acorda, antes do treino do dia. Faixas de referência (Joe Friel, adaptadas pelo intervals.icu): abaixo de −30% risco alto; −30% a −10% treino produtivo; −10% a +5% neutro; +5% a +20% descansado (o que um polimento busca); acima de +20% perdendo forma.</p>
+        <p><b>Forma</b> = (Fitness − Fadiga de ontem) ÷ Fitness, em %. É como você acorda, antes do treino do dia. Faixas de referência (Joe Friel, adaptadas pelo intervals.icu): abaixo de −30% sobrecarga; −30% a −10% carregado, a faixa produtiva de um bloco de treino; −10% a +5% equilibrado; +5% a +20% descansado (o que um polimento busca); acima de +20% destreinando. A Forma não diz se você está recuperado hoje: isso é o REC. Ela mede o equilíbrio entre a carga recente e a das últimas semanas.</p>
         <p>Método do TrainingPeaks e do Strava (modelo de Banister). Compare você com você mesmo; a escala é diferente da deles.</p>
       </details>
       <div class="chart-wrap" id="ch-pmc"></div>
