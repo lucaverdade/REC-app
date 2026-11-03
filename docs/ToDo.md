@@ -19,7 +19,7 @@ Lista viva do que o Luca pediu para depois.
 
 - [x] Strain semanal com faixa (03/11), estilo Relative Effort do Strava: faixa = 0,8–1,3 × média das 3 semanas anteriores; 16 semanas em Tendências.
 
-- [ ] **Conferir Strain previsto × feito a partir de 04/11** (zonas de ciclismo e natação atualizadas no Garmin em 03/11). Se continuar desproporcional: (a) chat de treino informar `strain` em toda sessão usando as zonas do Garmin; (b) app estimar o previsto pelo histórico (Strain/min médio de sessões da mesma modalidade e zona) quando o plano não trouxer `strain`. Caso de 03/11: rolo planejado "Z1" 60 min → previsto 60 (60 × 1); feito 31 (58,6 min abaixo da Z1 a 0,5/min, zonas antigas, FC média 107).
+- [x] **Strain previsto pelo histórico** (03/11): minutos × Strain/min típico em treinos parecidos (modalidade + zona predominante, 120 dias); vence o `strain` do plano. Ainda conferir a partir de 04/11 com as zonas novas. Pedido original: **Conferir Strain previsto × feito a partir de 04/11** (zonas de ciclismo e natação atualizadas no Garmin em 03/11). Se continuar desproporcional: (a) chat de treino informar `strain` em toda sessão usando as zonas do Garmin; (b) app estimar o previsto pelo histórico (Strain/min médio de sessões da mesma modalidade e zona) quando o plano não trouxer `strain`. Caso de 03/11: rolo planejado "Z1" 60 min → previsto 60 (60 × 1); feito 31 (58,6 min abaixo da Z1 a 0,5/min, zonas antigas, FC média 107).
 
 - [x] **Meta de Strain do dia v2** (03/11, `src/target.ts`; ver Guia 8b). Itens (c) e (d) entraram como "ontem pesado" e comparação com o plano. Pedido original: Hoje: Fitness (carga de 42 dias) × fator do REC (que já usa bases de 60–120 dias) × ajuste da Forma. Melhorar com: (a) quanto ainda cabe na **faixa semanal** (0,8–1,3 × média de 3 semanas) dividido pelos dias que faltam; (b) razão aguda/crônica e tendência da Fadiga; (c) dias desde o último dia pesado; (d) Strain previsto da sessão do plano; (e) a resposta de recuperação de 7 dias, não só o REC do dia. Validar contra o histórico: dias em que o Strain passou da meta deveriam ser seguidos de REC mais baixo.
 
@@ -30,11 +30,14 @@ Lista viva do que o Luca pediu para depois.
 - [x] Modo prova (03/11): contagem, checklist escrito pelo Luca e salvo no servidor, carbo e plano de prova vindos de `web/plan/prova.json` (chat de treino). Aparece sozinho a partir de 23/11; prévia pelo rodapé da aba Hoje.
 - [x] Avisos de carga (03/11) na aba Hoje: razão aguda/crônica fora de 0,8–1,4; corrida da semana +15% sobre a média de 4 semanas.
 
+- [x] **Aviso de sincronização** (03/11): no topo da aba Hoje quando a última busca falhou, a noite não chegou até 11:00 ou a busca automática parou há mais de 90 min.
+- [x] **Forma até a prova** (03/11): no Modo prova, Forma real de 14 dias + projetada com o Strain previsto do plano publicado; mostra a Forma prevista em 29/11 quando o plano das últimas semanas existir.
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 
 ## Visual
-- [ ] **Temas de cor**: sair do preto puro para tons escuros (cinza grafite, verde muito escuro, azul-marinho) e deixar escolher entre 3 temas pré-definidos num ajuste do app (guardado no aparelho).
+- [x] **Temas de cor** (03/11): Preto, Grafite, Verde-escuro, Azul-marinho; rodapé da aba Hoje → Tema; guardado no aparelho. Pedido original: **Temas de cor**: sair do preto puro para tons escuros (cinza grafite, verde muito escuro, azul-marinho) e deixar escolher entre 3 temas pré-definidos num ajuste do app (guardado no aparelho).
 
 ## Depois (pode ter custo)
 - [ ] Login / Face ID (quando o app for disponibilizado).

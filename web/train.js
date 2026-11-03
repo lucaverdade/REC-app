@@ -109,5 +109,5 @@ async function body(screen, api) {
         </li>`;
       }).join('')}
     </ol>
-    <p class="note">Strain previsto = minutos planejados × peso da zona (Z2 vale 2 por minuto). Entre 80% e 120% do previsto conta como no alvo. Strain de cada treino no círculo à direita. A barra mostra o tempo em cada zona de FC: cinza abaixo da Z1, depois Z1 cinza-azulado, Z2 azul, Z3 verde, Z4 laranja e Z5 vermelho.</p>`;
+    <p class="note">Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e mesma zona) dos últimos 120 dias. Sem 3 treinos parecidos, vale o Strain escrito no plano ou, na falta dele, minutos × peso da zona. Entre 80% e 120% do previsto conta como no alvo. Strain de cada treino no círculo à direita. A barra mostra o tempo em cada zona de FC: cinza abaixo da Z1, depois Z1 cinza-azulado, Z2 azul, Z3 verde, Z4 laranja e Z5 vermelho.</p>`;
 }

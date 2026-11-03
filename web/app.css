@@ -4,6 +4,10 @@
   --surface: #121214;
   --line: #262629;
   --line-soft: #1a1a1d;
+  --card: #0e0f12;
+  --card-2: #0b0b0d;
+  --track: #1b1b1f;
+  --tabbar: rgba(0, 0, 0, .86);
   --text: #f2f2f4;
   --text-2: #9a9aa1;
   --text-3: #5d5d63;
@@ -278,7 +282,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around;
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-  background: rgba(0, 0, 0, .86); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  background: var(--tabbar); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   border-top: 1px solid var(--line-soft);
 }
 .tab { display: grid; justify-items: center; gap: 3px; font-size: 11px; color: var(--text-2); text-decoration: none; min-width: 64px; }
@@ -303,14 +307,14 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 /* --- Hoje: medidor de Forma --- */
 .form-card {
   display: block; margin: 0 0 30px; padding: 18px 16px 14px; border-radius: 16px;
-  background: linear-gradient(180deg, #0e0f13, #0a0a0c); border: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, var(--card), var(--card-2)); border: 1px solid var(--line-soft);
   color: var(--text); text-decoration: none;
 }
 .gauge-wrap { position: relative; width: min(64vw, 240px); margin: 0 auto; }
 .gauge { width: 100%; height: auto; display: block; overflow: visible; }
 .gauge .gseg { fill: none; stroke-width: 10; stroke-linecap: round; }
 .gauge .gseg.on { filter: drop-shadow(0 0 6px currentColor); }
-.gauge .gmark { stroke: #000; stroke-width: 3; filter: drop-shadow(0 0 5px rgba(255,255,255,.35)); }
+.gauge .gmark { stroke: var(--bg); stroke-width: 3; filter: drop-shadow(0 0 5px rgba(255,255,255,.35)); }
 .gauge-val { position: absolute; left: 0; right: 0; bottom: 2px; display: grid; justify-items: center; }
 .gauge-val .num { font: 200 40px/1 var(--font-display); letter-spacing: -0.03em; }
 .gauge-val .num.z-neutro { color: var(--text); }
@@ -367,7 +371,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .chart .ln.formln { stroke: rgba(255,255,255,.75); stroke-width: 1.5; }
 
 /* --- Strain por dia: calendário de calor (rampa ciano) --- */
-.hl-0 { background: #18181b; } .hl-1 { background: #0e3a40; } .hl-2 { background: #12606a; }
+.hl-0 { background: var(--track); } .hl-1 { background: #0e3a40; } .hl-2 { background: #12606a; }
 .hl-3 { background: #138f9d; } .hl-4 { background: #1ebfd2; } .hl-5 { background: #7ff0fb; }
 .hl-f { background: transparent; border: 1px dashed var(--line) !important; }
 .heat .hc { border: 0; padding: 0; cursor: pointer; color: #fff; border-radius: 6px; font: inherit; }
@@ -392,7 +396,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .act-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .act-card {
   position: relative; padding: 14px 16px 12px 18px; border-radius: 14px; overflow: hidden;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 16%, #0b0b0d), #0b0b0d 70%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 16%, var(--card-2)), var(--card-2) 70%);
   border: 1px solid color-mix(in srgb, var(--c) 28%, transparent);
 }
 .act-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c); }
@@ -425,8 +429,8 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 /* --- previsões de prova --- */
 .pd-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 6px; }
 .pd { display: grid; gap: 2px; text-align: left; padding: 10px 8px; border-radius: 12px; cursor: pointer;
-  background: #0f0f12; border: 1px solid var(--line-soft); color: var(--text); font: inherit; }
-.pd[aria-selected="true"] { border-color: var(--pred); background: color-mix(in srgb, var(--pred) 12%, #0b0b0d); }
+  background: var(--card); border: 1px solid var(--line-soft); color: var(--text); font: inherit; }
+.pd[aria-selected="true"] { border-color: var(--pred); background: color-mix(in srgb, var(--pred) 12%, var(--card-2)); }
 .pd small { color: var(--text-2); font-size: 12px; }
 .pd b { font: 300 19px/1.1 var(--font-display); letter-spacing: -0.01em; }
 .pd-d { font-size: 11px; color: var(--text-3); }
@@ -441,7 +445,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 /* --- Hoje: sono --- */
 .sleep-card {
   margin: 0 0 30px; padding: 16px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--sleep) 30%, transparent);
-  background: linear-gradient(160deg, color-mix(in srgb, var(--sleep) 14%, #0b0b0d), #0b0b0d 65%);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--sleep) 14%, var(--card-2)), var(--card-2) 65%);
 }
 .sl-head { display: flex; justify-content: space-between; align-items: baseline; }
 .sl-title { color: var(--sleep); font-weight: 600; }
@@ -460,12 +464,12 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 /* --- modo prova --- */
 .foot-links { display: flex; gap: 16px; }
 .race-banner { display: grid; gap: 2px; margin: 10px 0 0; padding: 12px 14px; border-radius: 14px; text-decoration: none; color: var(--text);
-  background: linear-gradient(120deg, color-mix(in srgb, var(--corrida) 30%, #0b0b0d), color-mix(in srgb, var(--bike) 25%, #0b0b0d)); }
+  background: linear-gradient(120deg, color-mix(in srgb, var(--corrida) 30%, var(--card-2)), color-mix(in srgb, var(--bike) 25%, var(--card-2))); }
 .race-banner span { font-size: 12px; color: var(--text-2); }
 .race-banner b { font-weight: 600; }
 .race-banner em { font-style: normal; font-size: 13px; color: var(--accent); }
 .race-hero { margin: 8px 0 30px; padding: 20px 16px; border-radius: 18px; text-align: center;
-  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--corrida) 28%, #0b0b0d), #0a0a0c 70%);
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--corrida) 28%, var(--card-2)), var(--card-2) 70%);
   border: 1px solid color-mix(in srgb, var(--corrida) 30%, transparent); }
 .rh-name { margin: 0; font-weight: 600; }
 .rh-date { margin: 2px 0 10px; color: var(--text-2); font-size: 14px; }
@@ -501,7 +505,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .rtile { background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; display: grid; justify-items: center; align-content: start; gap: 2px; -webkit-tap-highlight-color: transparent; }
 .rt-ring { position: relative; width: min(100%, 104px); aspect-ratio: 1; }
 .rt-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
-.rt-track { fill: none; stroke: #1b1b1f; stroke-width: 6; }
+.rt-track { fill: none; stroke: var(--track); stroke-width: 6; }
 .rt-arc { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1.1s var(--ease); }
 .rt-lap { opacity: .55; }
 .rt-val { position: absolute; inset: 0; display: grid; place-items: center; }
@@ -512,7 +516,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 
 /* cartão Fitness / Fadiga */
 .load-card { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 0 0 14px; padding: 14px 16px; border-radius: 16px;
-  background: #0e0f12; border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; }
+  background: var(--card); border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; }
 .lc { display: grid; gap: 2px; }
 .lc-l { font-size: 13px; color: var(--text-2); }
 .lc b { font: 300 34px/1.05 var(--font-display); letter-spacing: -0.02em; }
@@ -535,7 +539,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .top .race-link { color: var(--accent); text-decoration: none; }
 
 .rt-seg { fill: none; stroke-width: 6; stroke-linecap: round; }
-.rt-mark { stroke: #000; stroke-width: 2.5; }
+.rt-mark { stroke: var(--bg); stroke-width: 2.5; }
 .heat .hc.hl-4 span, .heat .hc.hl-5 span { color: #00262b; text-shadow: none; } .heat .hc.hl-4 em, .heat .hc.hl-5 em { color: rgba(0,38,43,.6); }
 
 /* --- Hoje: dois anéis + faixa de Fadiga/Fitness --- */
@@ -544,7 +548,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .rings-2 .rt-val > span { font-size: 34px; }
 .rings-2 .rt-val small { font-size: 16px; }
 .rings-2 .rt-track, .rings-2 .rt-arc, .rings-2 .rt-seg { stroke-width: 7; }
-.load-strip { display: grid; gap: 10px; margin: 0 0 14px; padding: 14px 16px; border-radius: 16px; background: #0e0f12; border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; }
+.load-strip { display: grid; gap: 10px; margin: 0 0 14px; padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; }
 .ls-row { display: flex; align-items: center; gap: 10px; }
 .ls-l { min-width: 5.2em; font-size: 14px; color: var(--text-2); display: inline-flex; align-items: center; }
 .ls-row b { font: 300 30px/1 var(--font-display); letter-spacing: -0.02em; }
@@ -560,7 +564,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 
 /* --- Strain semanal (estilo Relative Effort) --- */
 .sw-card { padding: 16px; border-radius: 16px; margin-bottom: 10px; border: 1px solid var(--line-soft);
-  background: linear-gradient(160deg, color-mix(in srgb, var(--strain) 22%, #0b0b0d), #0b0b0d 70%); }
+  background: linear-gradient(160deg, color-mix(in srgb, var(--strain) 22%, var(--card-2)), var(--card-2) 70%); }
 .sw-head { display: grid; gap: 2px; }
 .sw-total { font: 200 56px/1 var(--font-display); letter-spacing: -0.03em; margin-top: 4px; }
 .sw-status { font-weight: 600; font-size: 18px; }
@@ -573,7 +577,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .sw-days small { font-size: 11px; color: var(--text-3); }
 .sw-chart .sw-band { fill: var(--strain); opacity: .14; }
 .sw-chart .sw-sel { stroke: var(--strain); stroke-width: 1; opacity: .6; }
-.sw-chart .sw-dot { fill: #0b0b0d; stroke: var(--text); stroke-width: 1.6; cursor: pointer; }
+.sw-chart .sw-dot { fill: var(--card-2); stroke: var(--text); stroke-width: 1.6; cursor: pointer; }
 .sw-chart .sw-dot.on { fill: var(--strain); stroke: var(--strain); }
 .sw-chart .sw-dot.sw-acima { stroke: var(--z-produtivo); } .sw-chart .sw-dot.sw-bem_acima { stroke: var(--z-risco); }
 
@@ -611,18 +615,18 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .zlist span { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zlist b { font-weight: 500; } .zlist em { font-style: normal; color: var(--text-3); min-width: 2.6em; text-align: right; }
 .rgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.rcard { display: grid; gap: 3px; text-align: left; padding: 12px; border-radius: 14px; background: #0e0f12; border: 1px solid var(--line-soft); color: var(--text); font: inherit; cursor: pointer; }
+.rcard { display: grid; gap: 3px; text-align: left; padding: 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-soft); color: var(--text); font: inherit; cursor: pointer; }
 .rcard.open { border-color: var(--accent); }
 .rc-t { font-size: 13px; color: var(--text-2); display: flex; align-items: center; }
 .rc-v { font: 300 28px/1.05 var(--font-display); margin-top: 2px; }
 .rc-u { font-size: 11px; color: var(--text-3); margin-top: -2px; }
 .rc-x { font-size: 12px; color: var(--text-2); line-height: 1.35; min-height: 3.2em; }
 .rc-g .chart { margin-top: 4px; }
-.rbig { margin: 12px 0 4px; padding: 12px; border-radius: 14px; background: #0e0f12; border: 1px solid var(--line-soft); }
+.rbig { margin: 12px 0 4px; padding: 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-soft); }
 .rbig .sub { margin-top: 0; }
 
 /* --- resposta: meu corpo está recuperando? --- */
-.verdict { position: relative; margin: 4px 0 14px; padding: 14px 16px 12px 18px; border-radius: 16px; background: #0e0f12; border: 1px solid var(--line-soft); overflow: hidden; }
+.verdict { position: relative; margin: 4px 0 14px; padding: 14px 16px 12px 18px; border-radius: 16px; background: var(--card); border: 1px solid var(--line-soft); overflow: hidden; }
 .verdict::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--vc); }
 .v-bom { --vc: var(--rec-green); } .v-normal { --vc: #8fd3a8; } .v-atencao { --vc: var(--rec-yellow); } .v-abaixo { --vc: var(--z-produtivo); } .v-ruim { --vc: var(--z-risco); }
 .v-answer { margin: 0; font-size: 18px; font-weight: 600; color: var(--vc); }
@@ -643,9 +647,9 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .v-how { margin: 10px 0 0; }
 
 /* --- resumo do dia e meta de Strain --- */
-.day-summary { margin: -4px 0 16px; padding: 10px 14px; border-radius: 12px; text-align: center; font-size: 16px; font-weight: 600; background: #0e0f12; border: 1px solid var(--line-soft); }
+.day-summary { margin: -4px 0 16px; padding: 10px 14px; border-radius: 12px; text-align: center; font-size: 16px; font-weight: 600; background: var(--card); border: 1px solid var(--line-soft); }
 .day-summary.s-green { color: var(--rec-green); } .day-summary.s-yellow { color: var(--rec-yellow); } .day-summary.s-red { color: var(--rec-red); }
-.st-card { display: flex; align-items: center; gap: 16px; margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; background: #0e0f12; border: 1px solid var(--line-soft); }
+.st-card { display: flex; align-items: center; gap: 16px; margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line-soft); }
 .st-ring { position: relative; width: 84px; flex: none; aspect-ratio: 1; }
 .st-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
 .st-ring .rt-val > span { font-size: 22px; }
@@ -662,3 +666,23 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .st-why { margin-top: 4px; font-size: 12px; color: var(--text-2); }
 .st-why summary { color: var(--accent); cursor: pointer; }
 .st-why ul { margin: 6px 0 0; padding-left: 16px; } .st-why p { margin: 4px 0 0; color: var(--text-3); }
+
+/* aviso de sincronização */
+.sync-alert { display: block; text-decoration: none; color: var(--text-2); border-left: 2px solid var(--rec-yellow); margin: 4px 0 14px; }
+.sync-alert em { font-style: normal; color: var(--accent); white-space: nowrap; }
+
+/* Forma projetada até a prova */
+.proj-head { margin: 0 0 10px; font-size: 16px; color: var(--text); }
+.pj-sep { stroke: var(--text-3); stroke-dasharray: 2 3; }
+.pj-t { fill: var(--text-3); font-size: 10px; }
+
+/* temas (03/11): fundo e superfícies; as cores das métricas não mudam */
+:root[data-theme="grafite"] { --bg: #16171a; --surface: #202226; --card: #1d1f23; --card-2: #191a1e; --line: #33353b; --line-soft: #272930; --track: #2a2c31; --tabbar: rgba(22, 23, 26, .9); }
+:root[data-theme="verde"] { --bg: #07110e; --surface: #0f1d18; --card: #0d1a15; --card-2: #0a1511; --line: #1f3129; --line-soft: #16251f; --track: #1a2b24; --tabbar: rgba(7, 17, 14, .9); }
+:root[data-theme="marinho"] { --bg: #070d1a; --surface: #0f1729; --card: #0d1526; --card-2: #0a1120; --line: #1e2a42; --line-soft: #162036; --track: #19243b; --tabbar: rgba(7, 13, 26, .9); }
+
+.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 16px; }
+.theme-opt { display: grid; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.theme-opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.theme-opt .sw { height: 54px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); position: relative; overflow: hidden; }
+.theme-opt .sw i { position: absolute; left: 10px; right: 10px; bottom: 10px; height: 18px; border-radius: 6px; }

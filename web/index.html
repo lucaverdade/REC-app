@@ -12,6 +12,11 @@
   <link rel="apple-touch-icon" href="/icon-180.png">
   <link rel="icon" href="/icon-192.png">
   <link rel="stylesheet" href="/app.css">
+  <script>
+    // tema escolhido (guardado no aparelho), aplicado antes de pintar a tela
+    try { var t = localStorage.getItem('rec.theme'); if (t && t !== 'preto') document.documentElement.dataset.theme = t; } catch (e) {}
+    (function () { var c = { grafite: '#16171a', verde: '#07110e', marinho: '#070d1a' }[document.documentElement.dataset.theme]; if (c) document.querySelector('meta[name=theme-color]').setAttribute('content', c); })();
+  </script>
 </head>
 <body>
   <main id="screen" aria-live="polite"></main>

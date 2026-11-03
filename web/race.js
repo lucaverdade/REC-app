@@ -35,6 +35,8 @@ export async function renderRace(screen, api) {
       </div>
     </section>
 
+    ${projHtml(d.projection, r.date)}
+
     <section class="block" id="chk"></section>
 
     <section class="block">
@@ -53,6 +55,40 @@ export async function renderRace(screen, api) {
     </section>`;
 
   renderChecklist(screen.querySelector('#chk'), d.items, api);
+}
+
+// Forma projetada até a prova: últimos 14 dias reais + dias com plano publicado
+const ZONES = [['risco', -Infinity, -30], ['produtivo', -30, -10], ['neutro', -10, 5], ['descansado', 5, 20], ['perdendo', 20, Infinity]];
+const zkey = (p) => ZONES.find(([, lo, hi]) => p >= lo && p < hi)?.[0] ?? 'neutro';
+const sg = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + '%';
+const short = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' });
+function projHtml(pr, raceDate) {
+  if (!pr?.series?.length) return '';
+  const S = pr.series.filter((x) => x.formPct != null);
+  const W = 340, H = 130, n = S.length;
+  const lo = Math.min(-40, ...S.map((x) => x.formPct)), hi = Math.max(25, ...S.map((x) => x.formPct));
+  const y = (v) => ((hi - v) / (hi - lo)) * H, slot = W / n, bw = Math.max(3, Math.min(14, slot - 3));
+  const bands = ZONES.map(([k, a, b]) => { const t = y(Math.min(b, hi)), bt = y(Math.max(a, lo)); return bt > t ? `<rect x="0" y="${t.toFixed(1)}" width="${W}" height="${(bt - t).toFixed(1)}" fill="var(--z-${k})" opacity=".07"/>` : ''; }).join('');
+  const bars = S.map((x, i) => {
+    const top = Math.min(y(x.formPct), y(0)), h = Math.max(1, Math.abs(y(x.formPct) - y(0)));
+    const cx = i * slot + (slot - bw) / 2;
+    return `<rect x="${cx.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="var(--z-${zkey(x.formPct)})" ${x.projected ? 'fill-opacity=".35" stroke="var(--z-' + zkey(x.formPct) + ')" stroke-width="1" stroke-dasharray="2 2"' : ''}/>`;
+  }).join('');
+  const iToday = S.findIndex((x) => x.projected);
+  const sep = iToday > 0 ? `<line x1="${(iToday * slot).toFixed(1)}" x2="${(iToday * slot).toFixed(1)}" y1="0" y2="${H}" class="pj-sep"/>` : '';
+  const ticks = [0, iToday > 0 ? iToday - 1 : null, n - 1].filter((i, k, a) => i != null && a.indexOf(i) === k)
+    .map((i) => `<text x="${(i * slot + slot / 2).toFixed(1)}" y="${H + 14}" text-anchor="middle" class="pj-t">${S[i].date === raceDate ? 'prova' : short(S[i].date)}</text>`).join('');
+  const end = pr.raceDay ? { ...pr.raceDay, date: raceDate } : pr.end;
+  const head = pr.raceDay
+    ? `Forma prevista no dia da prova: <b class="z-${end.zone?.key}">${sg(end.formPct)}</b>, ${esc(end.zone?.label.toLowerCase())}.`
+    : end ? `Plano publicado até ${esc(short(pr.planUntil ?? end.date))}. Forma prevista em ${esc(short(end.date))}: <b class="z-${end.zone?.key}">${sg(end.formPct)}</b>, ${esc(end.zone?.label.toLowerCase())}.` : '';
+  return `
+    <section class="block proj">
+      <h2>Forma até a prova</h2>
+      <p class="proj-head">${head}</p>
+      <svg viewBox="0 -4 ${W} ${H + 22}" class="chart" role="img" aria-label="Forma dos últimos 14 dias e projetada pelo plano">${bands}<line x1="0" x2="${W}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" class="zero"/>${sep}${bars}${ticks}</svg>
+      <p class="note">Barras cheias: Forma real. Tracejadas: projeção com o Strain previsto do plano publicado (dia sem sessão = descanso). Alvo para a prova: descansado, entre +5% e +20%.${pr.raceDay ? '' : ' A projeção chega ao dia da prova quando o plano das últimas semanas for publicado.'}</p>
+    </section>`;
 }
 
 // Checklist escrito pelo Luca: adicionar, marcar e apagar; salvo no servidor.

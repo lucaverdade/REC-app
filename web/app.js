@@ -373,6 +373,8 @@ function render(d) {
       ${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir o modo prova.">${esc(raceTxt)} ›</a>` : ''}
     </header>
 
+    ${d.syncIssue ? `<a class="alert sync-alert" role="status" href="#garmin">${esc(d.syncIssue.text)} <em>Garmin ›</em></a>` : ''}
+
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
 
     <section class="rings rings-2" aria-label="Estou pronto hoje?">
@@ -425,7 +427,7 @@ function render(d) {
 
     <div class="foot">
       <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
-      <span class="foot-links"><a class="foot-link" href="#prova">Modo prova</a><a class="foot-link" href="#garmin">Garmin</a></span>
+      <span class="foot-links"><a class="foot-link" href="#prova">Modo prova</a><a class="foot-link" href="#garmin">Garmin</a><a class="foot-link" href="#tema">Tema</a></span>
     </div>
   `;
 
@@ -664,15 +666,45 @@ async function renderGarmin() {
   });
 }
 
+// --- tema (guardado só neste aparelho) ---
+const THEMES = [
+  { key: 'preto', name: 'Preto', bg: '#000', card: '#0e0f12' },
+  { key: 'grafite', name: 'Grafite', bg: '#16171a', card: '#1d1f23' },
+  { key: 'verde', name: 'Verde-escuro', bg: '#07110e', card: '#0d1a15' },
+  { key: 'marinho', name: 'Azul-marinho', bg: '#070d1a', card: '#0d1526' },
+];
+function applyTheme(k) {
+  const t = THEMES.find((x) => x.key === k) ?? THEMES[0];
+  if (t.key === 'preto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t.key;
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', t.bg);
+  try { localStorage.setItem('rec.theme', t.key); } catch {}
+}
+function renderTheme() {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  let cur = 'preto'; try { cur = localStorage.getItem('rec.theme') || 'preto'; } catch {}
+  screen.innerHTML = `
+    <header class="top"><h1>Tema</h1><a class="foot-link" href="#hoje">Voltar</a></header>
+    <div class="themes">${THEMES.map((t) => `
+      <button type="button" class="theme-opt" data-theme-key="${t.key}" aria-pressed="${t.key === cur}">
+        <span class="sw" style="background:${t.bg}"><i style="background:${t.card}"></i></span>${t.name}</button>`).join('')}
+    </div>
+    <p class="note">Muda só o fundo e os cartões. As cores do REC, da Forma e das modalidades continuam iguais. Fica guardado neste aparelho.</p>`;
+  screen.querySelectorAll('.theme-opt').forEach((b) => b.addEventListener('click', () => {
+    applyTheme(b.dataset.themeKey);
+    screen.querySelectorAll('.theme-opt').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+}
+
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h === '#garmin' ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h === '#garmin' || h === '#tema' ? '#hoje' : h);
     t.classList.toggle('is-active', on || (h === '#prova' && t.getAttribute('href') === '#hoje'));
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
   window.scrollTo(0, 0);
   if (h === '#garmin') renderGarmin();
+  else if (h === '#tema') renderTheme();
   else if (h === '#tendencias') renderTrends(screen, api);
   else if (h === '#treino') renderTrain(screen, api);
   else if (h === '#prova') renderRace(screen, api);

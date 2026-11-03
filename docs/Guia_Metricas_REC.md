@@ -103,6 +103,10 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
   - O plano do treinador não muda a meta; o app só mostra se a sessão planejada está acima, dentro ou abaixo.
   - Backtest 120 dias (03/11): passar da meta não derrubou o REC do dia seguinte (+2,3 vs −4,6 pontos), coerente com o estudo: carga da véspera mexe pouco no REC. A meta é guia de carga, não previsão do REC.
 
+## 8c. Strain previsto e Forma até a prova
+- Strain previsto de uma sessão planejada = minutos × mediana do seu Strain por minuto em treinos da mesma modalidade e mesma zona predominante (onde ficou mais tempo; abaixo da Z1 conta como Z1) nos últimos 120 dias, com 3+ treinos. Sem isso: o `strain` do plano; sem ele, minutos × peso da zona. Ex. 03/11: bike leve 60 min "Z1" → 38 (plano dizia 60; feito 31).
+- Forma até a prova: o mesmo modelo de Fitness (42 dias) e Fadiga (7 dias) continua dia a dia com o Strain previsto do plano publicado (dia sem sessão = descanso), até onde há plano. Alvo no dia da prova: Descansado (+5% a +20%).
+
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)
 - Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.

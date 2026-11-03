@@ -325,17 +325,49 @@ async function readPlan(env: Env, req: Request, monday: string): Promise<Plan | 
 }
 
 /**
- * Strain previsto de uma sessão planejada: minutos × peso médio da(s) zona(s) indicada(s).
- * "Z2" → 2; "Z1–Z2" → 1,5; "Z4" → 4. Sem zona: 2 (Z2). O plano pode trazer "strain" para sobrescrever.
- * Mesma conta do Strain real (minutos por zona × peso), então previsto e feito são comparáveis.
+ * Strain previsto de uma sessão planejada (03/11, v2: pelo histórico).
+ * 1) Minutos × seu Strain por minuto típico (mediana) em sessões da mesma modalidade e mesma
+ *    zona predominante nos últimos 120 dias (zona predominante: onde ficou mais tempo; abaixo da Z1 conta como Z1).
+ *    "Z1–Z2" junta as sessões de Z1 e Z2. Precisa de 3+ sessões parecidas.
+ *    O histórico vence o "strain" escrito no plano: em 03/11 o plano previa 60–72 para bike/natação leves
+ *    e o feito costuma ficar em 30–40 (medido nas suas sessões).
+ * 2) Sem histórico suficiente: o "strain" do plano, se houver.
+ * 3) Senão: minutos × peso médio da zona (Z1 = 1 … Z5 = 5; sem zona = 2).
  */
-function plannedStrain(p: PlanSession): number | null {
-  if (typeof p.strain === 'number') return Math.round(p.strain);
-  if (!p.minutos) return null;
-  const zs = [...String(p.zona ?? '').matchAll(/[1-5]/g)].map((m) => Number(m[0]));
-  const w = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : 2;
-  return Math.round(p.minutos * w);
+type Rates = Map<string, number[]>;
+async function strainRates(env: Env, today: string): Promise<Rates> {
+  const { results } = await env.DB.prepare(
+    `SELECT sport, min, z1, z2, z3, z4, z5, ${STRAIN_SQL} strain FROM activities
+     WHERE date BETWEEN ?1 AND ?2 AND min >= 10 AND (z1 IS NOT NULL OR z2 IS NOT NULL OR z3 IS NOT NULL)`,
+  ).bind(addDays(today, -120), addDays(today, -1)).all<{ sport: Sport; min: number; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null; strain: number | null }>();
+  const m: Rates = new Map();
+  for (const a of results) {
+    if (a.strain == null || !a.min) continue;
+    const z = [a.z1, a.z2, a.z3, a.z4, a.z5].map((v) => v ?? 0);
+    const below = Math.max(0, a.min - z.reduce((x, y) => x + y, 0));
+    const cls = [z[0] + below, z[1], z[2], z[3], z[4]];
+    const k = cls.indexOf(Math.max(...cls)) + 1;
+    const key = `${a.sport}:${k}`;
+    if (!m.has(key)) m.set(key, []);
+    m.get(key)!.push(a.strain / a.min);
+  }
+  return m;
 }
+const median = (v: number[]) => { const s = [...v].sort((a, b) => a - b), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
+function plannedStrainEst(p: PlanSession, rates?: Rates): { v: number | null; src: 'plano' | 'historico' | 'zona' | null; n?: number } {
+  if (!p.minutos) return typeof p.strain === 'number' ? { v: Math.round(p.strain), src: 'plano' } : { v: null, src: null };
+  const zs = [...String(p.zona ?? '').matchAll(/[1-5]/g)].map((m) => Number(m[0]));
+  const sport = normSport(p.modalidade);
+  if (rates) {
+    const ks = zs.length ? [...new Set(zs.length === 2 ? range(zs[0], zs[1]) : zs)] : [2];
+    const pool = ks.flatMap((k) => rates.get(`${sport}:${k}`) ?? []);
+    if (pool.length >= 3) return { v: Math.round(p.minutos * median(pool)), src: 'historico', n: pool.length };
+  }
+  if (typeof p.strain === 'number') return { v: Math.round(p.strain), src: 'plano' };
+  const w = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : 2;
+  return { v: Math.round(p.minutos * w), src: 'zona' };
+}
+const range = (a: number, b: number) => { const lo = Math.min(a, b), hi = Math.max(a, b); return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i); };
 
 const normSport = (m: string): Sport => {
   const k = (m || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -358,6 +390,7 @@ async function weekPayload(env: Env, req: Request, offset: number) {
     .bind(monday, addDays(sunday, 1)).all<{ date: string; rec: number | null }>();
   const recBy = new Map(recs.map((r) => [r.date, r.rec == null ? null : Math.round(r.rec)]));
   const plan = await readPlan(env, req, monday);
+  const rates = await strainRates(env, today);
 
   let plannedMin = 0, doneMin = 0, strainTot = 0, plannedStrainTot = 0;
   const days = [];
@@ -378,12 +411,12 @@ async function weekPayload(env: Env, req: Request, offset: number) {
     const planned = (plan?.dias?.[date] ?? []).map((p) => {
       const sport = normSport(p.modalidade);
       plannedMin += p.minutos ?? 0;
-      const ps = plannedStrain(p); plannedStrainTot += ps ?? 0;
+      const est = plannedStrainEst(p, rates), ps = est.v; plannedStrainTot += ps ?? 0;
       const hit = ex.find((e) => !e.matched && e.sport === sport);
       let status: 'feito' | 'parcial' | 'nao_feito' | 'previsto';
       if (hit) { hit.matched = true; status = !p.minutos || (hit.min ?? 0) >= p.minutos * 0.8 ? 'feito' : 'parcial'; }
       else status = date < today ? 'nao_feito' : 'previsto';
-      return { ...p, sport, label: SPORT_LABEL[sport], status, activityId: hit?.id ?? null, plannedStrain: ps, doneStrain: hit?.strain ?? null };
+      return { ...p, sport, label: SPORT_LABEL[sport], status, activityId: hit?.id ?? null, plannedStrain: ps, plannedStrainSrc: est.src, doneStrain: hit?.strain ?? null };
     });
     const rec = recBy.get(date) ?? null, recNext = recBy.get(addDays(date, 1)) ?? null;
     days.push({ date, isToday: date === today, future: date > today, rec, recNext, planned, executed: ex });
@@ -467,6 +500,49 @@ async function predictionsPayload(env: Env, months: number) {
 }
 
 
+// --- Forma projetada até a prova ---
+// Fitness/Fadiga continuam pelo modelo de Banister usando o Strain previsto do plano publicado
+// (sessões ainda não feitas de hoje + dias seguintes). Só projeta até onde há plano publicado.
+async function formProjection(env: Env, req: Request, today: string) {
+  const loads = await dailyLoads(env, addDays(today, -400), today);
+  const rates = await strainRates(env, today);
+  const plans = new Map<string, Plan | null>();
+  const planFor = async (d: string) => { const m = mondayOf(d); if (!plans.has(m)) plans.set(m, await readPlan(env, req, m)); return plans.get(m); };
+  // hoje: feito + sessões planejadas de modalidades que ainda não apareceram
+  const { results: doneToday } = await env.DB.prepare('SELECT sport FROM activities WHERE date = ?1').bind(today).all<{ sport: Sport }>();
+  const left = [...doneToday.map((a) => a.sport)];
+  let planUntil: string | null = null;
+  const t0 = await planFor(today);
+  if (t0) planUntil = addDays(mondayOf(today), 6);
+  for (const p of t0?.dias?.[today] ?? []) {
+    const sp = normSport(p.modalidade), i = left.indexOf(sp);
+    if (i >= 0) { left.splice(i, 1); continue; }
+    loads[loads.length - 1].load += plannedStrainEst(p, rates).v ?? 0;
+  }
+  // dias seguintes até a véspera da prova
+  for (let d = addDays(today, 1); d <= RACE.date; d = addDays(d, 1)) {
+    const pl = await planFor(d);
+    if (!pl) break;
+    planUntil = addDays(mondayOf(d), 6);
+    loads.push({ date: d, load: d === RACE.date ? 0 : (pl.dias?.[d] ?? []).reduce((a, p) => a + (plannedStrainEst(p, rates).v ?? 0), 0) });
+  }
+  // a manhã seguinte ao último dia projetado também tem Forma definida
+  const lastLoad = loads[loads.length - 1].date;
+  if (lastLoad < RACE.date) loads.push({ date: addDays(lastLoad, 1), load: 0 });
+  const p = pmc(loads);
+  const series = p.filter((x) => x.date >= addDays(today, -14)).map((x) => ({
+    date: x.date, formPct: x.formPct == null ? null : Math.round(x.formPct), projected: x.date > today,
+    fitness: Math.round(x.fitness), fatigue: Math.round(x.fatigue),
+  }));
+  const last = series[series.length - 1];
+  const race = series.find((x) => x.date === RACE.date) ?? null;
+  return {
+    planUntil, series,
+    end: last && { date: last.date, formPct: last.formPct, zone: formZone(last.formPct) && { key: formZone(last.formPct)!.key, label: formZone(last.formPct)!.label } },
+    raceDay: race && { formPct: race.formPct, zone: formZone(race.formPct) && { key: formZone(race.formPct)!.key, label: formZone(race.formPct)!.label } },
+  };
+}
+
 // --- modo prova ---
 interface RaceItem { id: string; texto: string; done: boolean }
 const slug = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -486,7 +562,9 @@ async function racePayload(env: Env, req: Request) {
     const f = (await getSetting<Partial<Record<DistKey, number>>>(env, 'pred_factors')) ?? {};
     return predictAll(v.vdot, f).d21;
   })();
+  const projection = await formProjection(env, req, today);
   return {
+    projection,
     race: { ...RACE, days: daysBetween(today, RACE.date), raceWeek: daysBetween(today, RACE.date) <= 6 && daysBetween(today, RACE.date) >= -1 },
     today: { rec: rec?.rec == null ? null : Math.round(rec.rec), formPct: ln.formPct, zone: ln.zone },
     halfPrediction: pred,
@@ -573,9 +651,10 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
   const planned = await (async () => {
-    if (!req) return [] as { label: string; sport: Sport; titulo: string | null; minutos: number | null; zona: string | null; strain: number | null }[];
+    if (!req) return [] as { label: string; sport: Sport; titulo: string | null; minutos: number | null; zona: string | null; strain: number | null; strainSrc: string | null }[];
     const plan = await readPlan(env, req, mondayOf(date));
-    return (plan?.dias?.[date] ?? []).map((p) => { const sp = normSport(p.modalidade); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, strain: plannedStrain(p) }; });
+    const rates = await strainRates(env, date);
+    return (plan?.dias?.[date] ?? []).map((p) => { const sp = normSport(p.modalidade); const e = plannedStrainEst(p, rates); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, strain: e.v, strainSrc: e.src }; });
   })();
   const verdict7 = await (async () => {
     const { results: zr } = await env.DB.prepare('SELECT date, z_hrv, z_rhr, z_sleep, z_resp, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
@@ -593,6 +672,21 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const empty: RecRow = { date, rec: null, z: {} as RecRow['z'], value: {} as RecRow['value'], base: {} as RecRow['base'] };
   for (const k of K) { empty.z[k] = null; empty.value[k] = null; empty.base[k] = null; }
   const t = today ?? empty;
+
+  // aviso de sincronização (só no dia de hoje): falha, noite que não chegou ou busca automática parada
+  const minsSinceSync = lastSync?.at ? Math.round((Date.now() - Date.parse(String(lastSync.at).replace(' ', 'T') + 'Z')) / 60000) : null;
+  const syncIssue = await (async () => {
+    if (date !== brtToday()) return null;
+    const hhmm = (at: unknown) => { const d = new Date(Date.parse(String(at).replace(' ', 'T') + 'Z') - 3 * 3600e3); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+    const hour = new Date(Date.now() - 3 * 3600e3).getUTCHours();
+    if (!lastSync) return { kind: 'nunca', text: 'O servidor ainda não buscou dados na Garmin.' };
+    const when = hhmm(lastSync.at);
+    if (lastSync.status === 'erro') return { kind: 'erro', text: `A última busca na Garmin falhou (${when}): ${String(lastSync.detail ?? '').slice(0, 160)}` };
+    if (String(lastSync.detail ?? '').includes('sem_chave')) return { kind: 'erro', text: 'A chave da Garmin não está cadastrada no servidor.' };
+    if (!(await hasTonight(env, date)) && hour >= 11) return { kind: 'noite', text: `A noite de hoje ainda não veio da Garmin (última busca às ${when}). O relógio precisa sincronizar com o Garmin Connect.` };
+    if (minsSinceSync != null && minsSinceSync > 90 && hour >= 5) return { kind: 'parado', text: `Última busca na Garmin há ${minsSinceSync >= 120 ? Math.floor(minsSinceSync / 60) + ' h' : minsSinceSync + ' min'} (às ${when}). A busca automática pode ter parado.` };
+    return null;
+  })();
 
   return {
     date,
@@ -641,7 +735,8 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     needsHistory: ((await env.DB.prepare('SELECT COUNT(*) n FROM daily_metrics WHERE hrv IS NOT NULL').first<{ n: number }>())?.n ?? 0) < 30,
     shadowMode: true, // primeiras 6–8 semanas: REC não decide treino
     lastSync,
-    minsSinceSync: lastSync?.at ? Math.round((Date.now() - Date.parse(String(lastSync.at).replace(' ', 'T') + 'Z')) / 60000) : null,
+    minsSinceSync,
+    syncIssue,
   };
 }
 

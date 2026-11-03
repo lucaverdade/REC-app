@@ -37,7 +37,7 @@ Fazer commit na branch `main` publica sozinho (Cloudflare) em 1–2 minutos. O a
 - `minutos`: usado para marcar o treino como **feito** (≥ 80% do tempo planejado) ou **parcial**.
 - `chave`: opcional; destaca a sessão principal do dia.
 - `zona`: usada também para o **Strain previsto** = minutos × peso médio da zona ("Z2" → 2/min; "Z1–Z2" → 1,5/min; sem zona → 2/min). Pesos: abaixo da Z1 = 0,5/min, Z1 = 1, Z2 = 2, Z3 = 3, Z4 = 4, Z5 = 5. Para sessões com blocos de intensidade diferente, informe `strain` somando os blocos (ex.: 15 min Z1 + 4×8 min Z4 + 12 min de recuperação Z1 + 10 min Z1 = 15 + 128 + 12 + 10 ≈ 165). Zonas de FC por modalidade, como configuradas no Garmin do Luca (bike tem zonas próprias).
-- `strain`: opcional; sobrescreve o previsto.
+- `strain`: opcional. **Desde 03/11 o app prefere o histórico**: Strain previsto = minutos × Strain por minuto típico do Luca em treinos parecidos (mesma modalidade e zona predominante, últimos 120 dias, 3+ treinos). O `strain` do plano só vale quando não há 3 treinos parecidos (ex.: bike em Z3 com as zonas novas). Continue informando em sessões com blocos de intensidade.
 - Dias sem treino: omitir a data ou usar lista vazia.
 
 ## Como o app compara
