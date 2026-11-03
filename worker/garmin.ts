@@ -25,7 +25,8 @@ export interface GarminActivity {
 }
 
 export class GarminError extends Error {
-  constructor(public status: number, public where: string) { super(`Garmin ${status} em ${where}`); }
+  status: number; where: string;
+  constructor(status: number, where: string) { super(`Garmin ${status} em ${where}`); this.status = status; this.where = where; }
 }
 
 // ---------- token (cache só em memória do isolate; renova 1 h antes de vencer) ----------
@@ -104,12 +105,27 @@ export function parseStressRange(j: any): Map<string, number> {
   return m;
 }
 
-export function parseDailySummaries(j: any): Map<string, { rhr: number | null; stress: number | null }> {
-  const m = new Map<string, { rhr: number | null; stress: number | null }>();
+/** Procura um número em `obj` (um nível de profundidade) cuja chave passe no teste. */
+export function findNum(obj: any, test: (key: string) => boolean): number | null {
+  if (!obj || typeof obj !== 'object') return null;
+  for (const [k, v] of Object.entries(obj)) if (test(k) && n(v) !== null) return v as number;
+  for (const [k, v] of Object.entries(obj)) {
+    if (v && typeof v === 'object' && !Array.isArray(v))
+      for (const [k2, v2] of Object.entries(v)) if (test(`${k}.${k2}`) && n(v2) !== null) return v2 as number;
+  }
+  return null;
+}
+
+type Summary = { rhr: number | null; stress: number | null; resp: number | null };
+export function parseDailySummaries(j: any): Map<string, Summary> {
+  const m = new Map<string, Summary>();
   for (const s of arr(j, 'data', 'dailySummaries')) {
     const d = dateOf(s); if (!d) continue;
-    const st = first(s.averageStressLevel, s.avgStressLevel);
-    m.set(d, { rhr: first(s.restingHeartRate, s.restingHeartRateValue), stress: st !== null && st >= 0 ? st : null });
+    // v2: FC de repouso em data.heartRate, estresse em data.stress, respiração em data.respiration
+    const rhr = first(s.restingHeartRate, s.restingHeartRateValue) ?? findNum(s.heartRate, (k) => /resting/i.test(k));
+    const st = first(s.averageStressLevel, s.avgStressLevel) ?? findNum(s.stress, (k) => /^(avg|average)/i.test(k) && /stress|level/i.test(k));
+    const resp = findNum(s.respiration, (k) => /sleep/i.test(k) && /avg|average/i.test(k));
+    m.set(d, { rhr, stress: st !== null && st >= 0 ? st : null, resp });
   }
   return m;
 }
@@ -134,8 +150,9 @@ export function parseActivity(a: any): GarminActivity | null {
 
 // ---------- busca combinada ----------
 /** Métricas diárias de um intervalo (inclusive). ~3 chamadas de faixa + 1 de sono por dia. */
-export async function fetchDays(env: GarminEnv, from: string, to: string): Promise<{ days: GarminDay[]; raw: Record<string, string[]> }> {
+export async function fetchDays(env: GarminEnv, from: string, to: string): Promise<{ days: GarminDay[]; raw: Record<string, string[]>; detail: Record<string, unknown> }> {
   const raw: Record<string, string[]> = {};
+  const detail: Record<string, unknown> = {};
   // nomes dos campos (sem valores) para o diagnóstico
   const keysOf = (j: any): string[] => {
     if (j === null || typeof j !== 'object') return [String(j)];
@@ -158,6 +175,9 @@ export async function fetchDays(env: GarminEnv, from: string, to: string): Promi
     safe('resumo_diario', get(env, '/usersummary-service/v2/dailysummaries', { startDate: from, endDate: to })),
   ]);
   const hrv = parseHrvRange(hrvJ), stress = parseStressRange(stressJ), sum = parseDailySummaries(sumJ);
+  // diagnóstico: conteúdo dos blocos do resumo diário mais recente
+  const lastSum = arr(sumJ, 'data').at(-1);
+  if (lastSum) for (const k of ['heartRate', 'respiration', 'stress']) if (lastSum[k]) detail[k] = lastSum[k];
 
   const dates = eachDay(from, to);
   const sleeps = new Map<string, ReturnType<typeof parseSleep>>();
@@ -177,11 +197,11 @@ export async function fetchDays(env: GarminEnv, from: string, to: string): Promi
       rhr: sum.get(d)?.rhr ?? s?.rhr ?? null,
       sleep_h: s?.sleep_h ?? null,
       sleep_score: s?.sleep_score ?? null,
-      resp: s?.resp ?? null,
+      resp: sum.get(d)?.resp ?? s?.resp ?? null,
       stress: stress.get(d) ?? sum.get(d)?.stress ?? null,
     };
   });
-  return { days, raw };
+  return { days, raw, detail };
 }
 
 /** Atividades com início entre as datas (inclusive), paginando de 100 em 100. */

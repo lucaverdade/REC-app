@@ -40,6 +40,7 @@ async function recompute(env: Env, upTo: string, keep = 10) {
     `INSERT OR REPLACE INTO rec_daily (${cols.join(', ')}) VALUES (${cols.map((_, i) => '?' + (i + 1)).join(', ')})`,
   );
   const now = new Date().toISOString();
+  if (!recs.length) return 0; // banco vazio: nada a gravar (D1 recusa lote vazio)
   await env.DB.batch(recs.map((r) => stmt.bind(r.date, r.rec, ...K.map((k) => r.z[k]), ...K.map((k) => r.value[k]), ...K.map((k) => r.base[k]), now)));
   return recs.length;
 }
@@ -128,7 +129,7 @@ const FIELDS: [keyof GarminDay, number][] = [['hrv', 1], ['rhr', 1], ['sleep_h',
 
 async function garminCheck(env: Env, days: number) {
   const to = addDays(brtToday(), -1), from = addDays(to, -(days - 1));
-  const { days: api, raw } = await fetchDays(env, from, to);
+  const { days: api, raw, detail } = await fetchDays(env, from, to);
   const { results: db } = await env.DB.prepare('SELECT date, hrv, rhr, sleep_h, sleep_score, resp, stress FROM daily_metrics WHERE date BETWEEN ?1 AND ?2')
     .bind(from, to).all<Record<string, number | null>>();
   const byDate = new Map(db.map((r) => [r.date as unknown as string, r]));
@@ -143,7 +144,7 @@ async function garminCheck(env: Env, days: number) {
     return { field: f, api: nApi, banco: nDb, ambos: both, iguais: equal, difMedia: both ? +(sum / both).toFixed(3) : null };
   });
   const sample = api.slice(-3).map((a) => ({ date: a.date, api: a, banco: byDate.get(a.date) ?? null }));
-  return { from, to, fields, raw, sample };
+  return { from, to, fields, raw, detail, sample };
 }
 
 // --- leitura ---
