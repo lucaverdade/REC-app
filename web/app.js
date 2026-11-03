@@ -93,8 +93,18 @@ function actsHtml(acts) {
     bits.push(`${Math.round(a.min)} min`);
     if (a.avghr) bits.push(`${Math.round(a.avghr)} bpm`);
     if (a.strain != null && acts.length > 1) bits.push(`Strain ${a.strain}`);
-    return `<li><span>${esc(a.label)} <span class="meta">${esc(a.time)}</span></span><span class="meta">${bits.join(', ')}</span></li>`;
+    return `<li><span><i class="dot s-${esc(a.sport)}"></i>${esc(a.label)} <span class="meta">${esc(a.time)}</span></span><span class="meta">${bits.join(', ')}</span></li>`;
   }).join('')}</ul>`;
+}
+
+// barra do Strain do dia: um segmento por treino, na cor da modalidade; marca no 100 (dia pesado)
+function strainBar(acts) {
+  const total = acts.reduce((a, x) => a + (x.strain ?? 0), 0);
+  if (!total) return '';
+  const scale = Math.max(120, total);
+  return `<div class="strain-bar" role="img" aria-label="Strain ${total} de 100">
+    ${acts.filter((a) => a.strain).map((a) => `<span class="s-${a.sport}" style="width:${(a.strain / scale) * 100}%"></span>`).join('')}
+    <i style="left:${(100 / scale) * 100}%"></i></div>`;
 }
 
 function render(d) {
@@ -136,11 +146,12 @@ function render(d) {
 
     <section class="block">
       <h2>Treino de hoje${d.load?.strain ? ` <span class="h2-num">Strain ${d.load.strain}</span>` : ''}</h2>
+      ${strainBar(d.activities)}
       ${actsHtml(d.activities)}
     </section>
 
     ${d.load ? `<a class="form-line" href="#tendencias">
-      <span>Forma <b>${d.load.form > 0 ? '+' : d.load.form < 0 ? '−' : ''}${Math.abs(d.load.form)}</b></span>
+      <span>Forma <b class="${d.load.form >= 0 ? 'pos' : 'neg'}">${d.load.form > 0 ? '+' : d.load.form < 0 ? '−' : ''}${Math.abs(d.load.form)}</b></span>
       <span class="meta">Fitness ${d.load.fitness}, Fadiga ${d.load.fatigue}</span>
     </a>` : ''}
 

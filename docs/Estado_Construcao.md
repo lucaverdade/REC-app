@@ -18,6 +18,13 @@ Complementa `App_Backlog_e_Especificacao_REC.md`. Onde houver conflito, vale est
 - **Strava fica para depois**, só para as descrições dos treinos (o que o Luca achou da sessão). Garmin cobre as atividades.
 - **Previsão de prova**: calcular no app pela fórmula de Riegel a partir dos melhores esforços recentes de corrida. Fonte a definir (voltas/splits do Garmin ou Strava).
 
+## Cores (03/11, pedido do Luca: "minimalista, chique")
+- Fundo preto, texto branco/cinza. Destaque de interface azul-gelo (`#8fb6ec`): aba ativa, seletores, links.
+- Modalidades (validadas para daltonismo e contraste sobre o preto): bike `#3f93d4`, corrida `#d2764a`, natação `#1f9e90`, Hyrox `#a86fd6`, academia cinza `#6e6e74` (à parte).
+- Fitness azul `#5e97e0`, Fadiga rosé `#d46a94`; Forma positiva em azul, negativa em rosé.
+- REC mantém o semáforo, levemente dessaturado (`#e2584f`, `#e7be45`, `#3fbf7f`). Inspiração: Oura usa uma cor por métrica, todas dessaturadas sobre preto.
+- Volume em Tendências: Semana / Mês / 3 meses / 6 meses com navegação para períodos anteriores; barras empilhadas por modalidade; tabela com horas, horas por semana, carga e sessões.
+
 ## Falta (ordem sugerida)
 1. Confirmar FC de repouso e respiração no teste real da Garmin.
 2. Aba Treino (plano da semana publicado pelo Claude, planejado × executado, impacto no REC do dia seguinte).

@@ -120,12 +120,43 @@ export function barChart(wrap, values, opts) {
     if (v == null || v === 0) return;
     const top = Math.min(y(v), y(0)), ht = Math.abs(y(v) - y(0));
     const r = Math.min(2, bw / 2, ht / 2);
-    el('rect', { x: x(i) - bw / 2, y: top, width: bw, height: Math.max(ht, 1), rx: r, class: v < 0 ? 'bar neg' : `bar${opts.highlightLast && i === n - 1 ? ' hl' : ''}` }, svg);
+    const cls = opts.signColor ? (v < 0 ? 'bar neg2' : 'bar pos') : v < 0 ? 'bar neg' : `bar${opts.highlightLast && i === n - 1 ? ' hl' : ''}`;
+    el('rect', { x: x(i) - bw / 2, y: top, width: bw, height: Math.max(ht, 1), rx: r, class: cls }, svg);
   });
   for (const ref of opts.refs ?? []) {
     el('line', { x1: 0, x2: W - 34, y1: y(ref.v), y2: y(ref.v), class: 'ref' }, svg);
     const t = el('text', { x: W, y: y(ref.v) + 3, class: 'ax ref-l', 'text-anchor': 'end' }, svg); t.textContent = ref.label;
   }
+  xLabels(svg, opts.dates, x, h);
+  wrap.appendChild(svg);
+  if (opts.tip) hover(wrap, svg, n, x, h, opts.tip);
+}
+
+/**
+ * Barras empilhadas por modalidade. rows: [{ bike: 1.5, corrida: 0.8, ... }], keys na ordem fixa.
+ * Segmentos separados por 2 px de fundo; cor pela classe st-<modalidade>.
+ */
+export function stackedBars(wrap, rows, keys, opts) {
+  const h = opts.height ?? 120, n = rows.length;
+  const totals = rows.map((r) => keys.reduce((a, k) => a + (r[k] ?? 0), 0));
+  const [lo, hi] = niceRange(totals, { zero: true, pad: 0.1 });
+  const slot = (W - 34) / n, bw = Math.max(3, Math.min(20, slot - 3));
+  const x = (i) => i * slot + slot / 2 + 2;
+  const y = (v) => h - ((v - lo) / (hi - lo)) * h;
+  const svg = el('svg', { viewBox: `0 -6 ${W} ${h + 24}`, class: 'chart', role: 'img', 'aria-label': opts.label ?? '' });
+  yGrid(svg, lo, hi, y, opts.yFmt ?? ((v) => nf(v)));
+  el('line', { x1: 0, x2: W - 30, y1: y(0), y2: y(0), class: 'zero' }, svg);
+  rows.forEach((r, i) => {
+    let acc = 0;
+    const present = keys.filter((k) => (r[k] ?? 0) > 0);
+    present.forEach((k, j) => {
+      const v = r[k], y1 = y(acc), y2 = y(acc + v);
+      const gap = j < present.length - 1 ? 1 : 0; // 2 px de respiro entre segmentos (1 de cada lado)
+      const top = j === present.length - 1;
+      el('rect', { x: x(i) - bw / 2, y: y2 + gap, width: bw, height: Math.max(0.8, y1 - y2 - gap * 2), rx: top ? Math.min(2, bw / 2) : 0, class: `st st-${k}` }, svg);
+      acc += v;
+    });
+  });
   xLabels(svg, opts.dates, x, h);
   wrap.appendChild(svg);
   if (opts.tip) hover(wrap, svg, n, x, h, opts.tip);

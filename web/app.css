@@ -8,9 +8,26 @@
   --text-2: #9a9aa1;
   --text-3: #5d5d63;
 
-  --rec-red: #ff4d43;
-  --rec-yellow: #ffd23f;
-  --rec-green: #35d07f;
+  /* REC: semáforo, levemente dessaturado para conversar com o resto */
+  --rec-red: #e2584f;
+  --rec-yellow: #e7be45;
+  --rec-green: #3fbf7f;
+
+  /* modalidades (validadas para daltonismo e contraste sobre o preto) */
+  --bike: #3f93d4;
+  --corrida: #d2764a;
+  --natacao: #1f9e90;
+  --hyrox: #a86fd6;
+  --academia: #6e6e74;
+  --outro: #48484d;
+
+  /* carga: Fitness azul, Fadiga rosé (como TrainingPeaks) */
+  --fitness: #5e97e0;
+  --fatigue: #d46a94;
+
+  /* destaque de interface */
+  --accent: #8fb6ec;
+  --accent-soft: rgba(94, 151, 224, .16);
   --rec: var(--text-3);
 
   --font: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
@@ -112,16 +129,16 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .feel input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 1px; }
 .feel input[type=range]::-moz-range-track { height: 2px; background: var(--line); }
 .feel input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--text); border: 0;
+  -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 0;
 }
-.feel input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--text); border: 0; }
+.feel input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 0; }
 .feel.unset input[type=range]::-webkit-slider-thumb { background: var(--text-3); }
 .feel .saved { font-size: 13px; color: var(--text-3); min-height: 1.2em; }
 
 /* --- rodapé e tela Garmin --- */
 .foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; }
 .foot-link { color: var(--text-3); font-size: 13px; text-decoration: none; }
-.alert a, .note a { color: var(--text); }
+.alert a, .note a { color: var(--accent); }
 .note { margin: 0 0 12px; color: var(--text-2); font-size: 14px; max-width: 34em; }
 .btn {
   background: var(--text); color: #000; border: 0; border-radius: 10px; padding: 12px 18px; font-weight: 600; cursor: pointer;
@@ -140,17 +157,35 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
   padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none;
 }
 .form-line b { font-weight: 500; }
+.form-line b.pos { color: var(--fitness); }
+.form-line b.neg { color: var(--fatigue); }
+
+/* bolinha de modalidade e barra de Strain */
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
+.s-bike { background: var(--bike); } .s-corrida { background: var(--corrida); } .s-natacao { background: var(--natacao); }
+.s-hyrox { background: var(--hyrox); } .s-academia { background: var(--academia); } .s-outro { background: var(--outro); }
+.strain-bar { position: relative; display: flex; gap: 2px; height: 6px; margin: 4px 0 14px; background: var(--line-soft); border-radius: 3px; }
+.strain-bar span { height: 100%; border-radius: 3px; }
+.strain-bar i { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--text-3); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 4px; font-size: 12px; color: var(--text-2); }
+.legend span { display: inline-flex; align-items: center; }
+.legend .dot { width: 7px; height: 7px; margin-right: 6px; }
+.vol-nav { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; }
+.vol-nav button { background: none; border: 0; color: var(--accent); font-size: 22px; padding: 0 10px; cursor: pointer; line-height: 1; }
+.vol-nav button[disabled] { color: var(--text-3); cursor: default; }
+.vol-nav span { font-size: 15px; }
+.sports li.total span { color: var(--text); font-weight: 500; }
 
 /* --- Tendências --- */
 .seg { display: flex; gap: 4px; padding: 3px; margin: 12px 0 24px; background: var(--surface); border-radius: 9px; }
 .seg button { flex: 1; background: none; border: 0; padding: 7px 0; border-radius: 7px; color: var(--text-2); font-size: 14px; cursor: pointer; }
-.seg button[aria-selected="true"] { background: var(--line); color: var(--text); }
+.seg button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
 .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 8px; }
 .trio > div { display: grid; gap: 2px; }
 .trio .big { font: 200 44px/1 var(--font-display); letter-spacing: -0.03em; }
 .trio .lab { color: var(--text-2); font-size: 13px; }
 .explain { margin: 0 0 18px; color: var(--text-2); font-size: 14px; }
-.explain summary { cursor: pointer; color: var(--text); font-size: 14px; padding: 6px 0; }
+.explain summary { cursor: pointer; color: var(--accent); font-size: 14px; padding: 6px 0; }
 .explain p { margin: 8px 0; max-width: 34em; }
 .explain b { color: var(--text); font-weight: 500; }
 .sub { margin: 18px 0 4px; font: 400 13px/1.3 var(--font); color: var(--text-2); }
@@ -162,6 +197,14 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .chart .band { fill: var(--line-soft); opacity: .5; }
 .chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .chart .ln.l1 { stroke: var(--text); }
+.chart .ln.fit { stroke: var(--fitness); }
+.chart .ln.fat { stroke: var(--fatigue); stroke-width: 1.5; }
+.chart .dl.fit { fill: var(--fitness); }
+.chart .dl.fat { fill: var(--fatigue); }
+.chart .bar.pos { fill: var(--fitness); }
+.chart .st-bike { fill: var(--bike); } .chart .st-corrida { fill: var(--corrida); } .chart .st-natacao { fill: var(--natacao); }
+.chart .st-hyrox { fill: var(--hyrox); } .chart .st-academia { fill: var(--academia); } .chart .st-outro { fill: var(--outro); }
+.chart .bar.neg2 { fill: var(--fatigue); }
 .chart .ln.l2 { stroke: var(--text-2); stroke-width: 1.5; }
 .chart .ln.l3 { stroke: var(--line); stroke-width: 1; }
 .chart .ln.base { stroke: var(--text-3); stroke-width: 1.5; stroke-dasharray: 3 3; }
@@ -204,7 +247,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 }
 .tab { display: grid; justify-items: center; gap: 3px; font-size: 11px; color: var(--text-2); text-decoration: none; min-width: 64px; }
 .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.tab.is-active { color: var(--text); }
+.tab.is-active { color: var(--accent); }
 .tab.is-off { color: var(--text-3); pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {

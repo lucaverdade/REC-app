@@ -194,16 +194,16 @@ async function trendsPayload(env: Env, days: number) {
     const dow = (dt.getUTCDay() + 6) % 7; // segunda = 0
     return addDays(d, -dow);
   };
-  const buckets = new Map<string, { start: string; load: number; min: number }>();
+  const buckets = new Map<string, { start: string; load: number; min: number; by: Partial<Record<Sport, number>> }>();
   for (const d of inRange) {
     const b = bucketOf(d.date);
-    const cur = buckets.get(b) ?? { start: b, load: 0, min: 0 };
+    const cur = buckets.get(b) ?? { start: b, load: 0, min: 0, by: {} };
     cur.load += d.load;
     buckets.set(b, cur);
   }
   const sports = new Map<Sport, { min: number; load: number; n: number }>();
   for (const a of acts) {
-    const b = buckets.get(bucketOf(a.date)); if (b) b.min += a.min;
+    const b = buckets.get(bucketOf(a.date)); if (b) { b.min += a.min; b.by[a.sport] = (b.by[a.sport] ?? 0) + a.load; }
     const s = sports.get(a.sport) ?? { min: 0, load: 0, n: 0 };
     s.min += a.min; s.load += a.load; s.n++;
     sports.set(a.sport, s);
@@ -229,11 +229,64 @@ async function trendsPayload(env: Env, days: number) {
         hrv: r?.v_hrv ?? null, hrvBase: r1(r?.b_hrv), rhr: r?.v_rhr ?? null, rhrBase: r1(r?.b_rhr), sleep: r1(r?.v_sleep),
       };
     }),
-    bars: [...buckets.values()].map((b) => ({ start: b.start, load: Math.round(b.load), hours: r1(b.min / 60) })),
+    bars: [...buckets.values()].map((b) => ({ start: b.start, load: Math.round(b.load), hours: r1(b.min / 60), by: Object.fromEntries(Object.entries(b.by).map(([k, v]) => [k, Math.round(v as number)])) })),
     sports: order.filter((s) => sports.has(s)).map((s) => {
       const v = sports.get(s)!;
       return { sport: s, label: SPORT_LABEL[s], hours: r1(v.min / 60), load: Math.round(v.load), sessions: v.n };
     }),
+  };
+}
+
+
+// --- volume por período: semana, mês, 3 e 6 meses (com navegação para trás) ---
+const SPORTS: Sport[] = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
+const mondayOf = (d: string) => addDays(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7));
+
+async function volumePayload(env: Env, unit: 'semana' | 'mes' | '3m' | '6m', offset: number) {
+  const today = brtToday();
+  let start: string, end: string;
+  if (unit === 'semana') {
+    start = addDays(mondayOf(today), -7 * offset); end = addDays(start, 6);
+  } else if (unit === 'mes') {
+    const t = new Date(today + 'T00:00:00Z');
+    const m = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - offset, 1));
+    start = m.toISOString().slice(0, 10);
+    end = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  } else {
+    const weeks = unit === '3m' ? 13 : 26;
+    end = addDays(mondayOf(today), 6 - 7 * weeks * offset);
+    start = addDays(end, -(7 * weeks - 1));
+  }
+  const { results } = await env.DB.prepare(
+    'SELECT date, sport, COALESCE(min, 0) min, COALESCE(load, 0) load FROM activities WHERE date BETWEEN ?1 AND ?2',
+  ).bind(start, end).all<{ date: string; sport: Sport; min: number; load: number }>();
+
+  // barras: por dia na semana; por semana (segunda) nos demais
+  const daily = unit === 'semana';
+  const keys: string[] = [];
+  if (daily) for (let d = start; d <= end; d = addDays(d, 1)) keys.push(d);
+  else for (let d = mondayOf(start); d <= end; d = addDays(d, 7)) keys.push(d);
+  const buckets = new Map(keys.map((k) => [k, { start: k, hours: {} as Partial<Record<Sport, number>> }]));
+  const tot = new Map<Sport, { min: number; load: number; n: number }>();
+  for (const a of results) {
+    const b = buckets.get(daily ? a.date : mondayOf(a.date));
+    if (b) b.hours[a.sport] = (b.hours[a.sport] ?? 0) + a.min / 60;
+    const t = tot.get(a.sport) ?? { min: 0, load: 0, n: 0 };
+    t.min += a.min; t.load += a.load; t.n++;
+    tot.set(a.sport, t);
+  }
+  const lastDay = end > today ? today : end;
+  const weeks = Math.max(1, (daysBetween(start, lastDay) + 1) / 7);
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  const totals = SPORTS.filter((s) => tot.has(s)).map((s) => {
+    const t = tot.get(s)!;
+    return { sport: s, label: SPORT_LABEL[s], hours: r1(t.min / 60), perWeek: r1(t.min / 60 / weeks), load: Math.round(t.load), sessions: t.n };
+  });
+  return {
+    unit, offset, start, end, weeks: r1(weeks), daily,
+    buckets: [...buckets.values()].map((b) => ({ start: b.start, hours: Object.fromEntries(Object.entries(b.hours).map(([k, v]) => [k, r1(v as number)])) })),
+    totals,
+    total: { hours: r1(totals.reduce((x, t) => x + t.hours, 0)), load: totals.reduce((x, t) => x + t.load, 0), sessions: totals.reduce((x, t) => x + t.sessions, 0) },
   };
 }
 
@@ -325,6 +378,13 @@ export default {
       const allowed = [7, 30, 90, 365];
       const d = Number(url.searchParams.get('days'));
       return json(await trendsPayload(env, allowed.includes(d) ? d : 7));
+    }
+
+    if (url.pathname === '/api/volume' && req.method === 'GET') {
+      const u = url.searchParams.get('unit');
+      const unit = (['semana', 'mes', '3m', '6m'] as const).find((x) => x === u) ?? 'semana';
+      const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, 0), 104);
+      return json(await volumePayload(env, unit, offset));
     }
 
     // --- Garmin: estado, diagnóstico e histórico ---
