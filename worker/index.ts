@@ -6,7 +6,9 @@ import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
 import { debtLevel, personalNeed, regularity, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
 import { longTrend } from '../src/longtrend.ts';
-import { dailySummary, recTrend, strainTarget } from '../src/daily.ts';
+import { dailySummary, recTrend } from '../src/daily.ts';
+import { strainTargetV2 } from '../src/target.ts';
+import { recoveryVerdict } from '../src/verdict.ts';
 import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
@@ -112,12 +114,15 @@ const garminMsg = (e: unknown) =>
 async function morningRoutine(env: Env, trigger: 'cron' | 'manual' | 'open') {
   await ensureSchema(env);
   const today = brtToday();
-  // a rotina agendada só trabalha enquanto a noite de hoje não chegou
-  if (trigger === 'cron' && (await hasTonight(env, today))) return { status: 'ja_atualizado', detail: '' };
+  // com a noite já no banco, a rotina vira "leve": só busca as atividades de ontem e hoje (treinos do dia)
+  const light = await hasTonight(env, today);
   let status = 'ok', detail = '';
   try {
     if (!hasKey(env)) {
       status = 'sem_dados'; detail = 'garmin: sem_chave';
+    } else if (light && trigger !== 'manual') {
+      const na = await writeActivities(env, await fetchActivities(env, addDays(today, -1), today));
+      detail = `garmin: atividades (${na})`;
     } else {
       const from = addDays(today, -2);
       const { days } = await fetchDays(env, from, today);
@@ -126,7 +131,7 @@ async function morningRoutine(env: Env, trigger: 'cron' | 'manual' | 'open') {
       detail = `garmin: ${nd} dias, ${na} atividades`;
       if (!(await hasTonight(env, today))) status = 'sem_dados';
     }
-    detail += `; rec: ${await recompute(env, today)} dias`;
+    if (!(light && trigger !== 'manual')) detail += `; rec: ${await recompute(env, today)} dias`;
   } catch (e) {
     status = 'erro';
     detail = garminMsg(e);
@@ -196,6 +201,22 @@ async function loadOn(env: Env, date: string) {
     // Fitness como tendência: um ponto por semana (5 semanas) e variação em 4 semanas
     fitnessWeekly: [28, 21, 14, 7, 0].filter((k) => p.length > k).map((k) => Math.round(p[p.length - 1 - k].fitness * 10) / 10),
     fitness4w: p.length > 28 && p[p.length - 29].fitness > 1 ? Math.round(((t.fitness - p[p.length - 29].fitness) / p[p.length - 29].fitness) * 100) : null,
+    // entradas da meta de Strain v2 (tudo até ONTEM: o dia de hoje ainda está acontecendo)
+    tgt: (() => {
+      const y = p[p.length - 2], y3 = p[p.length - 5];
+      const mon = mondayOf(date);
+      const byDate = new Map(loads.map((x) => [x.date, x.load]));
+      const sumRange = (a: string, b: string) => { let s2 = 0; for (let d = a; d <= b; d = addDays(d, 1)) s2 += byDate.get(d) ?? 0; return s2; };
+      const prev3 = [1, 2, 3].map((k) => sumRange(addDays(mon, -7 * k), addDays(mon, -7 * k + 6)));
+      const avg3 = prev3.reduce((a, b) => a + b, 0) / 3;
+      const dow = (new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7;
+      return {
+        fitness: y?.fitness ?? null, fatigueNow: y?.fatigue ?? null, fatigue3dAgo: y3?.fatigue ?? null,
+        acwr: acwr(loads.slice(0, -1).map((x) => x.load)),
+        weekHi: avg3 > 0 ? avg3 * 1.3 : null, weekDoneBefore: dow > 0 ? sumRange(mon, addDays(date, -1)) : 0, daysLeft: 7 - dow,
+        yesterdayStrain: y?.load ?? null,
+      };
+    })(),
   };
 }
 
@@ -551,6 +572,17 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const feel = await env.DB.prepare('SELECT value FROM feel_notes WHERE date = ?1').bind(date).first<{ value: number }>();
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
+  const planned = await (async () => {
+    if (!req) return [] as { label: string; sport: Sport; titulo: string | null; minutos: number | null; zona: string | null; strain: number | null }[];
+    const plan = await readPlan(env, req, mondayOf(date));
+    return (plan?.dias?.[date] ?? []).map((p) => { const sp = normSport(p.modalidade); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, strain: plannedStrain(p) }; });
+  })();
+  const verdict7 = await (async () => {
+    const { results: zr } = await env.DB.prepare('SELECT date, z_hrv, z_rhr, z_sleep, z_resp, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+      .bind(addDays(date, -6), date).all<Record<string, number | null>>();
+    return recoveryVerdict(zr.map((r) => ({ date: r.date as unknown as string, z: { hrv: r.z_hrv, rhr: r.z_rhr, sleep: r.z_sleep, resp: r.z_resp, stress: r.z_stress }, raw: {} })),
+      { zoneKey: ln.zone?.key ?? null, fatigueAboveDays: 0, hrvBase: null, rhrBase: null, sleepNeed: 7.5 });
+  })();
   const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
     .bind(addDays(date, -95), date).all<SleepNight>();
   const need = personalNeed(nights.filter((n) => n.date <= date));
@@ -585,14 +617,13 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       return {
         summary: dailySummary(recR, ln.zone?.key ?? null),
         trend: recTrend([...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec == null ? null : Math.round(r.rec) }))),
-        strainTarget: strainTarget(recR, ln.zone?.key ?? null, ln.fitness),
+        target: strainTargetV2({
+          ...ln.tgt, recToday: recR, verdictLevel: verdict7?.level ?? null, zoneKey: ln.zone?.key ?? null,
+          plannedToday: planned.length ? planned.reduce((a, x) => a + (x.strain ?? 0), 0) : null,
+        }),
       };
     })(),
-    planned: await (async () => {
-      if (!req) return [];
-      const plan = await readPlan(env, req, mondayOf(date));
-      return (plan?.dias?.[date] ?? []).map((p) => { const sp = normSport(p.modalidade); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, strain: plannedStrain(p) }; });
-    })(),
+    planned,
     sleep: {
       night: lastNight && { hours: lastNight.sleep_h, start: lastNight.sleep_start?.slice(11) ?? null, end: lastNight.sleep_end?.slice(11) ?? null },
       napYesterday: yesterdayNap,
@@ -610,6 +641,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     needsHistory: ((await env.DB.prepare('SELECT COUNT(*) n FROM daily_metrics WHERE hrv IS NOT NULL').first<{ n: number }>())?.n ?? 0) < 30,
     shadowMode: true, // primeiras 6–8 semanas: REC não decide treino
     lastSync,
+    minsSinceSync: lastSync?.at ? Math.round((Date.now() - Date.parse(String(lastSync.at).replace(' ', 'T') + 'Z')) / 60000) : null,
   };
 }
 

@@ -95,7 +95,13 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 (`src/daily.ts`)
 - Frase entre os anéis: cruza a cor do REC (verde/amarelo/vermelho) com a Forma (descansado ou equilibrado / em bloco de treino / muito cansado). Ex.: amarelo + bloco = "Treino moderado; o forte fica para quando o REC subir".
 - Direção do REC: dias seguidos subindo ou caindo (diferença mínima de 2 pontos).
-- Meta de Strain do dia = Fitness (dia médio) × 1,5 (REC verde), 1,0 (amarelo) ou 0,5 (vermelho); × 0,75 se muito cansado; × 1,25 se descansado. O anel enche com o Strain feito e o tracinho marca a meta.
+- **Meta de Strain do dia v2** (`src/target.ts`, 03/11): olha dia, semana e tendência.
+  - Base = Fitness de ontem (seu Strain médio diário, 42 dias).
+  - × REC de hoje (verde 1,4 · amarelo 1,0 · vermelho 0,5) × recuperação dos últimos 7 dias (bem 1,1 · normal 1,0 · um pouco abaixo 0,9 · abaixo 0,8 · não recuperando 0,65).
+  - × carga recente: muito cansado 0,75 / descansado 1,15; Fadiga +15% em 3 dias 0,9; razão aguda/crônica > 1,3 → 0,85, < 0,8 → 1,1; ontem ≥ 1,8 × Fitness → 0,85.
+  - Limite da semana: teto = 1,3 × média das 3 semanas anteriores; o que sobra (teto − feito de seg. até ontem) ÷ dias restantes × 1,8 limita a meta (mínimo 0,3 × Fitness).
+  - O plano do treinador não muda a meta; o app só mostra se a sessão planejada está acima, dentro ou abaixo.
+  - Backtest 120 dias (03/11): passar da meta não derrubou o REC do dia seguinte (+2,3 vs −4,6 pontos), coerente com o estudo: carga da véspera mexe pouco no REC. A meta é guia de carga, não previsão do REC.
 
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)

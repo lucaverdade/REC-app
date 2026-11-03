@@ -12,8 +12,9 @@
     // banco D1 "rec" (o ID não é segredo)
     { "binding": "DB", "database_name": "rec", "database_id": "dc1a8113-cc1a-4434-9eaf-1dac6bf730aa" }
   ],
-  // a cada 15 min das 04:00 às 10:45 de Brasília (UTC−3); para de chamar a Garmin quando a noite chega
-  "triggers": { "crons": ["*/15 7-13 * * *"] },
+  // manhã (04:00–10:45 de Brasília): a cada 15 min até a noite chegar;
+  // resto do dia (11:00–23:30): a cada 30 min, busca só as atividades (treinos do dia)
+  "triggers": { "crons": ["*/15 7-13 * * *", "*/30 14-23,0-2 * * *"] },
   "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
   // mantém variáveis criadas no painel do Cloudflare a cada deploy
   "keep_vars": true,

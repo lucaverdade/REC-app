@@ -146,11 +146,17 @@ function recSegments(rec) {
 }
 
 // anel de Strain com meta do dia: enche com o feito; tracinho na meta (2/3 da volta)
-function strainRing(done, target) {
+function strainRing(done, t) {
+  const target = t.target;
   const scale = Math.max(target * 1.5, done);
   const f = Math.min(1, done / scale), tA = (target / scale) * 2 * Math.PI;
   const pct = target ? Math.round((done / target) * 100) : null;
   const left = Math.max(0, target - done);
+  const why = [
+    `Seu dia médio (Fitness): ${t.base}`,
+    ...t.factors.map((x) => `${x.label}: ×${String(x.f).replace('.', ',')}`),
+    t.week ? `Semana: teto ${t.week.hi}, feito até ontem ${t.week.doneBefore}, sobram ${t.week.room} para ${t.week.daysLeft} ${t.week.daysLeft === 1 ? 'dia' : 'dias'}${t.week.limited ? ' (limitou a meta)' : ''}` : null,
+  ].filter(Boolean);
   return `<div class="st-card">
     <span class="st-ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -163,7 +169,9 @@ function strainRing(done, target) {
     <div class="st-txt">
       <b>Strain ${done} <span>de ${target}</span></b>
       <span>${done >= target ? `Meta de hoje atingida${done > target * 1.15 ? `: ${done - target} acima` : ''}.` : `Cabem mais ${left} hoje.`}</span>
-      <small>Meta calculada pelo REC e pela Forma a partir do seu dia médio. Modo sombra: o plano manda.</small>
+      ${t.plan != null ? `<small>Plano de hoje: ${t.plan}${t.planNote === 'acima' ? ' (acima da meta)' : t.planNote === 'abaixo' ? ' (bem abaixo da meta)' : ''}</small>` : ''}
+      <details class="st-why"><summary>Como a meta foi calculada</summary><ul>${why.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>
+        <p>Modo sombra: o plano do treinador manda.</p></details>
     </div>
   </div>`;
 }
@@ -399,7 +407,7 @@ function render(d) {
 
     <section class="block">
       <h2>${d.isToday ? 'Treino de hoje' : 'Treinos do dia'}</h2>
-      ${d.day?.strainTarget ? strainRing(d.load?.strain ?? 0, d.day.strainTarget) : ''}
+      ${d.day?.target ? strainRing(d.load?.strain ?? 0, d.day.target) : ''}
       ${d.planned?.length ? plannedHtml(d.planned, d.activities) : ''}
       ${actsHtml(d.activities)}
     </section>
@@ -495,14 +503,16 @@ async function load() {
     const date = addIso(isoToday(), -dayOffset);
     const d = await api(`/api/today?date=${date}`);
     render(d);
-    if (dayOffset === 0 && d.needsSync && autoTried !== d.date) {
-      autoTried = d.date;
+    const stale = d.minsSinceSync == null || d.minsSinceSync > 15;
+    if (dayOffset === 0 && (d.needsSync || stale) && autoTried !== `${d.date}-${Math.floor(Date.now() / 900000)}`) {
+      autoTried = `${d.date}-${Math.floor(Date.now() / 900000)}`;
       const sync = screen.querySelector('.sync');
-      sync.disabled = true; sync.textContent = 'Buscando a noite na Garmin…';
+      sync.disabled = true; sync.textContent = d.needsSync ? 'Buscando a noite na Garmin…' : 'Buscando treinos novos…';
       await api('/api/refresh?auto=1', { method: 'POST' }).catch(() => {});
       const d2 = await api(`/api/today?date=${date}`);
       render(d2);
       if (d2.needsSync) screen.querySelector('.sync').textContent = 'A noite ainda não chegou à Garmin. Sincronize o relógio e toque aqui.';
+      else { const b = screen.querySelector('.sync'); if (b) { b.disabled = false; b.textContent = 'Atualizado agora'; } }
     }
   }
   catch (e) { if (e.message !== '401') screen.innerHTML = '<p class="comment" style="margin-top:40vh">Sem conexão com o servidor. Abra de novo em instantes.</p>'; }
