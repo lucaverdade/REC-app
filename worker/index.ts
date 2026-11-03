@@ -195,8 +195,10 @@ async function todayPayload(env: Env, date: string) {
 
 // --- roteamento ---
 function authorized(req: Request, env: Env) {
-  const h = req.headers.get('authorization') ?? '';
-  return !!env.APP_TOKEN && h === `Bearer ${env.APP_TOKEN}`;
+  // tolera espaço ou quebra de linha colados junto com o código no painel
+  const expected = (env.APP_TOKEN ?? '').trim();
+  const got = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  return expected.length > 0 && got === expected;
 }
 const isDate = (s: string | null): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 

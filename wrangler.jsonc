@@ -15,5 +15,7 @@
   // a cada 15 min das 04:00 às 10:45 de Brasília (UTC−3); para de chamar a Garmin quando a noite chega
   "triggers": { "crons": ["*/15 7-13 * * *"] },
   "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
+  // mantém variáveis criadas no painel do Cloudflare a cada deploy
+  "keep_vars": true,
   "observability": { "enabled": true }
 }

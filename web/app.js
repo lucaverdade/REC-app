@@ -33,7 +33,7 @@ function renderGate(err = '') {
     <form class="gate" autocomplete="off">
       <h1>REC</h1>
       <label for="code">Código de acesso</label>
-      <input id="code" type="password" inputmode="text" autocapitalize="off" required>
+      <input id="code" type="password" inputmode="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" required>
       <button type="submit">Entrar</button>
       <p class="err" role="alert">${esc(err)}</p>
     </form>`;
