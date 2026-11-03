@@ -115,14 +115,29 @@ function actsHtml(acts) {
 
 // ---------- anéis do topo (REC, Forma, Strain) ----------
 const RC = 2 * Math.PI * 40;
-function ringTile({ id, value, frac, color, label, sub, aria }) {
+// Forma: anel com as 5 faixas (−50% a +40%), faixa atual acesa e marcador na posição
+const FZ = [[-50, -30, 'risco'], [-30, -10, 'produtivo'], [-10, 5, 'neutro'], [5, 20, 'descansado'], [20, 40, 'perdendo']];
+function formSegments(pct) {
+  const pos = (v) => (Math.min(40, Math.max(-50, v)) + 50) / 90;
+  const cur = pct == null ? null : FZ.find(([lo, hi]) => pct < hi) ?? FZ[FZ.length - 1];
+  const segs = FZ.map(([lo, hi, k]) => {
+    const a = pos(lo) + 0.012, b = pos(hi) - 0.012;
+    return `<circle cx="50" cy="50" r="40" class="rt-seg" style="stroke:var(--z-${k});opacity:${cur && cur[2] === k ? 1 : 0.28}"
+      stroke-dasharray="${(b - a) * RC} ${RC}" stroke-dashoffset="${-a * RC}"/>`;
+  }).join('');
+  if (pct == null) return segs;
+  const ang = pos(pct) * 2 * Math.PI;
+  return `${segs}<circle cx="${50 + 40 * Math.cos(ang)}" cy="${50 + 40 * Math.sin(ang)}" r="6" class="rt-mark" style="fill:var(--z-${cur[2]})"/>`;
+}
+
+function ringTile({ id, value, frac = 0, color, label, sub, aria, segments }) {
   const f1 = Math.max(0, Math.min(1, frac)), f2 = Math.max(0, Math.min(1, frac - 1)); // segunda volta (Strain acima de 100%)
   return `<button type="button" class="rtile" data-ring="${id}" aria-label="${esc(aria)}" ${id === 'rec' ? 'aria-expanded="false" aria-controls="contrib"' : ''}>
     <span class="rt-ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="40" class="rt-track"/>
-        <circle cx="50" cy="50" r="40" class="rt-arc" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f1)}"/>
-        ${f2 > 0 ? `<circle cx="50" cy="50" r="40" class="rt-arc rt-lap" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f2)}"/>` : ''}
+        ${segments ?? `<circle cx="50" cy="50" r="40" class="rt-track"/>
+        <circle cx="50" cy="50" r="40" class="rt-arc" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f1)}"/>`}
+        ${!segments && f2 > 0 ? `<circle cx="50" cy="50" r="40" class="rt-arc rt-lap" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f2)}"/>` : ''}
       </svg>
       <span class="rt-val"><span>${value}</span></span>
     </span>
@@ -279,8 +294,7 @@ function render(d) {
       ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, frac: d.rec == null ? 0 : d.rec / 100, color: zoneVar(z),
         label: 'REC', sub: recSub(d), aria: 'REC. Toque para ver o que compõe o número.' })}
       ${ringTile({ id: 'forma', value: d.load?.formPct == null ? '–' : `${d.load.formPct > 0 ? '+' : d.load.formPct < 0 ? '−' : ''}${Math.abs(d.load.formPct)}<small>%</small>`,
-        frac: d.load?.formPct == null ? 0 : Math.min(1, Math.max(0, (d.load.formPct + 50) / 90)), color: `var(--z-${d.load?.zone?.key ?? 'neutro'})`,
-        label: 'Forma', sub: shortZone(d.load?.zone?.key), aria: 'Forma. Toque para ver as tendências.' })}
+        segments: formSegments(d.load?.formPct), label: 'Forma', sub: shortZone(d.load?.zone?.key), aria: 'Forma. Toque para ver as tendências.' })}
       ${ringTile({ id: 'strain', value: d.load?.strain ?? '–', frac: d.load?.fitness ? d.load.strain / (2 * d.load.fitness) : 0, color: 'var(--strain)',
         label: 'Strain', sub: strainCat(d.load), aria: 'Strain do dia. Toque para ver os treinos.' })}
     </section>

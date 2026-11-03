@@ -29,7 +29,7 @@
   --pred: #b58cff;
 
   /* Strain e linha do REC */
-  --strain: #ff8a4c;
+  --strain: #2ad4e8;
   --rec-line: #c9c4b8;
 
   /* recuperação */
@@ -347,7 +347,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .key { font-size: 11px; color: var(--accent); border: 1px solid var(--accent-soft); border-radius: 6px; padding: 0 5px; margin-left: 4px; }
 .ex { padding: 6px 0 6px 1.2em; }
 .ex-meta { color: var(--text-2); font-size: 13px; margin-top: 2px; }
-.strain-chip { min-width: 2.4em; text-align: center; font-size: 13px; color: var(--strain); border: 1px solid rgba(255,138,76,.35); border-radius: 999px; padding: 1px 8px; }
+.strain-chip { min-width: 2.4em; text-align: center; font-size: 13px; color: var(--strain); border: 1px solid rgba(42,212,232,.35); border-radius: 999px; padding: 1px 8px; }
 .zbar { display: flex; gap: 2px; height: 5px; margin-top: 7px; }
 .zbar i { height: 100%; border-radius: 3px; }
 .next-rec { margin: 6px 0 0; font-size: 13px; color: var(--text-2); }
@@ -359,9 +359,9 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .chart .zbk-descansado { fill: var(--z-descansado); } .chart .zbk-perdendo { fill: var(--z-perdendo); }
 .chart .ln.formln { stroke: rgba(255,255,255,.75); stroke-width: 1.5; }
 
-/* --- Strain por dia: calendário de calor (rampa laranja) --- */
-.hl-0 { background: #18181b; } .hl-1 { background: #4a2a17; } .hl-2 { background: #7a3b16; }
-.hl-3 { background: #b9531a; } .hl-4 { background: #f2731f; } .hl-5 { background: #ffa25c; }
+/* --- Strain por dia: calendário de calor (rampa ciano) --- */
+.hl-0 { background: #18181b; } .hl-1 { background: #0e3a40; } .hl-2 { background: #12606a; }
+.hl-3 { background: #138f9d; } .hl-4 { background: #1ebfd2; } .hl-5 { background: #7ff0fb; }
 .hl-f { background: transparent; border: 1px dashed var(--line) !important; }
 .heat .hc { border: 0; padding: 0; cursor: pointer; color: #fff; border-radius: 6px; font: inherit; }
 .heat .hc.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -526,3 +526,7 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 @media (prefers-reduced-motion: reduce) { .rt-arc { transition: none; } }
 
 .top .race-link { color: var(--accent); text-decoration: none; }
+
+.rt-seg { fill: none; stroke-width: 6; stroke-linecap: round; }
+.rt-mark { stroke: #000; stroke-width: 2.5; }
+.heat .hc.hl-4 span, .heat .hc.hl-5 span { color: #00262b; text-shadow: none; } .heat .hc.hl-4 em, .heat .hc.hl-5 em { color: rgba(0,38,43,.6); }
