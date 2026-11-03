@@ -1,0 +1,10 @@
+# dados pessoais ficam fora do git
+data/
+*.csv
+.env
+.env.*
+.dev.vars
+node_modules/
+.wrangler/
+dist/
+__pycache__/
