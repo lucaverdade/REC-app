@@ -8,7 +8,7 @@ import SCHEMA from './schema.sql';
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
-  APP_TOKEN: string;          // secret: acesso ao app (provisório até a passkey/Face ID)
+  APP_TOKEN?: string;         // secret opcional: se existir, o app pede código
   GARMIN_API_KEY?: string;    // secret: chave pessoal da Garmin
   GARMIN_BASE_URL?: string;   // só para testes locais com servidor simulado
 }
@@ -197,8 +197,9 @@ async function todayPayload(env: Env, date: string) {
 function authorized(req: Request, env: Env) {
   // tolera espaço ou quebra de linha colados junto com o código no painel
   const expected = (env.APP_TOKEN ?? '').trim();
+  if (!expected) return true; // sem APP_TOKEN cadastrado: app aberto (decisão do Luca, 03/11)
   const got = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  return expected.length > 0 && got === expected;
+  return got === expected;
 }
 const isDate = (s: string | null): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 

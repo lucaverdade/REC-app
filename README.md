@@ -31,7 +31,7 @@ npm run dev    # http://localhost:8787
 ## Publicar (Cloudflare, plano gratuito, sem linha de comando)
 1. Banco D1 `rec` criado no painel (o ID já está em `wrangler.jsonc`).
 2. Workers & Pages → Create → Import a repository → `REC-app` → Deploy. Todo push na `main` publica sozinho.
-3. Worker `rec` → Settings → Variables and Secrets: secrets `APP_TOKEN` (código de acesso do app) e `GARMIN_API_KEY`.
+3. Worker `rec` → Settings → Variables and Secrets: secret `GARMIN_API_KEY`. `APP_TOKEN` é opcional: se existir, o app pede código.
 4. Abrir a URL no Safari do iPhone → Compartilhar → Adicionar à Tela de Início.
 5. No app: rodapé → Garmin → **Puxar histórico** (uma vez) e **Testar conexão**.
 

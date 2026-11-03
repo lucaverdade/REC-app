@@ -11,9 +11,9 @@ const store = {
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     ...opts,
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${store.get()}`, ...(opts.headers || {}) },
+    headers: { 'content-type': 'application/json', ...(store.get() ? { authorization: `Bearer ${store.get()}` } : {}), ...(opts.headers || {}) },
   });
-  if (res.status === 401) { store.clear(); renderGate('Código não aceito. Confira e entre de novo.'); throw new Error('401'); }
+  if (res.status === 401) { const had = store.get(); store.clear(); renderGate(had ? 'Código não aceito. Confira e entre de novo.' : ''); throw new Error('401'); }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `HTTP ${res.status}`);
@@ -189,7 +189,6 @@ function render(d) {
 
 let autoTried = '';   // uma busca automática por dia, por abertura
 async function load() {
-  if (!store.get()) return renderGate();
   try {
     const d = await api('/api/today');
     render(d);
@@ -298,7 +297,7 @@ window.addEventListener('hashchange', route);
 
 // ao voltar para o app: recarrega (pega a noite se chegou e troca o dia se virou)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && store.get() && location.hash !== '#garmin') { autoTried = ''; load(); }
+  if (document.visibilityState === 'visible' && location.hash !== '#garmin') { autoTried = ''; load(); }
 });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
