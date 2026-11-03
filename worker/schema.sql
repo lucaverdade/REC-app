@@ -55,3 +55,10 @@ CREATE TABLE IF NOT EXISTS sync_log (
   status  TEXT NOT NULL,          -- ok | erro | sem_dados
   detail  TEXT
 );
+
+-- configurações pequenas (ex.: calibração das previsões de prova)
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

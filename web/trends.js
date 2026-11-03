@@ -107,6 +107,8 @@ async function body(screen, api) {
       <div class="chart-wrap" id="ch-form"></div>
     </section>
 
+    <section class="block" id="pred"></section>
+
     <section class="block">
       <h2>Strain por dia</h2>
       <div id="heat"></div>
@@ -160,6 +162,7 @@ async function body(screen, api) {
   const bars = d.bars;
   const barHead = (i) => `<p>${d.daily ? fmtDay(bars[i].start) : `Semana de ${fmtDay(bars[i].start)}`}</p>`;
   strainHeat(box, d);
+  predictions(box, api);
 
   lineChart(box.querySelector('#ch-rec'), [{ name: 'REC', values: s.map((x) => x.rec), cls: 'recl' }], { area: '--rec-line',
     dates, range: [0, 100], bands: [[33.5, 66.5]], dots: (i, v) => zoneVar(v), label: 'REC',
@@ -208,5 +211,82 @@ function strainHeat(box, d) {
     el.querySelectorAll('.hc.sel').forEach((x) => x.classList.remove('sel'));
     b.classList.add('sel');
     cap.textContent = cellTip(days[Number(b.dataset.i)]);
+  });
+}
+
+// ---------- Previsões de prova (corrida) ----------
+let pMonths = 3, pDist = 'd21';
+const PD = [['d5', '5 km'], ['d10', '10 km'], ['d21', '21 km'], ['d42', '42 km']];
+const tfmt = (m) => {
+  if (m == null) return '–';
+  const s = Math.round(m * 60), h = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+  return h ? `${h}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}` : `${mm}:${String(ss).padStart(2, '0')}`;
+};
+const parseT = (txt) => {
+  const p = String(txt || '').trim().split(':').map(Number);
+  if (!p.length || p.some((x) => !Number.isFinite(x))) return null;
+  return p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p.length === 2 ? p[0] + p[1] / 60 : null;
+};
+
+async function predictions(box, api) {
+  const sec = box.querySelector('#pred');
+  if (!sec) return;
+  let p;
+  try { p = await api(`/api/predictions?months=${pMonths}`); } catch (e) { sec.innerHTML = `<p class="empty">Previsões não carregaram: ${esc(e.message)}</p>`; return; }
+  if (!p.current) {
+    sec.innerHTML = `<h2>Previsões de prova</h2><p class="empty">Precisa de pelo menos 10 corridas ao ar livre (com FC) nas últimas 24 semanas. Hoje: ${p.runsInWindow}.</p>`;
+    return;
+  }
+  const diff = (k) => {
+    if (!p.fourWeeksAgo) return '';
+    const dm = p.current[k] - p.fourWeeksAgo[k];
+    if (Math.abs(dm) < 1 / 60) return '<span class="pd-d">igual</span>';
+    return `<span class="pd-d ${dm < 0 ? 'up' : 'down'}">${dm < 0 ? '−' : '+'}${tfmt(Math.abs(dm))}</span>`;
+  };
+  sec.innerHTML = `
+    <h2>Previsões de prova</h2>
+    <div class="pd-grid" role="tablist" aria-label="Distância">
+      ${PD.map(([k, l]) => `<button type="button" role="tab" data-k="${k}" aria-selected="${k === pDist}" class="pd">
+        <small>${l}</small><b>${tfmt(p.current[k])}</b>${diff(k)}</button>`).join('')}
+    </div>
+    <p class="note">Variação em 4 semanas embaixo de cada tempo (verde = mais rápido).</p>
+    <div class="seg seg-sm" role="tablist" aria-label="Período das previsões">
+      ${[[1, '1 mês'], [3, '3 meses'], [6, '6 meses']].map(([m, l]) => `<button role="tab" data-m="${m}" aria-selected="${m === pMonths}">${l}</button>`).join('')}
+    </div>
+    <div class="chart-wrap" id="ch-pred"></div>
+    <p class="note">${p.runsInWindow} corridas ao ar livre nas últimas 24 semanas (esteira fica fora), percurso plano. Atualiza a cada corrida. No 70.3 a corrida vem depois de 90 km de bike.</p>
+    <details class="explain">
+      <summary>${p.calibrated ? 'Calibrado com o Strava. Ajustar de novo' : 'Ajustar com as previsões do Strava'}</summary>
+      <p>Digite o que o Strava mostra hoje (Você → Progresso). O app guarda a diferença para cada distância e aplica dali em diante, então a tendência segue as suas corridas no mesmo nível do Strava.</p>
+      <form class="pd-cal">
+        ${PD.map(([k, l]) => `<label>${l}<input name="${k}" inputmode="numeric" placeholder="${k === 'd5' || k === 'd10' ? 'mm:ss' : 'h:mm:ss'}"></label>`).join('')}
+        <button class="btn" type="submit">Salvar</button>
+        ${p.calibrated ? '<button class="btn ghost" type="button" data-reset>Remover calibração</button>' : ''}
+      </form>
+      <p class="progress" id="pd-msg"></p>
+    </details>`;
+
+  sec.querySelectorAll('.pd').forEach((b) => b.addEventListener('click', () => { pDist = b.dataset.k; predictions(box, api); }));
+  sec.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => { pMonths = Number(b.dataset.m); predictions(box, api); }));
+  const form = sec.querySelector('.pd-cal'), msg = sec.querySelector('#pd-msg');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {};
+    for (const [k] of PD) { const t = parseT(form.elements[k].value); if (t) body[k] = t; }
+    if (!Object.keys(body).length) { msg.textContent = 'Preencha pelo menos uma distância (ex.: 22:30 ou 1:41:00).'; return; }
+    try { await api('/api/predictions/calibrate', { method: 'POST', body: JSON.stringify(body) }); predictions(box, api); }
+    catch (err) { msg.textContent = `Não salvou: ${err.message}`; }
+  });
+  sec.querySelector('[data-reset]')?.addEventListener('click', async () => {
+    await api('/api/predictions/calibrate', { method: 'POST', body: '{}' }).catch(() => {});
+    predictions(box, api);
+  });
+
+  // gráfico: tempo invertido (para cima = mais rápido)
+  const pts = p.series;
+  lineChart(sec.querySelector('#ch-pred'), [{ name: PD.find(([k]) => k === pDist)[1], values: pts.map((x) => (x.times ? -x.times[pDist] : null)), cls: 'pred' }], {
+    dates: pts.map((x) => x.date), label: 'Previsão', area: '--pred', yFmt: (v) => tfmt(-v),
+    dots: pMonths > 1 ? () => 'var(--pred)' : null,
+    tip: (i) => `<p>${pMonths > 1 ? 'Semana de ' : ''}${fmtDay(pts[i].date)}</p>` + row(PD.find(([k]) => k === pDist)[1], tfmt(pts[i].times?.[pDist])),
   });
 }

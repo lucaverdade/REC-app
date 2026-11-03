@@ -3,6 +3,7 @@ import { computeRec, type Contributor, type DailyInput } from '../src/rec.ts';
 import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc } from '../src/load.ts';
+import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
 import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
@@ -359,6 +360,75 @@ async function weekPayload(env: Env, req: Request, offset: number) {
   };
 }
 
+
+// --- previsões de prova (corrida) ---
+async function getSetting<T>(env: Env, key: string): Promise<T | null> {
+  const r = await env.DB.prepare('SELECT value FROM settings WHERE key = ?1').bind(key).first<{ value: string }>();
+  try { return r ? (JSON.parse(r.value) as T) : null; } catch { return null; }
+}
+async function setSetting(env: Env, key: string, value: unknown) {
+  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`)
+    .bind(key, JSON.stringify(value)).run();
+}
+
+/** Corridas ao ar livre com VO2máx estimado, desde `from`. */
+async function runVdots(env: Env, from: string, to: string) {
+  const { results: runs } = await env.DB.prepare(
+    `SELECT date, km, min, avghr FROM activities
+     WHERE type IN ('running', 'track_running', 'trail_running') AND km >= 2 AND avghr IS NOT NULL AND date BETWEEN ?1 AND ?2 ORDER BY date`,
+  ).bind(from, to).all<{ date: string; km: number; min: number; avghr: number }>();
+  // FC máxima de corrida: segunda maior dos últimos 12 meses (evita pico isolado do sensor)
+  const { results: mx } = await env.DB.prepare(
+    `SELECT maxhr FROM activities WHERE sport = 'corrida' AND maxhr IS NOT NULL AND date BETWEEN ?1 AND ?2 ORDER BY maxhr DESC LIMIT 2`,
+  ).bind(addDays(to, -365), to).all<{ maxhr: number }>();
+  const maxHr = mx.length ? mx[mx.length - 1].maxhr : 190;
+  // FC de repouso: mediana de 30 dias até a data da corrida
+  const { results: rh } = await env.DB.prepare('SELECT date, rhr FROM daily_metrics WHERE rhr IS NOT NULL AND date BETWEEN ?1 AND ?2 ORDER BY date')
+    .bind(addDays(from, -30), to).all<{ date: string; rhr: number }>();
+  const restOn = (d: string) => {
+    const xs = rh.filter((r) => r.date <= d && daysBetween(r.date, d) < 30).map((r) => r.rhr).sort((a, b) => a - b);
+    return xs.length ? xs[Math.floor(xs.length / 2)] : 45;
+  };
+  const out: { date: string; vdot: number }[] = [];
+  for (const r of runs) { const v = vdotFromRun(r, restOn(r.date), maxHr); if (v != null) out.push({ date: r.date, vdot: v }); }
+  return { runs: out, maxHr };
+}
+
+async function predictionsPayload(env: Env, months: number) {
+  const today = brtToday();
+  const start = addDays(today, -Math.round(months * 30.4));
+  const { runs, maxHr } = await runVdots(env, addDays(start, -170), today);
+  const factors = (await getSetting<Partial<Record<DistKey, number>>>(env, 'pred_factors')) ?? {};
+  const daily: { date: string; times: Record<DistKey, number> | null }[] = [];
+  for (let d = start; d <= today; d = addDays(d, 1)) {
+    const v = vdotOn(d, runs);
+    daily.push({ date: d, times: v ? predictAll(v.vdot, factors) : null });
+  }
+  // 1 mês: diário; 3 e 6 meses: mediana semanal (como o Strava)
+  let series = daily;
+  if (months > 1) {
+    const weeks = new Map<string, typeof daily>();
+    for (const x of daily) { const k = mondayOf(x.date); weeks.set(k, [...(weeks.get(k) ?? []), x]); }
+    series = [...weeks.entries()].map(([k, xs]) => {
+      const ok = xs.filter((x) => x.times);
+      if (!ok.length) return { date: k, times: null };
+      const med = (key: DistKey) => { const v = ok.map((x) => x.times![key]).sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
+      return { date: k, times: Object.fromEntries(DISTANCES.map((dd) => [dd.key, med(dd.key)])) as Record<DistKey, number> };
+    });
+  }
+  const now = vdotOn(today, runs);
+  const ago = vdotOn(addDays(today, -28), runs);
+  const lastRun = runs.length ? runs[runs.length - 1].date : null;
+  return {
+    months, today, maxHr, lastRun,
+    runsInWindow: now?.n ?? runs.filter((r) => daysBetween(r.date, today) < 168).length,
+    calibrated: Object.keys(factors).length > 0,
+    current: now ? predictAll(now.vdot, factors) : null,
+    fourWeeksAgo: ago ? predictAll(ago.vdot, factors) : null,
+    series,
+  };
+}
+
 // --- avisos de carga (fato, sem conselho) ---
 async function loadAlerts(env: Env, date: string) {
   const out: { kind: string; text: string }[] = [];
@@ -471,6 +541,26 @@ export default {
       return json(await morningRoutine(env, auto ? 'open' : 'manual'));
     }
 
+    if (url.pathname === '/api/predictions' && req.method === 'GET') {
+      const m = Number(url.searchParams.get('months'));
+      return json(await predictionsPayload(env, [1, 3, 6].includes(m) ? m : 3));
+    }
+    if (url.pathname === '/api/predictions/calibrate' && req.method === 'POST') {
+      // corpo: { d5, d10, d21, d42 } em minutos (o que o Strava mostra hoje); {} apaga a calibração
+      const body = await req.json<Partial<Record<DistKey, number>>>().catch(() => ({}) as Partial<Record<DistKey, number>>);
+      const today = brtToday();
+      const { runs } = await runVdots(env, addDays(today, -170), today);
+      const v = vdotOn(today, runs);
+      if (!v) return json({ error: 'poucas_corridas' }, 400);
+      const raw = predictAll(v.vdot);
+      const factors: Partial<Record<DistKey, number>> = {};
+      for (const d of DISTANCES) {
+        const t = Number(body[d.key]);
+        if (Number.isFinite(t) && t > 0) factors[d.key] = Math.round((t / raw[d.key]) * 10000) / 10000;
+      }
+      await setSetting(env, 'pred_factors', factors);
+      return json({ ok: true, factors });
+    }
     if (url.pathname === '/api/week' && req.method === 'GET') {
       const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, 0), 156);
       return json(await weekPayload(env, req, offset));
