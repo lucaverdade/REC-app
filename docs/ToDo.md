@@ -10,6 +10,8 @@ Lista viva do que o Luca pediu para depois. Ordem não é prioridade.
 - [ ] Regularidade do sono: horário de deitar e acordar (API entrega).
 - [ ] Indicadores de forma: pace na FC 145 (corrida), velocidade na FC 137 (bike), ritmo de natação por 100 m.
 
+- [ ] **Zonas de FC por modalidade**: o Luca configura zonas de ciclismo no Garmin (FC na bike é menor que na corrida). Treinos novos já chegam com o tempo em zonas certo. Opcional depois: recalcular o histórico baixando a FC segundo a segundo (arquivo FIT) e aplicando as zonas de cada esporte.
+
 ## Abas e telas
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.

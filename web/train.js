@@ -26,11 +26,14 @@ function strainCompare(p) {
     <span class="sc-bar"><i style="width:${Math.min(pct, 150) / 1.5}%"></i><em style="left:${100 / 1.5}%"></em></span></div>`;
 }
 
+const ZN = ['Abaixo da Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 function zoneBar(z) {
   if (!z) return '';
   const tot = z.reduce((a, b) => a + b, 0);
   if (!tot) return '';
-  return `<span class="zbar" aria-hidden="true">${z.map((m, i) => (m ? `<i class="zc-${i}" style="width:${(m / tot) * 100}%"></i>` : '')).join('')}</span>`;
+  const used = z.map((m, i) => ({ i, m })).filter((x) => x.m > 0);
+  return `<span class="zbar" aria-hidden="true">${used.map((x) => `<i class="zc-${x.i}" style="width:${(x.m / tot) * 100}%"></i>`).join('')}</span>
+    <ul class="ac-zlist">${used.map((x) => `<li><i class="zc-${x.i}"></i>${ZN[x.i]} <b>${x.m} min</b></li>`).join('')}</ul>`;
 }
 
 function exHtml(e) {

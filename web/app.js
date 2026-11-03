@@ -86,7 +86,7 @@ function contribHtml(list) {
   }).join('');
 }
 
-const ZN = ['<Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+const ZN = ['Abaixo da Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 function actsHtml(acts) {
   if (!acts.length) return '<p class="empty">Nenhum treino registrado.</p>';
   const nfm = (v, d = 0) => v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -98,9 +98,10 @@ function actsHtml(acts) {
     let zones = '';
     if (a.zones) {
       const tot = a.zones.reduce((x, y) => x + y, 0) || 1;
-      const top = a.zones.indexOf(Math.max(...a.zones));
-      zones = `<div class="ac-zones">${a.zones.map((m, i) => (m ? `<i class="zc-${i}" style="flex:${m}" title="${ZN[i]}: ${m} min"></i>` : '')).join('')}</div>
-        <div class="ac-zcap">Mais tempo em ${ZN[top]} (${Math.round((a.zones[top] / tot) * 100)}%)</div>`;
+      const used = a.zones.map((m, i) => ({ i, m })).filter((z) => z.m > 0);
+      // barra segmentada + rótulos: cada zona usada com minutos e %
+      zones = `<div class="ac-zones" aria-hidden="true">${used.map((z) => `<i class="zc-${z.i}" style="flex:${z.m}"></i>`).join('')}</div>
+        <ul class="ac-zlist">${used.map((z) => `<li><i class="zc-${z.i}"></i>${ZN[z.i]} <b>${z.m} min</b> <span>${Math.round((z.m / tot) * 100)}%</span></li>`).join('')}</ul>`;
     }
     return `<li class="act-card" style="--c: var(--${esc(a.sport)})">
       <div class="ac-head"><span class="ac-sport">${esc(a.label)}</span><span class="meta">${esc(a.time)}</span>
