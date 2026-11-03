@@ -27,6 +27,10 @@ Legenda de esforço: **P** = pequeno (horas) · **M** = médio (1–2 dias) · *
 ## 2. Banco de ideias
 
 ### A. Recuperação e prontidão
+- **A0 · Ideias do Luca (03/11)**:
+  - **A0a · Anel do REC segmentado** em 5 faixas de cor, como o da Forma. *P*.
+  - **A0b · Resumo do dia entre os dois anéis** no lugar de "média da semana": uma frase que cruza REC e Forma (ex.: "Dia para treinar forte", "Foco em recuperação hoje") e a direção do REC (subindo/caindo). *P*.
+  - **A0c · Anel de Strain com meta do dia** (como o app que o Luca usa): o anel enche com o Strain feito e um tracinho marca até onde dá para ir hoje, calculado pelo REC e pela Forma. Mostra quanto já fez e quanto ainda cabe. *M*. Ligado a A3.
 - **A1 · Relatório da manhã** (Garmin Morning Report, Whoop). Ao abrir de manhã, um cartão único: REC, noite, Forma, treino planejado do dia e uma frase. *P · Dados ✓*. **Minha opinião: alta prioridade**, junta o que já existe num lugar só.
 - **A2 · Tendência do HRV estilo HRV4Training**: base de 7 dias contra o normal de 60 dias + **CV** (quanto o HRV oscila) → classificar em *adaptando bem / estável / risco de má adaptação / fadiga acumulada*. *M · Dados ✓*. **Opinião: alta**, é a leitura mais validada de HRV para atleta e complementa a resposta de recuperação.
 - **A3 · Meta de Strain do dia** (Whoop Strain Target, Athlytic Target Exertion): faixa de Strain sugerida conforme REC e Forma. *M · Dados ✓*. **Opinião: média**; precisa ficar em modo sombra (o plano manda).
