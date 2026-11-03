@@ -27,6 +27,12 @@ Complementa `App_Backlog_e_Especificacao_REC.md`. Onde houver conflito, vale est
 - REC mantém o semáforo, levemente dessaturado (`#e2584f`, `#e7be45`, `#3fbf7f`). Inspiração: Oura usa uma cor por métrica, todas dessaturadas sobre preto.
 - Gráficos com cor própria e degradê: Strain laranja, HRV verde-menta, FC de repouso âmbar, sono lavanda, REC com bolinhas no semáforo; faixas da Forma de rosé (risco) a azul (descansado).
 
+## Cores (03/11, noite) — vale sobre a seção anterior
+- **REC "Brasa → Gelo"** (escolha do Luca): baixo vermelho-brasa `#e2614f`, meio cinza-azulado `#a7a9b6`, alto azul-gelo `#74e6ff`; anel em 5 faixas. Sem amarelo no app.
+- **Forma em tons frios**: muito cansado rosa `#e8698f`, em bloco lilás `#a98bf0`, equilibrado cinza, descansado azul `#5aa2f5`, perdendo forma azul-claro.
+- Bom/ruim/atenção fora do REC têm cores próprias (`--good`, `--bad`, `--warn`).
+- Frase do dia: 14 px, cinza, sem caixa. Temas de fundo: Preto, Grafite, Verde-escuro, Azul-marinho.
+
 ## Falta
 Lista completa e viva em `ToDo.md`. Próximo passo: hrTSS com as zonas do Garmin.
 
