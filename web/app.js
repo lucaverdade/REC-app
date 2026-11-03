@@ -2,6 +2,7 @@
 import { renderTrends, zoneOfPct, FORM_ZONES } from './trends.js';
 import { renderTrain } from './train.js';
 import { renderRace } from './race.js';
+import { reviewHtml } from './review.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -320,6 +321,29 @@ function sleepCard(d) {
     </section>`;
 }
 
+// ---------- relatório da manhã (A1): primeira abertura do dia, até 12 h ----------
+const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+function morningHtml(d) {
+  if (!d.isToday || new Date().getHours() >= 12 || ls.get('rec.morning') === d.date || d.rec == null) return '';
+  const sg = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+  const n = d.sleep?.night, pn = d.sleep?.personalNeed;
+  const pl = d.planned ?? [];
+  const plTxt = pl.length ? pl.map((p) => `${esc(p.label)}${p.minutos ? ` ${p.minutos} min` : ''}${p.zona ? ` ${esc(p.zona)}` : ''}`).join(' · ') : 'Sem treino planejado';
+  const prev = pl.reduce((a, p) => a + (p.strain ?? 0), 0);
+  const rows = [
+    ['REC', `<b style="color:${zoneVar(zoneOf(d.rec))}">${d.rec}</b>${d.day?.trend ? ` · ${esc(d.day.trend.txt.replace('REC ', ''))}` : ''}`],
+    ['Noite', n?.hours != null ? `<b>${hmm(n.hours)}</b> de ${hmm(pn)}${d.sleep.debt >= 1 / 6 ? ` · dívida ${hmm(d.sleep.debt)}` : ''}` : '–'],
+    d.hrvTrend ? ['HRV', `<b>${esc(d.hrvTrend.label)}</b> · 7 noites ${d.hrvTrend.mean7} ms (normal ${d.hrvTrend.lo}–${d.hrvTrend.hi})`] : null,
+    d.load?.formPct != null ? ['Forma', `<b>${sg(d.load.formPct)}%</b> · ${esc(d.load.zone?.label ?? '')}`] : null,
+    ['Treino', `${plTxt}${pl.length && d.day?.target ? `<br><span class="meta">Strain previsto ${prev}, meta ${d.day.target.target}</span>` : ''}`],
+    d.alerts?.length ? ['Atenção', esc(d.alerts[0].text)] : null,
+  ].filter(Boolean);
+  return `<section class="morning" aria-label="Relatório da manhã">
+    <div class="mr-head"><span>Bom dia · relatório da manhã</span><button type="button" class="mr-close" aria-label="Fechar">×</button></div>
+    <ul class="mr-list">${rows.map(([k, v]) => `<li><span>${k}</span><span>${v}</span></li>`).join('')}</ul>
+  </section>`;
+}
+
 // ---------- Forma: medidor semicircular com as faixas (como o anel do REC) ----------
 const G = { min: -50, max: 40 };
 function gaugeSvg(pct) {
@@ -377,6 +401,9 @@ function render(d) {
     </header>
 
     ${d.syncIssue ? `<a class="alert sync-alert" role="status" href="#garmin">${esc(d.syncIssue.text)} <em>Garmin ›</em></a>` : ''}
+
+    ${morningHtml(d)}
+    <div id="hoje-review"></div>
 
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
 
@@ -465,6 +492,23 @@ function render(d) {
       saved.textContent = 'Nota salva.';
     } catch { saved.textContent = 'Não salvou. Tente de novo.'; }
   });
+
+  // relatório da manhã: fechar até amanhã
+  screen.querySelector('.mr-close')?.addEventListener('click', () => { ls.set('rec.morning', todayIso); screen.querySelector('.morning')?.remove(); });
+
+  // resumo da semana: domingo a partir das 18 h (semana atual) e segunda (semana anterior)
+  if (d.isToday) {
+    const now = new Date(), dow = now.getDay();
+    const mon = (iso, k) => { const t = new Date(iso + 'T12:00:00'); t.setDate(t.getDate() - ((t.getDay() + 6) % 7) - 7 * k); return t.toISOString().slice(0, 10); };
+    const target = dow === 0 && now.getHours() >= 18 ? mon(todayIso, 0) : dow === 1 ? mon(todayIso, 1) : null;
+    if (target && ls.get('rec.review') !== target) {
+      api(`/api/review?monday=${target}`).then((r) => {
+        const el = screen.querySelector('#hoje-review'); if (!el || !r.sessions) return;
+        el.innerHTML = reviewHtml(r, { closable: true });
+        el.querySelector('.rv-close')?.addEventListener('click', () => { ls.set('rec.review', target); el.innerHTML = ''; });
+      }).catch(() => {});
+    }
+  }
 
   // diário de hábitos
   screen.querySelectorAll('.hb').forEach((b) => b.addEventListener('click', async () => {

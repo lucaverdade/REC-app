@@ -6,6 +6,8 @@ import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
 import { bedtimeTarget, debtLevel, irregularNights, personalNeed, regularity, regularityScore, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
 import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
+import { hrvTrendNow } from '../src/hrvtrend.ts';
+import { illnessAlert } from '../src/illness.ts';
 import { ARACAJU, climatology, parseForecast, type HourRow } from '../src/weather.ts';
 import { longTrend } from '../src/longtrend.ts';
 import { dailySummary, recTrend } from '../src/daily.ts';
@@ -395,6 +397,7 @@ async function weekPayload(env: Env, req: Request, offset: number) {
   const rates = await strainRates(env, today);
 
   let plannedMin = 0, doneMin = 0, strainTot = 0, plannedStrainTot = 0;
+  const dist = { low: 0, mid: 0, high: 0 };
   const days = [];
   for (let i = 0; i < 7; i++) {
     const date = addDays(monday, i);
@@ -403,6 +406,7 @@ async function weekPayload(env: Env, req: Request, offset: number) {
       const inZ = z.reduce((x: number, y: number) => x + y, 0);
       const hasZ = [a.z1, a.z2, a.z3, a.z4, a.z5].some((v) => v != null);
       doneMin += a.min ?? 0; strainTot += a.strain ?? 0;
+      if (hasZ && a.sport !== 'academia') { dist.low += Math.max(0, (a.min ?? 0) - inZ) + z[0] + z[1]; dist.mid += z[2]; dist.high += z[3] + z[4]; }
       return {
         id: a.id, time: a.time, sport: a.sport as Sport, label: SPORT_LABEL[a.sport as Sport], min: a.min, km: a.km, avghr: a.avghr, maxhr: a.maxhr,
         rpe: a.rpe, strain: a.strain == null ? null : Math.round(a.strain),
@@ -427,7 +431,8 @@ async function weekPayload(env: Env, req: Request, offset: number) {
   return {
     monday, sunday, offset,
     plan: plan ? { fase: plan.fase ?? null, notas: plan.notas ?? null } : null,
-    summary: { plannedHours: plan ? r1(plannedMin / 60) : null, doneHours: r1(doneMin / 60), strain: Math.round(strainTot), plannedStrain: plan ? Math.round(plannedStrainTot) : null },
+    summary: { plannedHours: plan ? r1(plannedMin / 60) : null, doneHours: r1(doneMin / 60), strain: Math.round(strainTot), plannedStrain: plan ? Math.round(plannedStrainTot) : null,
+      dist: (() => { const t = dist.low + dist.mid + dist.high; return t ? { low: Math.round((dist.low / t) * 100), mid: Math.round((dist.mid / t) * 100), high: Math.round((dist.high / t) * 100) } : null; })() },
     days,
   };
 }
@@ -696,7 +701,16 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     rec: t.rec === null ? null : Math.round(t.rec),
     contributors: contributors(t),
     comment: comment(t, hist),
-    alerts: [...alerts(t, yesterday), ...(await loadAlerts(env, date))],
+    alerts: [
+      ...(await (async () => {
+        const sick = (await env.DB.prepare("SELECT 1 x FROM habit_tags WHERE tag = 'doente' AND date BETWEEN ?1 AND ?2").bind(addDays(date, -1), date).first()) != null;
+        const zz = (r: RecRow | undefined | null) => (r ? { resp: r.z.resp, rhr: r.z.rhr, hrv: r.z.hrv, stress: r.z.stress } : null);
+        const a = illnessAlert(today ? zz(t) : null, zz(yesterday), sick);
+        return a ? [a] : [];
+      })()),
+      ...alerts(t, yesterday), ...(await loadAlerts(env, date)),
+    ],
+    hrvTrend: await (async () => { const h = await hrvTrendOn(env, date); return h && { cls: h.cls, label: h.label, days: h.days, mean7: h.mean7, lo: h.lo, hi: h.hi }; })(),
     week: [...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec === null ? null : Math.round(r.rec) })),
     activities: acts.results.map((a) => {
       const z = [a.z1, a.z2, a.z3, a.z4, a.z5];
@@ -778,6 +792,59 @@ async function weatherPayload(env: Env) {
   return { mode, days, rows, years: years ?? null, cached: false, availableFrom: addDays(RACE.date, -15) };
 }
 
+// --- tendência do HRV (A2) ---
+async function hrvTrendOn(env: Env, date: string) {
+  const from = addDays(date, -140);
+  const { results } = await env.DB.prepare('SELECT date, hrv FROM daily_metrics WHERE date BETWEEN ?1 AND ?2').bind(from, date).all<{ date: string; hrv: number | null }>();
+  const m = new Map(results.map((r) => [r.date, r.hrv]));
+  const days = [];
+  for (let d = from; d <= date; d = addDays(d, 1)) days.push({ date: d, hrv: m.get(d) ?? null });
+  return hrvTrendNow(days);
+}
+
+// --- resumo da semana (G1) ---
+async function reviewPayload(env: Env, req: Request, monday: string) {
+  const sunday = addDays(monday, 6), today = brtToday();
+  const end = sunday > today ? today : sunday;
+  const { results: acts } = await env.DB.prepare(
+    `SELECT sport, min, z1, z2, z3, z4, z5, ${STRAIN_SQL} strain FROM activities WHERE date BETWEEN ?1 AND ?2`,
+  ).bind(monday, end).all<{ sport: Sport; min: number | null; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null; strain: number | null }>();
+  const bySport = new Map<Sport, { hours: number; n: number }>();
+  let strain = 0, hours = 0; const dist = { low: 0, mid: 0, high: 0 };
+  for (const a of acts) {
+    hours += (a.min ?? 0) / 60; strain += a.strain ?? 0;
+    const b = bySport.get(a.sport) ?? { hours: 0, n: 0 }; b.hours += (a.min ?? 0) / 60; b.n++; bySport.set(a.sport, b);
+    if (a.sport !== 'academia' && [a.z1, a.z2, a.z3, a.z4, a.z5].some((v) => v != null)) {
+      const z = [a.z1, a.z2, a.z3, a.z4, a.z5].map((v) => v ?? 0), inZ = z.reduce((x, y) => x + y, 0);
+      dist.low += Math.max(0, (a.min ?? 0) - inZ) + z[0] + z[1]; dist.mid += z[2]; dist.high += z[3] + z[4];
+    }
+  }
+  const prev = await Promise.all([1, 2, 3].map(async (k) => (await dailyLoads(env, addDays(monday, -7 * k), addDays(monday, -7 * k + 6))).reduce((a, x) => a + x.load, 0)));
+  const avg3 = prev.reduce((a, b) => a + b, 0) / 3;
+  const { results: rd } = await env.DB.prepare('SELECT rec, v_hrv, b_hrv, v_rhr, b_rhr FROM rec_daily WHERE date BETWEEN ?1 AND ?2').bind(monday, end)
+    .all<{ rec: number | null; v_hrv: number | null; b_hrv: number | null; v_rhr: number | null; b_rhr: number | null }>();
+  const mean = (v: (number | null)[]) => { const x = v.filter((y): y is number => y != null); return x.length ? x.reduce((a, b) => a + b, 0) / x.length : null; };
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(monday, -95), end).all<SleepNight>();
+  const need = personalNeed(nights.filter((n) => n.date < monday));
+  const wk = nights.filter((n) => n.date >= monday);
+  const dt = dist.low + dist.mid + dist.high;
+  let text: string | null = null;
+  try { const r = await env.ASSETS.fetch(new Request(new URL(`/plan/resumo-${monday}.md`, req.url))); if (r.ok) { const t = (await r.text()).trim(); if (t && !t.startsWith('<')) text = t.slice(0, 4000); } } catch {}
+  const r1 = (x: number | null) => (x == null ? null : Math.round(x * 10) / 10);
+  return {
+    monday, sunday, complete: sunday < today || (sunday === today),
+    hours: r1(hours), sessions: acts.length, strain: Math.round(strain),
+    band: avg3 > 0 ? { lo: Math.round(avg3 * 0.8), hi: Math.round(avg3 * 1.3), status: strain < avg3 * 0.8 ? 'abaixo' : strain <= avg3 * 1.3 ? 'dentro' : 'acima' } : null,
+    sports: [...bySport.entries()].map(([k, v]) => ({ sport: k, label: SPORT_LABEL[k], hours: r1(v.hours), n: v.n })).sort((a, b) => (b.hours ?? 0) - (a.hours ?? 0)),
+    dist: dt ? { low: Math.round((dist.low / dt) * 100), mid: Math.round((dist.mid / dt) * 100), high: Math.round((dist.high / dt) * 100) } : null,
+    rec: r1(mean(rd.map((x) => x.rec))),
+    hrv: r1(mean(rd.map((x) => x.v_hrv))), hrvBase: r1(mean(rd.map((x) => x.b_hrv))),
+    rhr: r1(mean(rd.map((x) => x.v_rhr))), rhrBase: r1(mean(rd.map((x) => x.b_rhr))),
+    sleep: r1(mean(wk.map((n) => n.sleep_h))), sleepNeed: r1(need),
+    text,
+  };
+}
+
 // --- O que mexe no meu REC (E2 + C2) ---
 async function habitsPayload(env: Env) {
   await ensureSchema(env);
@@ -849,6 +916,11 @@ export default {
     }
     if (url.pathname === '/api/habits' && req.method === 'GET') return json(await habitsPayload(env));
     if (url.pathname === '/api/weather' && req.method === 'GET') return json(await weatherPayload(env));
+    if (url.pathname === '/api/hrvtrend' && req.method === 'GET') return json(await hrvTrendOn(env, brtToday()));
+    if (url.pathname === '/api/review' && req.method === 'GET') {
+      const m = url.searchParams.get('monday');
+      return json(await reviewPayload(env, req, isDate(m) ? mondayOf(m) : mondayOf(brtToday())));
+    }
     if (url.pathname === '/api/refresh' && req.method === 'POST') {
       const auto = url.searchParams.get('auto') === '1';
       return json(await morningRoutine(env, auto ? 'open' : 'manual'));

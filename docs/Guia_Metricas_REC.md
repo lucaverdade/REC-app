@@ -107,6 +107,13 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - Strain previsto de uma sessão planejada = minutos × mediana do seu Strain por minuto em treinos da mesma modalidade e mesma zona predominante (onde ficou mais tempo; abaixo da Z1 conta como Z1) nos últimos 120 dias, com 3+ treinos. Sem isso: o `strain` do plano; sem ele, minutos × peso da zona. Ex. 03/11: bike leve 60 min "Z1" → 38 (plano dizia 60; feito 31).
 - Forma até a prova: o mesmo modelo de Fitness (42 dias) e Fadiga (7 dias) continua dia a dia com o Strain previsto do plano publicado (dia sem sessão = descanso), até onde há plano. Alvo no dia da prova: Descansado (+5% a +20%).
 
+## 8d. Leituras novas (03/11)
+- **Tendência do HRV** (`src/hrvtrend.ts`, HRV4Training): média de 7 noites do ln(HRV) × faixa normal (média dos 60 dias anteriores ± 0,5 DP); CV de 7 dias × CV típico (mediana de 60 dias). Acima → adaptando bem; dentro → estável; abaixo + CV subindo (> 1,25× o típico ou 7 dias antes) → risco de má adaptação; abaixo sem CV subindo → fadiga acumulada.
+- **Alerta de doença** (`src/illness.ts`): dia suspeito = 2+ sinais com z ≤ −1 entre respiração, FC de repouso, HRV e estresse, incluindo respiração ou FC. Alerta com 2 dias seguidos suspeitos, ou 1 dia + "Doente" marcado no diário.
+- **Intensidade 80/20**: leve = abaixo da Z1 + Z1 + Z2; média = Z3; alta = Z4 + Z5 (academia fora).
+- **Diário de hábitos e impacto** (`src/habits.ts`): REC da manhã seguinte com × sem cada marcação, desde o primeiro uso; precisa de 5 dias de cada lado. Horário irregular = deitar ou acordar > 60 min da mediana das 14 noites anteriores.
+- **Deitar até** (`src/sleep.ts`): acordar típico (mediana, mesmo tipo de dia) − meta da noite − tempo acordado na cama (mediana) − 15 min. **Regularidade** = 100 − 1,2 × média dos desvios de deitar e acordar (min).
+
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)
 - Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.

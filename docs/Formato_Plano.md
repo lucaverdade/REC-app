@@ -68,3 +68,7 @@ Publicado pelo chat de treino quando quiser (o app mostra "ainda não publicado"
 ```
 - Todos os campos são opcionais.
 - O **checklist não vem daqui**: o Luca escreve os próprios itens no app (Modo prova), e eles ficam salvos no servidor.
+
+
+## Resumo da semana (opcional)
+Arquivo `web/plan/resumo-<segunda>.md` (ex.: `resumo-2026-11-02.md`), texto curto escrito pelo chat de treino. O app mostra junto com os números da semana: na aba Hoje no domingo a partir das 18 h e na segunda, e na aba Treino ao abrir a semana. Formato aceito: parágrafos, `**negrito**`, listas com `- ` e uma linha de título com `#`. Sem HTML.

@@ -84,8 +84,6 @@ export function alerts(today: RecRow, yesterday: RecRow | undefined): Alert[] {
   const z = today.z;
   if (z.hrv !== null && z.rhr !== null && z.hrv <= -2 && z.rhr <= -1.5)
     a.push({ kind: 'saude', text: 'HRV muito abaixo e FC de repouso alta na mesma manhã.' });
-  if (z.resp !== null && z.rhr !== null && z.resp <= -1 && z.rhr <= -1)
-    a.push({ kind: 'doenca', text: 'Respiração e FC de repouso acima do seu normal juntas: possível sinal de doença.' });
   if (yesterday && today.rec !== null && yesterday.rec !== null && Math.round(today.rec) <= 33 && Math.round(yesterday.rec) <= 33)
     a.push({ kind: 'vermelho', text: 'REC no vermelho pelo segundo dia seguido.' });
   const h0 = today.value.hrv, h1 = yesterday?.value.hrv ?? null;

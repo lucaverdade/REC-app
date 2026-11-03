@@ -44,6 +44,7 @@ export async function renderTrends(screen, api) {
     <section class="block" id="pred"></section>
     <section class="block" id="vol"></section>
     <section class="block" id="recov"></section>
+    <section class="block" id="hrvt"></section>
     <section class="block" id="habs"></section>`;
   const box = screen;
   strainWeeks(box, api);
@@ -51,7 +52,34 @@ export async function renderTrends(screen, api) {
   predictions(box, api);
   volume(box, api);
   recovery(box, api);
+  hrvTrendSec(box, api);
   habits(box, api);
+}
+
+// ---------- Tendência do HRV (HRV4Training) ----------
+const HCLS = { acima: 'var(--good)', estavel: 'var(--text)', fadiga: 'var(--warn)', risco: 'var(--bad)' };
+async function hrvTrendSec(box, api) {
+  const sec = box.querySelector('#hrvt');
+  sec.innerHTML = '<h2>Tendência do HRV</h2><p class="empty">Carregando…</p>';
+  let h; try { h = await api('/api/hrvtrend'); } catch (e) { sec.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
+  if (!h) { sec.querySelector('.empty').textContent = 'Precisa de pelo menos 30 noites com HRV.'; return; }
+  const pos = h.mean7 > h.hi ? 'acima da' : h.mean7 < h.lo ? 'abaixo da' : 'dentro da';
+  const cv = h.cv7 != null && h.cvTyp != null ? ` Variação da semana ${nf(h.cv7, 1)}% (seu normal ${nf(h.cvTyp, 1)}%).` : '';
+  const s = h.series, dates = s.map((x) => x.date);
+  sec.innerHTML = `
+    <h2>Tendência do HRV</h2>
+    <div class="verdict hv" style="--vc:${HCLS[h.cls]}">
+      <p class="v-answer" style="color:${HCLS[h.cls]}">${esc(h.label)}</p>
+      <p class="v-load">Média de 7 noites ${h.mean7} ms, ${pos} sua faixa normal (${h.lo}–${h.hi} ms).${cv} ${h.days > 1 ? `Há ${h.days} dias nessa leitura.` : 'Mudou hoje.'}</p>
+    </div>
+    <div class="hv-chart"></div>
+    <details class="explain"><summary>Como é calculado</summary>
+      <p>Método HRV4Training: a média de 7 noites do HRV (em escala log) comparada com a sua faixa normal, que é a média dos 60 dias anteriores ± meio desvio-padrão. Também olha a variação do HRV na semana (CV) contra o seu normal.</p>
+      <p><b>Adaptando bem</b>: média acima da faixa. <b>Estável</b>: dentro. <b>Fadiga acumulada</b>: abaixo, com variação estável ou menor. <b>Risco de má adaptação</b>: abaixo, com variação subindo (o HRV oscilando mais que o normal).</p>
+    </details>`;
+  bandLine(sec.querySelector('.hv-chart'), { dates, values: s.map((x) => x.mean7), lo: s.map((x) => x.lo), hi: s.map((x) => x.hi), color: 'var(--hrv)', height: 110, axes: true,
+    dots: (v, i) => HCLS[s[i]?.cls] ?? null, label: 'HRV média 7 noites',
+    tip: (i) => row('Média 7 noites', `${s[i].mean7 ?? '–'} ms`) + row('Faixa normal', `${s[i].lo ?? '–'}–${s[i].hi ?? '–'}`) });
 }
 
 // ---------- O que mexe no meu REC (diário + regularidade do sono) ----------
@@ -193,6 +221,7 @@ async function volume(box, api) {
   const multi = d.weeks > 1.01;
   const zt = d.zones.reduce((a, z) => a + (z.hours ?? 0), 0);
   const easy = zt ? Math.round(((d.zones[0].hours + d.zones[1].hours + d.zones[2].hours) / zt) * 100) : null;
+  const mid = zt ? Math.round((d.zones[3].hours / zt) * 100) : null, hard = zt ? 100 - easy - mid : null;
   const perWeek = d.total.hours / d.weeks;
   sec.innerHTML = `
     <h2>Como treinei?</h2>
@@ -202,7 +231,7 @@ async function volume(box, api) {
       <span>${esc(periodTitle(d))}</span>
       <button type="button" data-step="-1" aria-label="Próximo período" ${offset === 0 ? 'disabled' : ''}>›</button>
     </div>
-    <p class="headline">${d.totals.length ? `${multi ? `${hm(perWeek)} por semana` : `${hm(d.total.hours)} ${unit === 'semana' ? 'na semana' : 'até agora'}`}, ${nf(d.total.sessions)} sessões${easy != null ? `. ${easy}% do tempo leve (até Z2)` : ''}.` : 'Sem treinos neste período.'}</p>
+    <p class="headline">${d.totals.length ? `${multi ? `${hm(perWeek)} por semana` : `${hm(d.total.hours)} ${unit === 'semana' ? 'na semana' : 'até agora'}`}, ${nf(d.total.sessions)} sessões.` : 'Sem treinos neste período.'}</p>
     ${d.totals.length ? `<ul class="acts sports">
       <li class="head"><span>Modalidade</span><span>Horas</span><span>${multi ? '/semana' : 'Sessões'}</span><span>Strain</span></li>
       ${d.totals.map((t) => `<li><span><i class="dot s-${t.sport}"></i>${esc(t.label)}</span><span>${hm(t.hours)}</span><span>${multi ? hm(t.perWeek) : t.sessions}</span><span>${nf(t.strain)}</span></li>`).join('')}
@@ -211,11 +240,20 @@ async function volume(box, api) {
     ${zt ? `<h3 class="sub">Tempo em zonas</h3>
       <div class="zstack">${d.zones.map((z) => (z.hours ? `<i class="zc-${z.zone}" style="flex:${z.hours}"></i>` : '')).join('')}</div>
       <ul class="zlist">${d.zones.filter((z) => z.hours > 0).map((z) => `<li><i class="zc-${z.zone}"></i><span>${ZSHORT[z.zone]}</span><b>${hm(z.hours)}</b><em>${Math.round(((z.hours ?? 0) / zt) * 100)}%</em></li>`).join('')}</ul>
-      <p class="note">Bike, corrida, natação e Hyrox (academia fora). Zonas do seu Garmin.</p>` : ''}`;
+      <h3 class="sub">Intensidade (referência 80/20)</h3>
+      ${distBar({ low: easy, mid, high: hard })}
+      <p class="note">Bike, corrida, natação e Hyrox (academia fora). Zonas do seu Garmin. Leve = até Z2, média = Z3, alta = Z4 e Z5. Referência de endurance: ~80% leve e ~20% média + alta.</p>` : ''}`;
   sec.querySelectorAll('[data-u]').forEach((b) => b.addEventListener('click', () => {
     unit = b.dataset.u; offset = 0; try { localStorage.setItem('rec.unit', unit); } catch {} volume(box, api);
   }));
   sec.querySelectorAll('.vol-nav button').forEach((b) => b.addEventListener('click', () => { offset = Math.max(0, offset + Number(b.dataset.step)); volume(box, api); }));
+}
+
+// barra de intensidade com marca dos 80%
+export function distBar(d) {
+  if (!d) return '';
+  return `<div class="dist"><div class="dist-bar"><i class="d-low" style="flex:${d.low}"></i><i class="d-mid" style="flex:${d.mid}"></i><i class="d-high" style="flex:${d.high}"></i><em style="left:80%"></em></div>
+    <div class="dist-leg"><span><i class="d-low"></i>Leve <b>${d.low}%</b></span><span><i class="d-mid"></i>Média <b>${d.mid}%</b></span><span><i class="d-high"></i>Alta <b>${d.high}%</b></span></div></div>`;
 }
 
 // ---------- Meu corpo está recuperando? ----------

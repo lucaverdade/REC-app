@@ -1,6 +1,8 @@
 // Aba Treino (repaginada 03/11): resumo da semana, faixa com os 7 dias e um dia por vez.
 // Cada sessão: nome grande, duração e zona, Strain previsto → feito. Detalhes ficam recolhidos.
 import { nf } from './charts.js';
+import { distBar } from './trends.js';
+import { reviewHtml } from './review.js';
 
 let offset = 0;
 let picked = null; // data escolhida na faixa da semana
@@ -104,10 +106,13 @@ async function body(screen, api) {
         <div class="wk-h"><span class="num">${nf(sm.doneHours, 1)}</span>${sm.plannedHours != null ? `<span class="of">de ${nf(sm.plannedHours, 1)} h</span>` : '<span class="of">h</span>'}<span class="lab">Horas</span></div>
       </div>
       ${pct != null ? `<span class="wk-bar"><i style="width:${pct}%"></i></span>` : ''}
+      ${sm.dist ? `<div class="wk-dist">${distBar(sm.dist)}</div>` : ''}
       ${w.plan?.fase ? `<p class="wk-fase">${esc(w.plan.fase)}</p>` : ''}
       ${w.plan?.notas ? `<details class="ss-more"><summary>Nota da semana</summary><p class="ss-detail">${esc(w.plan.notas)}</p></details>` : ''}
       ${!w.plan ? '<p class="wk-fase">Plano desta semana ainda não publicado.</p>' : ''}
     </section>
+
+    <div id="wk-review"></div>
 
     <ol class="wk-strip" role="tablist" aria-label="Dias da semana">
       ${w.days.map((d) => {
@@ -127,6 +132,11 @@ async function body(screen, api) {
     <details class="ss-more how"><summary>Como funciona</summary>
       <p class="ss-detail">Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e zona) dos últimos 120 dias; sem 3 treinos parecidos, vale o do plano ou minutos × peso da zona. Entre 80% e 120% do previsto está no alvo. Bolinha cheia no dia: tudo feito; vazada: falta algo.</p>
     </details>`;
+
+  // resumo da semana: semanas passadas, e a atual a partir de domingo
+  if (offset > 0 || new Date().getDay() === 0) {
+    api(`/api/review?monday=${w.monday}`).then((r) => { const el = box.querySelector('#wk-review'); if (el && r.sessions) el.innerHTML = reviewHtml(r, { dist: false }); }).catch(() => {});
+  }
 
   box.querySelectorAll('.wd').forEach((b) => b.addEventListener('click', () => {
     picked = b.dataset.date;

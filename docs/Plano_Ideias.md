@@ -14,7 +14,10 @@ Aprovadas pelo Luca: todas do `Estudo_Ideias_Apps.md` **menos D1 (recordes) e D2
 | 3 | **C1 · Horário para dormir** | Cartão Sono | Meta de hoje à noite + horário típico de acordar (mediana de 14 noites, dia útil × fim de semana) → "deitar até 22:30". Inclui ~15 min para pegar no sono (latência média dos seus dados quando houver). |
 | 4 | **C2 · Regularidade do sono** | Cartão Sono + Tendências | Nota 0–100 de consistência (variação de horário de deitar e acordar em 14 noites) e REC médio após noites regulares × irregulares. |
 
-## Fase 2 — leituras de recuperação e semana
+## Fase 2 — FEITA em 03/11 (A2, A6, B5, A1, G1)
+Alerta de doença no histórico (backtest 368 dias): 15 dias de alerta em ~6 episódios (dez/25, 11–15/jan, 9–11/fev, 1/mar, jun, 9–11/jul).
+
+## Fase 2 — detalhes
 | # | Ideia | Onde aparece | Como |
 |---|---|---|---|
 | 5 | **A2 · Tendência do HRV (HRV4Training)** | Tendências → "Meu corpo está recuperando?" e chip no Hoje | ln(HRV) média de 7 dias × faixa normal de 60 dias (±0,5 DP) e CV de 7 dias. Classes: adaptando bem (média dentro/acima, CV estável ou caindo), estável, fadiga acumulada (média abaixo + CV caindo), risco de má adaptação (média abaixo + CV subindo). |
