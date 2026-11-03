@@ -53,7 +53,7 @@ function niceStep(span, target = 3) {
 function yGrid(svg, lo, hi, y, fmt) {
   const step = niceStep(hi - lo);
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
-    const r = Math.round(v * 1000) / 1000;
+    const r = Math.round(v * 1000) / 1000 || 0; // evita "-0"
     if (y(r) < 4 || y(r) > y(lo) - 4) continue;
     el('line', { x1: 0, x2: W - 30, y1: y(r), y2: y(r), class: r === 0 ? 'zero' : 'grid' }, svg);
     const t = el('text', { x: W, y: y(r) + 3, class: 'ax', 'text-anchor': 'end' }, svg);
@@ -97,6 +97,11 @@ export function lineChart(wrap, series, opts) {
   yGrid(svg, lo, hi, y, opts.yFmt ?? ((v) => nf(v)));
   if (opts.zero) el('line', { x1: 0, x2: W, y1: y(0), y2: y(0), class: 'zero' }, svg);
   for (const b of opts.bands ?? []) el('rect', { x: 0, width: W, y: y(b[1]), height: Math.max(0, y(b[0]) - y(b[1])), class: 'band' }, svg);
+  // faixas coloridas (ex.: zonas da Forma): { lo, hi, cls }
+  for (const b of opts.zoneBands ?? []) {
+    const top = y(Math.min(b.hi, hi)), bot = y(Math.max(b.lo, lo));
+    if (bot > top) el('rect', { x: 0, width: W - 30, y: top, height: bot - top, class: `zband ${b.cls}` }, svg);
+  }
 
   // área em degradê sob a primeira série (opts.area = variável CSS da cor)
   if (opts.area) {

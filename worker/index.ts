@@ -215,6 +215,13 @@ async function trendsPayload(env: Env, unit: Unit, offset: number) {
     `SELECT date, sport, COALESCE(min, 0) min, COALESCE(${STRAIN_SQL}, 0) strain FROM activities WHERE date BETWEEN ?1 AND ?2`,
   ).bind(start, last).all<{ date: string; sport: Sport; min: number; strain: number }>();
 
+  // tempo em zonas no período (só atividades com zonas registradas); "abaixo" = tempo abaixo da Z1
+  const zq = await env.DB.prepare(`SELECT SUM(COALESCE(z1,0)) z1, SUM(COALESCE(z2,0)) z2, SUM(COALESCE(z3,0)) z3, SUM(COALESCE(z4,0)) z4, SUM(COALESCE(z5,0)) z5,
+      SUM(MAX(0, COALESCE(min,0) - COALESCE(z1,0) - COALESCE(z2,0) - COALESCE(z3,0) - COALESCE(z4,0) - COALESCE(z5,0))) z0
+    FROM activities WHERE date BETWEEN ?1 AND ?2 AND (z1 IS NOT NULL OR z2 IS NOT NULL OR z3 IS NOT NULL) AND sport <> 'academia'`)
+    .bind(start, last).first<Record<string, number | null>>();
+  const zoneMin = [0, 1, 2, 3, 4, 5].map((i) => zq?.[`z${i}`] ?? 0);
+
   // barras: por dia na semana e no mês; por semana (segunda) nos demais
   const daily = unit === 'semana' || unit === 'mes';
   const keys: string[] = [];
@@ -260,8 +267,101 @@ async function trendsPayload(env: Env, unit: Unit, offset: number) {
     })(),
     bars: [...buckets.values()].map((b) => ({ start: b.start, strain: round(b.strain, Math.round), hours: round(b.hours, r1) })),
     totals,
+    zones: zoneMin.map((m, i) => ({ zone: i, hours: r1(m / 60) })),
     total: { hours: r1(totals.reduce((a, x) => a + (x.hours ?? 0), 0)), strain: totals.reduce((a, x) => a + x.strain, 0), sessions: totals.reduce((a, x) => a + x.sessions, 0) },
   };
+}
+
+
+// --- aba Treino: semana (seg–dom) planejada × executada ---
+interface PlanSession { modalidade: string; titulo?: string; minutos?: number; zona?: string; detalhe?: string; chave?: boolean }
+interface Plan { semana: string; fase?: string; notas?: string; dias?: Record<string, PlanSession[]> }
+
+async function readPlan(env: Env, req: Request, monday: string): Promise<Plan | null> {
+  try {
+    const r = await env.ASSETS.fetch(new Request(new URL(`/plan/${monday}.json`, req.url)));
+    if (!r.ok) return null;
+    const p = (await r.json()) as Plan;
+    return p && typeof p === 'object' ? p : null;
+  } catch { return null; }
+}
+
+const normSport = (m: string): Sport => {
+  const k = (m || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (k.startsWith('bike') || k.startsWith('cicl') || k.startsWith('pedal')) return 'bike';
+  if (k.startsWith('corr') || k.startsWith('run')) return 'corrida';
+  if (k.startsWith('nat') || k.startsWith('swim')) return 'natacao';
+  if (k.startsWith('hyrox') || k.startsWith('cardio')) return 'hyrox';
+  if (k.startsWith('acad') || k.startsWith('forc') || k.startsWith('gym')) return 'academia';
+  return 'outro';
+};
+
+async function weekPayload(env: Env, req: Request, offset: number) {
+  const today = brtToday();
+  const monday = addDays(mondayOf(today), -7 * offset), sunday = addDays(monday, 6);
+  const { results: acts } = await env.DB.prepare(
+    `SELECT id, date, time, sport, min, km, avghr, maxhr, rpe, z1, z2, z3, z4, z5, ${STRAIN_SQL} strain
+     FROM activities WHERE date BETWEEN ?1 AND ?2 ORDER BY date, time`,
+  ).bind(monday, sunday).all<Record<string, any>>();
+  const { results: recs } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2')
+    .bind(monday, addDays(sunday, 1)).all<{ date: string; rec: number | null }>();
+  const recBy = new Map(recs.map((r) => [r.date, r.rec == null ? null : Math.round(r.rec)]));
+  const plan = await readPlan(env, req, monday);
+
+  let plannedMin = 0, doneMin = 0, strainTot = 0;
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(monday, i);
+    const ex = acts.filter((a) => a.date === date).map((a) => {
+      const z = [a.z1, a.z2, a.z3, a.z4, a.z5].map((v: number | null) => v ?? 0);
+      const inZ = z.reduce((x: number, y: number) => x + y, 0);
+      const hasZ = [a.z1, a.z2, a.z3, a.z4, a.z5].some((v) => v != null);
+      doneMin += a.min ?? 0; strainTot += a.strain ?? 0;
+      return {
+        id: a.id, time: a.time, sport: a.sport as Sport, label: SPORT_LABEL[a.sport as Sport], min: a.min, km: a.km, avghr: a.avghr, maxhr: a.maxhr,
+        rpe: a.rpe, strain: a.strain == null ? null : Math.round(a.strain),
+        zones: hasZ ? [Math.max(0, (a.min ?? 0) - inZ), ...z].map((m) => Math.round(m)) : null,
+        matched: false,
+      };
+    });
+    const planned = (plan?.dias?.[date] ?? []).map((p) => {
+      const sport = normSport(p.modalidade);
+      plannedMin += p.minutos ?? 0;
+      const hit = ex.find((e) => !e.matched && e.sport === sport);
+      let status: 'feito' | 'parcial' | 'nao_feito' | 'previsto';
+      if (hit) { hit.matched = true; status = !p.minutos || (hit.min ?? 0) >= p.minutos * 0.8 ? 'feito' : 'parcial'; }
+      else status = date < today ? 'nao_feito' : 'previsto';
+      return { ...p, sport, label: SPORT_LABEL[sport], status, activityId: hit?.id ?? null };
+    });
+    const rec = recBy.get(date) ?? null, recNext = recBy.get(addDays(date, 1)) ?? null;
+    days.push({ date, isToday: date === today, future: date > today, rec, recNext, planned, executed: ex });
+  }
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  return {
+    monday, sunday, offset,
+    plan: plan ? { fase: plan.fase ?? null, notas: plan.notas ?? null } : null,
+    summary: { plannedHours: plan ? r1(plannedMin / 60) : null, doneHours: r1(doneMin / 60), strain: Math.round(strainTot) },
+    days,
+  };
+}
+
+// --- avisos de carga (fato, sem conselho) ---
+async function loadAlerts(env: Env, date: string) {
+  const out: { kind: string; text: string }[] = [];
+  const loads = await dailyLoads(env, addDays(date, -60), addDays(date, -1)); // até ontem: o dia de hoje ainda está acontecendo
+  const r = acwr(loads.map((x) => x.load));
+  if (r != null && r > 1.4) out.push({ kind: 'carga', text: `Strain dos últimos 7 dias ${Math.round((r - 1) * 100)}% acima da sua média semanal de 4 semanas (razão ${r.toFixed(2).replace('.', ',')}; faixa usual 0,8–1,4).` });
+  if (r != null && r < 0.8 && loads.slice(-28).some((x) => x.load > 0)) out.push({ kind: 'carga', text: `Strain dos últimos 7 dias ${Math.round((1 - r) * 100)}% abaixo da sua média semanal de 4 semanas (razão ${r.toFixed(2).replace('.', ',')}).` });
+
+  // corrida: semana atual (seg até hoje) contra a média das 4 semanas completas anteriores
+  const mon = mondayOf(date);
+  const run = await env.DB.prepare(`SELECT
+      SUM(CASE WHEN date >= ?1 THEN COALESCE(km,0) ELSE 0 END) now,
+      SUM(CASE WHEN date < ?1 THEN COALESCE(km,0) ELSE 0 END) / 4.0 avg4
+    FROM activities WHERE sport = 'corrida' AND date BETWEEN ?2 AND ?3`).bind(mon, addDays(mon, -28), date).first<{ now: number | null; avg4: number | null }>();
+  if (run?.avg4 && run.now && run.now > run.avg4 * 1.15)
+    out.push({ kind: 'corrida', text: `Corrida desta semana: ${run.now.toFixed(1).replace('.', ',')} km, ${Math.round((run.now / run.avg4 - 1) * 100)}% acima da média das últimas 4 semanas (${run.avg4.toFixed(1).replace('.', ',')} km).` });
+  return out;
 }
 
 // --- leitura ---
@@ -283,8 +383,8 @@ async function todayPayload(env: Env, date: string) {
   const hist = rows.filter((r) => r.date < date);
   const yesterday = hist.find((r) => r.date === addDays(date, -1));
 
-  const acts = await env.DB.prepare(`SELECT time, type, sport, min, km, avghr, rpe, ${STRAIN_SQL} strain FROM activities WHERE date = ?1 ORDER BY time`)
-    .bind(date).all<{ time: string; type: string; sport: Sport; min: number; km: number; avghr: number; rpe: number | null; strain: number | null }>();
+  const acts = await env.DB.prepare(`SELECT time, type, sport, min, km, avghr, maxhr, rpe, z1, z2, z3, z4, z5, ${STRAIN_SQL} strain FROM activities WHERE date = ?1 ORDER BY time`)
+    .bind(date).all<{ time: string; type: string; sport: Sport; min: number; km: number; avghr: number; maxhr: number | null; rpe: number | null; strain: number | null; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null }>();
   const feel = await env.DB.prepare('SELECT value FROM feel_notes WHERE date = ?1').bind(date).first<{ value: number }>();
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
@@ -298,9 +398,17 @@ async function todayPayload(env: Env, date: string) {
     rec: t.rec === null ? null : Math.round(t.rec),
     contributors: contributors(t),
     comment: comment(t, hist),
-    alerts: alerts(t, yesterday),
+    alerts: [...alerts(t, yesterday), ...(await loadAlerts(env, date))],
     week: [...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec === null ? null : Math.round(r.rec) })),
-    activities: acts.results.map((a) => ({ ...a, label: SPORT_LABEL[a.sport], strain: a.strain == null ? null : Math.round(a.strain) })),
+    activities: acts.results.map((a) => {
+      const z = [a.z1, a.z2, a.z3, a.z4, a.z5];
+      const has = z.some((v) => v != null), inZ = z.reduce<number>((x, v) => x + (v ?? 0), 0);
+      return {
+        time: a.time, type: a.type, sport: a.sport, label: SPORT_LABEL[a.sport], min: a.min, km: a.km, avghr: a.avghr, maxhr: a.maxhr, rpe: a.rpe,
+        strain: a.strain == null ? null : Math.round(a.strain),
+        zones: has ? [Math.max(0, (a.min ?? 0) - inZ), ...z.map((v) => v ?? 0)].map((m) => Math.round(m)) : null,
+      };
+    }),
     feel: feel?.value ?? null,
     load: ln,
     isToday: date === brtToday(),
@@ -349,6 +457,10 @@ export default {
       return json(await morningRoutine(env, auto ? 'open' : 'manual'));
     }
 
+    if (url.pathname === '/api/week' && req.method === 'GET') {
+      const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, 0), 156);
+      return json(await weekPayload(env, req, offset));
+    }
     if (url.pathname === '/api/trends' && req.method === 'GET') {
       const u = url.searchParams.get('unit');
       const unit = (['semana', 'mes', '3m', '6m', 'ano'] as const).find((x) => x === u) ?? 'semana';

@@ -20,8 +20,21 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const signed = (v, d = 0) => (v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v), d));
 const zoneVar = (r) => (r == null ? null : r <= 33 ? 'var(--rec-red)' : r <= 66 ? 'var(--rec-yellow)' : 'var(--rec-green)');
 const hm = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
+const strainLevel = (v) => (!v ? 0 : v < 50 ? 1 : v < 100 ? 2 : v < 200 ? 3 : v < 300 ? 4 : 5);
 const legend = (keys) => `<div class="legend">${keys.map((k) => `<span><i class="dot s-${k}"></i>${SPORT_LABEL[k]}</span>`).join('')}</div>`;
 const row = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
+
+const ZONE_NAMES = ['Abaixo da Z1', 'Z1 Aquecimento', 'Z2 Leve', 'Z3 Aeróbico', 'Z4 Limiar', 'Z5 Máximo'];
+function zonesHtml(zones) {
+  const tot = zones.reduce((a, z) => a + (z.hours ?? 0), 0);
+  if (!tot) return '<p class="empty">Sem tempo em zonas neste período.</p>';
+  const max = Math.max(...zones.map((z) => z.hours ?? 0));
+  return `<ul class="zones">${zones.map((z) => `
+    <li><span class="zn">${ZONE_NAMES[z.zone]}</span>
+      <span class="zb"><i class="zc-${z.zone}" style="width:${((z.hours ?? 0) / max) * 100}%"></i></span>
+      <span class="zh">${hm(z.hours)}</span><span class="zp">${Math.round(((z.hours ?? 0) / tot) * 100)}%</span></li>`).join('')}</ul>
+    <p class="note">Bike, corrida, natação e Hyrox (academia fora). Zonas configuradas no seu Garmin.</p>`;
+}
 
 function periodTitle(d) {
   const o = { day: 'numeric', month: 'short' };
@@ -95,9 +108,11 @@ async function body(screen, api) {
     </section>
 
     <section class="block">
-      <h2>Strain ${d.daily ? 'por dia' : 'por semana'}</h2>
-      <div class="chart-wrap" id="ch-strain"></div>
-      <p class="note">Razão aguda/crônica em ${esc(lastLabel)}: <b>${nf(now.acwr, 2)}</b> (Strain dos últimos 7 dias ÷ média semanal de 4 semanas; 0,8–1,4 é a faixa usual).</p>
+      <h2>Strain por dia</h2>
+      <div id="heat"></div>
+      <p class="heat-cap" id="heat-cap" aria-live="polite"></p>
+      <div class="heat-legend"><span>leve</span>${[1, 2, 3, 4, 5].map((i) => `<i class="hl-${i}"></i>`).join('')}<span>pesado</span></div>
+
     </section>
 
     <section class="block">
@@ -109,6 +124,11 @@ async function body(screen, api) {
         ${d.totals.length ? `<li class="total"><span>Total</span><span>${hm(d.total.hours)}</span><span>${multi ? hm(d.total.hours / d.weeks) : nf(d.total.strain)}</span><span>${multi ? nf(d.total.strain) : d.total.sessions}</span></li>` : ''}
       </ul>
       ${multi ? `<p class="note">${nf(d.total.sessions)} sessões em ${nf(d.weeks, 1)} semanas.</p>` : ''}
+    </section>
+
+    <section class="block">
+      <h2>Tempo em zonas</h2>
+      ${zonesHtml(d.zones)}
     </section>
 
     <section class="block">
@@ -128,20 +148,19 @@ async function body(screen, api) {
     { name: 'Fadiga', values: s.map((x) => x.fatigue), cls: 'fat', label: true },
   ], { dates, label: 'Fitness e fadiga', area: '--fitness', tip: (i) => head(i) + row('Fitness', nf(s[i].fitness)) + row('Fadiga', nf(s[i].fatigue)) });
 
-  barChart(box.querySelector('#ch-form'), s.map((x) => x.formPct), {
-    dates, height: 80, label: 'Forma em %', yFmt: (v) => `${nf(v)}%`,
-    barClass: (i, v) => `bar zb-${zoneOfPct(v)?.key ?? 'neutro'}`,
+  const fv = s.map((x) => x.formPct).filter((v) => v != null);
+  const flo = Math.min(-40, ...fv.map((v) => v - 5)), fhi = Math.max(25, ...fv.map((v) => v + 5));
+  lineChart(box.querySelector('#ch-form'), [{ name: 'Forma', values: s.map((x) => x.formPct), cls: 'formln' }], {
+    dates, height: 110, range: [flo, fhi], label: 'Forma em %', yFmt: (v) => `${nf(v)}%`,
+    zoneBands: [{ lo: -1000, hi: -30, cls: 'zbk-risco' }, { lo: -30, hi: -10, cls: 'zbk-produtivo' }, { lo: -10, hi: 5, cls: 'zbk-neutro' }, { lo: 5, hi: 20, cls: 'zbk-descansado' }, { lo: 20, hi: 1000, cls: 'zbk-perdendo' }],
+    dots: (i, v) => `var(--z-${zoneOfPct(v).key})`,
     tip: (i) => head(i) + row('Forma', s[i].formPct == null ? '–' : `${signed(s[i].formPct)}%`) + (s[i].formPct == null ? '' : row('', zoneOfPct(s[i].formPct).label)),
   });
 
   const bars = d.bars;
   const barHead = (i) => `<p>${d.daily ? fmtDay(bars[i].start) : `Semana de ${fmtDay(bars[i].start)}`}</p>`;
-  const strainTot = (b) => SPORTS.reduce((a, k) => a + (b.strain[k] ?? 0), 0);
-  barChart(box.querySelector('#ch-strain'), bars.map((b) => strainTot(b) || null), {
-    dates: bars.map((b) => b.start), label: 'Strain', fill: '--strain',
-    tip: (i) => barHead(i) + SPORTS.filter((k) => bars[i].strain[k]).map((k) => row(`<i class="dot s-${k}"></i>${SPORT_LABEL[k]}`, nf(bars[i].strain[k]))).join('')
-      + row('Total', nf(SPORTS.reduce((a, k) => a + (bars[i].strain[k] ?? 0), 0))),
-  });
+  strainHeat(box, d);
+
   lineChart(box.querySelector('#ch-rec'), [{ name: 'REC', values: s.map((x) => x.rec), cls: 'recl' }], { area: '--rec-line',
     dates, range: [0, 100], bands: [[33.5, 66.5]], dots: (i, v) => zoneVar(v), label: 'REC',
     tip: (i) => head(i) + row('REC', s[i].rec ?? '–'),
@@ -157,5 +176,37 @@ async function body(screen, api) {
   barChart(box.querySelector('#ch-sleep'), s.map((x) => x.sleep), {
     dates, label: 'Sono', refs: [{ v: 7.5, label: '7,5 h' }], yFmt: (v) => `${nf(v)} h`, fill: '--sleep',
     tip: (i) => head(i) + row('Sono', hm(s[i].sleep)),
+  });
+}
+
+// ---------- Strain por dia: calendário de calor ----------
+function strainHeat(box, d) {
+  const el = box.querySelector('#heat'), cap = box.querySelector('#heat-cap');
+  const days = d.series;
+  const wd = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+  const cellTip = (x) => `${fmtDay(x.date)}: ${x.strain == null ? 'ainda não aconteceu' : x.strain ? `Strain ${x.strain}` : 'sem treino'}`;
+  const cell = (x, extra = '') => `<button type="button" class="hc hl-${x.strain == null ? 'f' : strainLevel(x.strain)}" data-i="${days.indexOf(x)}" aria-label="${esc(cellTip(x))}">${extra}</button>`;
+
+  if (d.unit === 'semana') {
+    el.className = 'heat heat-week';
+    el.innerHTML = days.map((x, i) => `<div class="hw">${cell(x, `<span>${x.strain ? x.strain : x.strain == null ? '' : '–'}</span>`)}<small>${wd[i]}</small></div>`).join('');
+  } else if (d.unit === 'mes') {
+    el.className = 'heat heat-month';
+    const lead = (new Date(days[0].date + 'T12:00:00').getDay() + 6) % 7;
+    el.innerHTML = wd.map((w) => `<small>${w}</small>`).join('') + '<i></i>'.repeat(lead)
+      + days.map((x) => cell(x, `<em>${Number(x.date.slice(8))}</em><span>${x.strain ? x.strain : ''}</span>`)).join('');
+  } else {
+    el.className = 'heat heat-grid';
+    const lead = (new Date(days[0].date + 'T12:00:00').getDay() + 6) % 7;
+    const cols = Math.ceil((lead + days.length) / 7);
+    el.style.setProperty('--cols', cols);
+    el.innerHTML = '<i></i>'.repeat(lead) + days.map((x) => cell(x)).join('');
+  }
+  cap.textContent = 'Toque num dia para ver o Strain.';
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('.hc'); if (!b) return;
+    el.querySelectorAll('.hc.sel').forEach((x) => x.classList.remove('sel'));
+    b.classList.add('sel');
+    cap.textContent = cellTip(days[Number(b.dataset.i)]);
   });
 }

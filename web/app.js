@@ -1,5 +1,6 @@
 // REC — app. Sem framework.
 import { renderTrends, zoneOfPct, FORM_ZONES } from './trends.js';
+import { renderTrain } from './train.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -85,15 +86,28 @@ function contribHtml(list) {
   }).join('');
 }
 
+const ZN = ['<Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 function actsHtml(acts) {
-  if (!acts.length) return '<p class="empty">Nenhum treino registrado hoje.</p>';
-  return `<ul class="acts">${acts.map((a) => {
-    const bits = [];
-    if (a.km >= 0.5) bits.push(`${a.km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`);
-    bits.push(`${Math.round(a.min)} min`);
-    if (a.avghr) bits.push(`${Math.round(a.avghr)} bpm`);
-    if (a.strain != null && acts.length > 1) bits.push(`Strain ${a.strain}`);
-    return `<li><span><i class="dot s-${esc(a.sport)}"></i>${esc(a.label)} <span class="meta">${esc(a.time)}</span></span><span class="meta">${bits.join(', ')}</span></li>`;
+  if (!acts.length) return '<p class="empty">Nenhum treino registrado.</p>';
+  const nfm = (v, d = 0) => v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)}<small>h</small>${String(Math.round(m % 60)).padStart(2, '0')}` : `${Math.round(m)}<small>min</small>`);
+  return `<ul class="act-cards">${acts.map((a) => {
+    const stats = [`<div><b>${dur(a.min)}</b><small>duração</small></div>`];
+    if (a.km >= 0.5) stats.push(`<div><b>${nfm(a.km, 1)}</b><small>km</small></div>`);
+    if (a.avghr) stats.push(`<div><b>${Math.round(a.avghr)}</b><small>bpm méd.</small></div>`);
+    let zones = '';
+    if (a.zones) {
+      const tot = a.zones.reduce((x, y) => x + y, 0) || 1;
+      const top = a.zones.indexOf(Math.max(...a.zones));
+      zones = `<div class="ac-zones">${a.zones.map((m, i) => (m ? `<i class="zc-${i}" style="flex:${m}" title="${ZN[i]}: ${m} min"></i>` : '')).join('')}</div>
+        <div class="ac-zcap">Mais tempo em ${ZN[top]} (${Math.round((a.zones[top] / tot) * 100)}%)</div>`;
+    }
+    return `<li class="act-card" style="--c: var(--${esc(a.sport)})">
+      <div class="ac-head"><span class="ac-sport">${esc(a.label)}</span><span class="meta">${esc(a.time)}</span>
+        ${a.strain != null ? `<span class="ac-strain"><b>${a.strain}</b><small>Strain</small></span>` : ''}</div>
+      <div class="ac-stats">${stats.join('')}</div>
+      ${zones}
+    </li>`;
   }).join('')}</ul>`;
 }
 
@@ -136,15 +150,6 @@ function formCard(d) {
     </a>`;
 }
 
-// barra do Strain do dia: um segmento por treino, na cor da modalidade; marca no 100 (dia pesado)
-function strainBar(acts) {
-  const total = acts.reduce((a, x) => a + (x.strain ?? 0), 0);
-  if (!total) return '';
-  // escala: 300 de Strain = barra cheia (um longão de bike de ~3 h fica perto disso)
-  const scale = Math.max(300, total);
-  return `<div class="strain-bar" role="img" aria-label="Strain ${total}">
-    ${acts.filter((a) => a.strain).map((a) => `<span class="s-${a.sport}" style="width:${(a.strain / scale) * 100}%"></span>`).join('')}</div>`;
-}
 
 function render(d) {
   const z = zoneOf(d.rec);
@@ -191,7 +196,6 @@ function render(d) {
 
     <section class="block">
       <h2>${d.isToday ? 'Treino de hoje' : 'Treinos do dia'}</h2>
-      ${strainBar(d.activities)}
       ${actsHtml(d.activities)}
     </section>
 
@@ -423,6 +427,7 @@ function route() {
   window.scrollTo(0, 0);
   if (h === '#garmin') renderGarmin();
   else if (h === '#tendencias') renderTrends(screen, api);
+  else if (h === '#treino') renderTrain(screen, api);
   else load();
 }
 window.addEventListener('hashchange', route);
