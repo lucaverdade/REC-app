@@ -2,6 +2,7 @@
 import { computeRec, type Contributor, type DailyInput } from '../src/rec.ts';
 import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
+import { acwr, hardDay, pmc, ramp, strain } from '../src/load.ts';
 import { fetchActivities, fetchDays, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
@@ -147,6 +148,95 @@ async function garminCheck(env: Env, days: number) {
   return { from, to, fields, raw, detail, sample };
 }
 
+
+// --- carga diária contínua (0 em dia sem treino) desde `from` ---
+async function dailyLoads(env: Env, from: string, to: string) {
+  const { results } = await env.DB.prepare('SELECT date, SUM(COALESCE(load, 0)) load FROM activities WHERE date BETWEEN ?1 AND ?2 GROUP BY date')
+    .bind(from, to).all<{ date: string; load: number }>();
+  const m = new Map(results.map((r) => [r.date, r.load]));
+  const out: { date: string; load: number }[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) out.push({ date: d, load: m.get(d) ?? 0 });
+  return out;
+}
+
+/** Fitness/Fadiga/Forma de hoje e Strain do dia (usado na aba Hoje). */
+async function loadNow(env: Env, today: string) {
+  const loads = await dailyLoads(env, addDays(today, -400), today);
+  const p = pmc(loads);
+  const hard = hardDay(loads.slice(-365).map((x) => x.load));
+  const t = p[p.length - 1];
+  return { fitness: t.fitness, fatigue: t.fatigue, form: t.form, strain: strain(t.load, hard), load: t.load, hard };
+}
+
+async function trendsPayload(env: Env, days: number) {
+  const today = brtToday();
+  const start = addDays(today, -(days - 1));
+  // aquecimento de 400 dias antes do período para o Fitness (42 d) estabilizar
+  const loads = await dailyLoads(env, addDays(start, -400), today);
+  const p = pmc(loads);
+  const hard = hardDay(loads.slice(-365).map((x) => x.load));
+  const inRange = p.filter((d) => d.date >= start);
+
+  const { results: rec } = await env.DB.prepare(
+    'SELECT date, rec, v_hrv, b_hrv, v_rhr, b_rhr, v_sleep FROM rec_daily WHERE date BETWEEN ?1 AND ?2',
+  ).bind(start, today).all<Record<string, number | null>>();
+  const recBy = new Map(rec.map((r) => [r.date as unknown as string, r]));
+
+  const { results: acts } = await env.DB.prepare(
+    'SELECT date, sport, COALESCE(min, 0) min, COALESCE(load, 0) load FROM activities WHERE date BETWEEN ?1 AND ?2',
+  ).bind(start, today).all<{ date: string; sport: Sport; min: number; load: number }>();
+
+  // barras: por dia até 30 dias; por semana (seg–dom) acima disso
+  const weekly = days > 30;
+  const bucketOf = (d: string) => {
+    if (!weekly) return d;
+    const dt = new Date(d + 'T00:00:00Z');
+    const dow = (dt.getUTCDay() + 6) % 7; // segunda = 0
+    return addDays(d, -dow);
+  };
+  const buckets = new Map<string, { start: string; load: number; min: number }>();
+  for (const d of inRange) {
+    const b = bucketOf(d.date);
+    const cur = buckets.get(b) ?? { start: b, load: 0, min: 0 };
+    cur.load += d.load;
+    buckets.set(b, cur);
+  }
+  const sports = new Map<Sport, { min: number; load: number; n: number }>();
+  for (const a of acts) {
+    const b = buckets.get(bucketOf(a.date)); if (b) b.min += a.min;
+    const s = sports.get(a.sport) ?? { min: 0, load: 0, n: 0 };
+    s.min += a.min; s.load += a.load; s.n++;
+    sports.set(a.sport, s);
+  }
+  const order: Sport[] = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
+  const t = p[p.length - 1];
+  const r1 = (x: number | null | undefined) => (x == null ? null : Math.round(x * 10) / 10);
+
+  return {
+    days, start, today, weekly,
+    now: {
+      fitness: r1(t.fitness), fatigue: r1(t.fatigue), form: r1(t.form),
+      ramp: (() => { const r = ramp(p); return r && { abs: r1(r.abs), pct: r1(r.pct) }; })(),
+      acwr: r1(acwr(loads.map((x) => x.load))),
+      hard: hard && Math.round(hard),
+    },
+    series: inRange.map((d) => {
+      const r = recBy.get(d.date);
+      return {
+        date: d.date, load: Math.round(d.load), strain: strain(d.load, hard),
+        fitness: r1(d.fitness), fatigue: r1(d.fatigue), form: r1(d.form),
+        rec: r?.rec == null ? null : Math.round(r.rec as number),
+        hrv: r?.v_hrv ?? null, hrvBase: r1(r?.b_hrv), rhr: r?.v_rhr ?? null, rhrBase: r1(r?.b_rhr), sleep: r1(r?.v_sleep),
+      };
+    }),
+    bars: [...buckets.values()].map((b) => ({ start: b.start, load: Math.round(b.load), hours: r1(b.min / 60) })),
+    sports: order.filter((s) => sports.has(s)).map((s) => {
+      const v = sports.get(s)!;
+      return { sport: s, label: SPORT_LABEL[s], hours: r1(v.min / 60), load: Math.round(v.load), sessions: v.n };
+    }),
+  };
+}
+
 // --- leitura ---
 type RecDb = Record<string, number | string | null>;
 const toRow = (d: RecDb): RecRow => ({
@@ -170,6 +260,7 @@ async function todayPayload(env: Env, date: string) {
     .bind(date).all<{ time: string; type: string; sport: Sport; min: number; km: number; avghr: number; load: number; rpe: number | null }>();
   const feel = await env.DB.prepare('SELECT value FROM feel_notes WHERE date = ?1').bind(date).first<{ value: number }>();
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
+  const ln = await loadNow(env, date);
 
   const empty: RecRow = { date, rec: null, z: {} as RecRow['z'], value: {} as RecRow['value'], base: {} as RecRow['base'] };
   for (const k of K) { empty.z[k] = null; empty.value[k] = null; empty.base[k] = null; }
@@ -182,8 +273,9 @@ async function todayPayload(env: Env, date: string) {
     comment: comment(t, hist),
     alerts: alerts(t, yesterday),
     week: [...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec === null ? null : Math.round(r.rec) })),
-    activities: acts.results.map((a) => ({ ...a, label: SPORT_LABEL[a.sport] })),
+    activities: acts.results.map((a) => ({ ...a, label: SPORT_LABEL[a.sport], strain: strain(a.load ?? 0, ln.hard) })),
     feel: feel?.value ?? null,
+    load: { strain: ln.strain, form: Math.round(ln.form), fitness: Math.round(ln.fitness), fatigue: Math.round(ln.fatigue) },
     race: { ...RACE, days: daysBetween(date, RACE.date) },
     // app busca sozinho ao abrir quando a noite de hoje ainda não está no banco
     needsSync: date === brtToday() && !(await hasTonight(env, date)),
@@ -227,6 +319,12 @@ export default {
     if (url.pathname === '/api/refresh' && req.method === 'POST') {
       const auto = url.searchParams.get('auto') === '1';
       return json(await morningRoutine(env, auto ? 'open' : 'manual'));
+    }
+
+    if (url.pathname === '/api/trends' && req.method === 'GET') {
+      const allowed = [7, 30, 90, 365];
+      const d = Number(url.searchParams.get('days'));
+      return json(await trendsPayload(env, allowed.includes(d) ? d : 7));
     }
 
     // --- Garmin: estado, diagnóstico e histórico ---

@@ -1,4 +1,5 @@
-// REC — aba Hoje. Sem framework; um arquivo.
+// REC — app. Sem framework.
+import { renderTrends } from './trends.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -91,7 +92,7 @@ function actsHtml(acts) {
     if (a.km >= 0.5) bits.push(`${a.km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`);
     bits.push(`${Math.round(a.min)} min`);
     if (a.avghr) bits.push(`${Math.round(a.avghr)} bpm`);
-    if (a.load) bits.push(`carga ${Math.round(a.load)}`);
+    if (a.strain != null && acts.length > 1) bits.push(`Strain ${a.strain}`);
     return `<li><span>${esc(a.label)} <span class="meta">${esc(a.time)}</span></span><span class="meta">${bits.join(', ')}</span></li>`;
   }).join('')}</ul>`;
 }
@@ -134,9 +135,14 @@ function render(d) {
     ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}
 
     <section class="block">
-      <h2>Treino de hoje</h2>
+      <h2>Treino de hoje${d.load?.strain ? ` <span class="h2-num">Strain ${d.load.strain}</span>` : ''}</h2>
       ${actsHtml(d.activities)}
     </section>
+
+    ${d.load ? `<a class="form-line" href="#tendencias">
+      <span>Forma <b>${d.load.form > 0 ? '+' : d.load.form < 0 ? '−' : ''}${Math.abs(d.load.form)}</b></span>
+      <span class="meta">Fitness ${d.load.fitness}, Fadiga ${d.load.fatigue}</span>
+    </a>` : ''}
 
     <section class="block feel ${d.feel == null ? 'unset' : ''}">
       <h2 id="feel-label">Como me sinto</h2>
@@ -306,13 +312,22 @@ async function renderGarmin() {
 }
 
 function route() {
-  if (location.hash === '#garmin') renderGarmin(); else load();
+  const h = location.hash || '#hoje';
+  document.querySelectorAll('.tab[href]').forEach((t) => {
+    const on = t.getAttribute('href') === (h === '#garmin' ? '#hoje' : h);
+    t.classList.toggle('is-active', on);
+    if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
+  });
+  window.scrollTo(0, 0);
+  if (h === '#garmin') renderGarmin();
+  else if (h === '#tendencias') renderTrends(screen, api);
+  else load();
 }
 window.addEventListener('hashchange', route);
 
 // ao voltar para o app: recarrega (pega a noite se chegou e troca o dia se virou)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && location.hash !== '#garmin') { autoTried = ''; load(); }
+  if (document.visibilityState === 'visible' && (location.hash || '#hoje') === '#hoje') { autoTried = ''; load(); }
 });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

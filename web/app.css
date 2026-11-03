@@ -133,6 +133,57 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .raw { margin-top: 12px; color: var(--text-3); font-size: 13px; }
 .raw pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; color: var(--text-2); }
 
+/* --- Hoje: Strain e Forma --- */
+.h2-num { float: right; color: var(--text); font-weight: 500; }
+.form-line {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: -12px 0 30px;
+  padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none;
+}
+.form-line b { font-weight: 500; }
+
+/* --- Tendências --- */
+.seg { display: flex; gap: 4px; padding: 3px; margin: 12px 0 24px; background: var(--surface); border-radius: 9px; }
+.seg button { flex: 1; background: none; border: 0; padding: 7px 0; border-radius: 7px; color: var(--text-2); font-size: 14px; cursor: pointer; }
+.seg button[aria-selected="true"] { background: var(--line); color: var(--text); }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 8px; }
+.trio > div { display: grid; gap: 2px; }
+.trio .big { font: 200 44px/1 var(--font-display); letter-spacing: -0.03em; }
+.trio .lab { color: var(--text-2); font-size: 13px; }
+.explain { margin: 0 0 18px; color: var(--text-2); font-size: 14px; }
+.explain summary { cursor: pointer; color: var(--text); font-size: 14px; padding: 6px 0; }
+.explain p { margin: 8px 0; max-width: 34em; }
+.explain b { color: var(--text); font-weight: 500; }
+.sub { margin: 18px 0 4px; font: 400 13px/1.3 var(--font); color: var(--text-2); }
+.chart-wrap { position: relative; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .ax { fill: var(--text-3); font-size: 10px; }
+.chart .grid { stroke: var(--line-soft); stroke-width: 1; }
+.chart .zero { stroke: var(--line); stroke-width: 1; }
+.chart .band { fill: var(--line-soft); opacity: .5; }
+.chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .ln.l1 { stroke: var(--text); }
+.chart .ln.l2 { stroke: var(--text-2); stroke-width: 1.5; }
+.chart .ln.l3 { stroke: var(--line); stroke-width: 1; }
+.chart .ln.base { stroke: var(--text-3); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.chart .dl { font-size: 10px; fill: var(--text-2); }
+.chart .dl.l1 { fill: var(--text); }
+.chart .rule { stroke: var(--text-2); stroke-width: 1; }
+.chart .bar { fill: var(--text-2); }
+.chart .bar.hl { fill: var(--text); }
+.chart .bar.neg { fill: var(--text-3); }
+.chart .ref { stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 2 3; }
+.chart .ref-l { fill: var(--text-2); }
+.tip {
+  position: absolute; top: -4px; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 9px; font-size: 12px; min-width: 110px; z-index: 2;
+}
+.tip p { margin: 0 0 3px; color: var(--text-2); }
+.tip div { display: flex; justify-content: space-between; gap: 10px; }
+.tip b { font-weight: 500; }
+.sports li { display: grid; grid-template-columns: 1.4fr 1fr .8fr .7fr; gap: 8px; }
+.sports li > span:not(:first-child) { text-align: right; color: var(--text-2); font-size: 14px; }
+.sports li.head span { color: var(--text-3); font-size: 12px; }
+
 /* --- acesso --- */
 .gate { min-height: 70dvh; display: grid; align-content: center; gap: 14px; }
 .gate h1 { font: 200 56px/1 var(--font-display); letter-spacing: -0.03em; margin: 0 0 8px; }
