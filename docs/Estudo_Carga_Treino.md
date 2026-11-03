@@ -73,3 +73,16 @@ Leitura:
 - O que o app usa desde 03/11 (minutos por zona × 1…5) é o **TRIMP de Edwards**, método publicado (1993) e base de vários relógios, mas sem normalização pelo limiar.
 - Limite conhecido de qualquer carga por FC: subestima intervalos curtos acima do limiar (a FC demora a subir). Vale para o Hyrox.
 - Protótipo com limiar estimado (90% de FC máx. 200) deu valores baixos demais. **Decisão pendente**: usar o limiar e as zonas configurados no Garmin (endpoint de zonas da API) antes de trocar.
+
+## 7. Decisão (03/11, fim da tarde): Strain = TRIMP de Edwards
+Teste com 277 treinos de 2026 que têm RPE registrado. Correlação (Spearman) de cada método com o esforço que o Luca sentiu (RPE × minutos, método de Foster):
+- **TRIMP de Edwards (zonas × 1…5 + 0,5/min abaixo da Z1): 0,82**
+- Carga do Garmin (EPOC): 0,52
+
+Motivos da escolha:
+- Método publicado (Edwards, 1993), da mesma família do hrTSS e do Relative Effort do Strava (FC em relação às zonas).
+- Usa as zonas que o próprio Luca configurou no Garmin; não depende de um limiar de FC estimado.
+- Cresce com duração e intensidade; o mesmo treino vale menos quando a FC cai com o condicionamento.
+- É o que melhor acompanha o esforço percebido dele.
+
+Limites: escala diferente do TSS (por isso a Forma é lida em %); como todo método por FC, subestima intervalos curtos acima do limiar (Hyrox).

@@ -3,7 +3,7 @@
 Lista viva do que o Luca pediu para depois. Ordem não é prioridade.
 
 ## Métricas
-- [ ] **Strain no padrão hrTSS** (TrainingPeaks / intervals.icu): TRIMP de Banister normalizado para 100 = 1 h no limiar de FC. Depende das zonas de FC do Garmin (FC máx., repouso, limiar) — conferir em Garmin → Ver zonas. Ver `Estudo_Carga_Treino.md`, seção 6.
+- [ ] ~~Strain no padrão hrTSS~~ — **não adotado** (03/11): o Strain fica no TRIMP de Edwards (zonas × 1…5). Reavaliar só se houver potência na bike ou limiar de FC confiável. Ver `Estudo_Carga_Treino.md`, seção 7.
 - [ ] **Tempo em zonas**: minutos em Z1–Z5 por treino, por semana e por modalidade (a API já entrega os minutos por zona).
 - [ ] **Previsões de prova**: Riegel a partir dos melhores esforços recentes de corrida (5 km, 10 km); fonte a definir (voltas do Garmin ou Strava). Mostrar meia isolada e observação de que no 70.3 a corrida vem depois de 90 km de bike.
 - [ ] Necessidade de sono dinâmica / dívida de sono (Whoop).
