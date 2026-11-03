@@ -1,5 +1,5 @@
 // REC — app. Sem framework.
-import { renderTrends } from './trends.js';
+import { renderTrends, zoneOfPct, FORM_ZONES } from './trends.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -97,14 +97,53 @@ function actsHtml(acts) {
   }).join('')}</ul>`;
 }
 
+// ---------- Forma: medidor semicircular com as faixas (como o anel do REC) ----------
+const G = { min: -50, max: 40 };
+function gaugeSvg(pct) {
+  const cx = 110, cy = 104, r = 86;
+  const ang = (v) => Math.PI * (1 - (Math.min(Math.max(v, G.min), G.max) - G.min) / (G.max - G.min));
+  const pt = (v, rr = r) => [cx + rr * Math.cos(ang(v)), cy - rr * Math.sin(ang(v))];
+  let lo = G.min, segs = '';
+  for (const z of FORM_ZONES) {
+    const hi = Math.min(z.max, G.max);
+    const [x1, y1] = pt(lo + 0.6), [x2, y2] = pt(hi - 0.6);
+    const on = pct != null && zoneOfPct(pct).key === z.key;
+    segs += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" class="gseg" style="stroke:var(--z-${z.key});opacity:${on ? 1 : 0.28}"/>`;
+    lo = hi;
+  }
+  let marker = '';
+  if (pct != null) { const [mx, my] = pt(pct); marker = `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="7" class="gmark" style="fill:var(--z-${zoneOfPct(pct).key})"/>`; }
+  return `<svg viewBox="0 0 220 116" class="gauge" aria-hidden="true">${segs}${marker}</svg>`;
+}
+
+function formCard(d) {
+  const l = d.load, z = l.zone;
+  const sg = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+  return `
+    <a class="form-card" href="#tendencias" aria-label="Forma ${l.formPct ?? '–'} por cento. Ver tendências.">
+      <div class="gauge-wrap">
+        ${gaugeSvg(l.formPct)}
+        <div class="gauge-val">
+          <span class="num z-${z?.key ?? 'neutro'}">${l.formPct == null ? '–' : sg(l.formPct) + '%'}</span>
+          <span class="hint">${esc(z?.label ?? 'Forma')}</span>
+        </div>
+      </div>
+      <div class="ff">
+        <div><span class="c-fit">${l.fitness}</span><small>Fitness</small></div>
+        <div><span class="c-fat">${l.fatigue}</span><small>Fadiga</small></div>
+        <div><span>${l.strain}</span><small>Strain ${d.isToday ? 'hoje' : 'no dia'}</small></div>
+      </div>
+    </a>`;
+}
+
 // barra do Strain do dia: um segmento por treino, na cor da modalidade; marca no 100 (dia pesado)
 function strainBar(acts) {
   const total = acts.reduce((a, x) => a + (x.strain ?? 0), 0);
   if (!total) return '';
-  const scale = Math.max(120, total);
-  return `<div class="strain-bar" role="img" aria-label="Strain ${total} de 100">
-    ${acts.filter((a) => a.strain).map((a) => `<span class="s-${a.sport}" style="width:${(a.strain / scale) * 100}%"></span>`).join('')}
-    <i style="left:${(100 / scale) * 100}%"></i></div>`;
+  // escala: 300 de Strain = barra cheia (um longão de bike de ~3 h fica perto disso)
+  const scale = Math.max(300, total);
+  return `<div class="strain-bar" role="img" aria-label="Strain ${total}">
+    ${acts.filter((a) => a.strain).map((a) => `<span class="s-${a.sport}" style="width:${(a.strain / scale) * 100}%"></span>`).join('')}</div>`;
 }
 
 function render(d) {
@@ -114,8 +153,12 @@ function render(d) {
   const todayIso = d.date;
 
   screen.innerHTML = `
-    <header class="top">
-      <h1>${esc(cap(fmtDate(todayIso, { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')))}</h1>
+    <header class="top day-top">
+      <div class="daynav">
+        <button type="button" data-day="1" aria-label="Dia anterior" ${dayOffset >= MAX_BACK ? 'disabled' : ''}>‹</button>
+        <h1>${d.isToday ? 'Hoje, ' : ''}${esc(fmtDate(todayIso, { weekday: d.isToday ? undefined : 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''))}</h1>
+        <button type="button" data-day="-1" aria-label="Próximo dia" ${dayOffset === 0 ? 'disabled' : ''}>›</button>
+      </div>
       <span class="race">${esc(raceTxt)}</span>
     </header>
 
@@ -144,16 +187,15 @@ function render(d) {
     <p class="comment">${esc(d.comment)}</p>
     ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}
 
+    ${d.load ? formCard(d) : ''}
+
     <section class="block">
-      <h2>Treino de hoje${d.load?.strain ? ` <span class="h2-num">Strain ${d.load.strain}</span>` : ''}</h2>
+      <h2>${d.isToday ? 'Treino de hoje' : 'Treinos do dia'}</h2>
       ${strainBar(d.activities)}
       ${actsHtml(d.activities)}
     </section>
 
-    ${d.load ? `<a class="form-line" href="#tendencias">
-      <span>Forma <b class="${d.load.form >= 0 ? 'pos' : 'neg'}">${d.load.form > 0 ? '+' : d.load.form < 0 ? '−' : ''}${Math.abs(d.load.form)}</b></span>
-      <span class="meta">Fitness ${d.load.fitness}, Fadiga ${d.load.fatigue}</span>
-    </a>` : ''}
+
 
     <section class="block feel ${d.feel == null ? 'unset' : ''}">
       <h2 id="feel-label">Como me sinto</h2>
@@ -165,7 +207,7 @@ function render(d) {
     </section>
 
     <div class="foot">
-      <button class="sync" type="button">Atualizar dados</button>
+      <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
       <a class="foot-link" href="#garmin">Garmin</a>
     </div>
   `;
@@ -205,16 +247,50 @@ function render(d) {
 }
 
 let autoTried = '';   // uma busca automática por dia, por abertura
+const MAX_BACK = 7;   // dá para voltar até 7 dias
+let dayOffset = 0;
+const isoToday = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+const addIso = (iso, n) => { const t = new Date(iso + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+
+function goDay(step, dir) {
+  const next = Math.min(MAX_BACK, Math.max(0, dayOffset + step));
+  if (next === dayOffset) return;
+  dayOffset = next;
+  screen.classList.remove('slide-l', 'slide-r');
+  void screen.offsetWidth;
+  screen.classList.add(dir);
+  load();
+}
+
+// deslizar: arrastar para a direita volta um dia; para a esquerda avança
+let sx = null, sy = null;
+screen.addEventListener('touchstart', (e) => {
+  if ((location.hash || '#hoje') !== '#hoje' || e.target.closest('input, .chart-wrap')) { sx = null; return; }
+  sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+}, { passive: true });
+screen.addEventListener('touchend', (e) => {
+  if (sx == null) return;
+  const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+  sx = null;
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  if (dx > 0) goDay(1, 'slide-r'); else goDay(-1, 'slide-l');
+}, { passive: true });
+screen.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-day]');
+  if (b && !b.disabled) goDay(Number(b.dataset.day), Number(b.dataset.day) > 0 ? 'slide-r' : 'slide-l');
+});
+
 async function load() {
   try {
-    const d = await api('/api/today');
+    const date = addIso(isoToday(), -dayOffset);
+    const d = await api(`/api/today?date=${date}`);
     render(d);
-    if (d.needsSync && autoTried !== d.date) {
+    if (dayOffset === 0 && d.needsSync && autoTried !== d.date) {
       autoTried = d.date;
       const sync = screen.querySelector('.sync');
       sync.disabled = true; sync.textContent = 'Buscando a noite na Garmin…';
       await api('/api/refresh?auto=1', { method: 'POST' }).catch(() => {});
-      const d2 = await api('/api/today');
+      const d2 = await api(`/api/today?date=${date}`);
       render(d2);
       if (d2.needsSync) screen.querySelector('.sync').textContent = 'A noite ainda não chegou à Garmin. Sincronize o relógio e toque aqui.';
     }
@@ -246,6 +322,7 @@ async function renderGarmin() {
       <li><span>Noites com HRV</span><span class="meta">${n(st.dias.hrv)}</span></li>
       <li><span>Dias com REC</span><span class="meta">${n(st.recs)}</span></li>
       <li><span>Atividades</span><span class="meta">${n(st.atividades.n)}</span></li>
+      <li><span>Com zonas de FC (base do Strain)</span><span class="meta">${n(st.atividades.zonas)}</span></li>
     </ul>
     ${st.hasKey ? '' : `<p class="alert">${esc(ERR.sem_chave)}</p>`}
 
@@ -338,7 +415,7 @@ window.addEventListener('hashchange', route);
 
 // ao voltar para o app: recarrega (pega a noite se chegou e troca o dia se virou)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && (location.hash || '#hoje') === '#hoje') { autoTried = ''; load(); }
+  if (document.visibilityState === 'visible' && (location.hash || '#hoje') === '#hoje') { autoTried = ''; dayOffset = 0; load(); }
 });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

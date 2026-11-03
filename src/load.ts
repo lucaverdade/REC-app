@@ -1,48 +1,63 @@
-// Carga de treino: Fitness, Fadiga, Forma (modelo de Banister, como TrainingPeaks/Strava) e Strain.
-// Entrada: carga diária do Garmin (soma das atividades do dia, baseada em EPOC).
+// Strain (carga do treino), Fitness, Fadiga e Forma.
+//
+// Strain = TRIMP de Edwards: minutos em cada zona de FC do Garmin × peso da zona (Z1 = 1 … Z5 = 5),
+// mais 0,5 por minuto abaixo da Z1 (rodagem regenerativa, academia), para não zerar treino leve.
+// Cresce com a duração e com a intensidade. Substituiu a carga do Garmin (EPOC), que quase não cresce
+// com a duração em Z2: a bike de 2 h 50 de 01/11 dava 127 no Garmin e 344 por zonas; um Hyrox de 41 min,
+// 242 no Garmin e 118 por zonas.
+//
+// Fitness/Fadiga/Forma: modelo de Banister como no TrainingPeaks (42 e 7 dias).
+// Forma em % do Fitness (como o intervals.icu), com faixas de Joe Friel.
 // Ver docs/Estudo_Carga_Treino.md.
 
 export const FITNESS_DAYS = 42;
 export const FATIGUE_DAYS = 7;
+export const ZONE_WEIGHTS = [1, 2, 3, 4, 5];
+
+/** Strain de uma atividade a partir dos minutos por zona. null se o relógio não registrou zonas. */
+export function strainOf(zoneMinutes: (number | null | undefined)[], totalMin: number | null = null): number | null {
+  if (zoneMinutes.every((m) => m == null)) return null;
+  const inZones = zoneMinutes.reduce<number>((a, m) => a + (m ?? 0), 0);
+  const below = Math.max(0, (totalMin ?? 0) - inZones);
+  return 0.5 * below + zoneMinutes.reduce<number>((acc, m, i) => acc + (m ?? 0) * ZONE_WEIGHTS[i], 0);
+}
 
 export interface PmcDay {
   date: string;
-  load: number;     // carga do dia
-  fitness: number;  // CTL: média ponderada de 42 dias
-  fatigue: number;  // ATL: média ponderada de 7 dias
-  form: number;     // TSB: fitness − fadiga de ONTEM (forma ao acordar, antes do treino do dia)
+  load: number;     // Strain do dia (soma das atividades)
+  fitness: number;  // média ponderada de 42 dias
+  fatigue: number;  // média ponderada de 7 dias
+  form: number;     // fitness − fadiga de ONTEM (como você acorda, antes do treino do dia)
+  formPct: number | null; // forma ÷ fitness de ontem × 100
 }
 
-/** `daily` precisa ser contínuo (um item por dia, carga 0 em dia sem treino), em ordem. */
+/** `daily` contínuo (um item por dia, 0 sem treino), em ordem. */
 export function pmc(daily: { date: string; load: number }[]): PmcDay[] {
   let ctl = 0, atl = 0;
   return daily.map(({ date, load }) => {
     const form = ctl - atl;
+    const formPct = ctl > 1 ? (form / ctl) * 100 : null;
     ctl += (load - ctl) / FITNESS_DAYS;
     atl += (load - atl) / FATIGUE_DAYS;
-    return { date, load, fitness: ctl, fatigue: atl, form };
+    return { date, load, fitness: ctl, fatigue: atl, form, formPct };
   });
 }
 
-/** Carga de um "dia pesado típico": percentil 95 dos dias com treino. */
-export function hardDay(loads: number[]): number | null {
-  const xs = loads.filter((x) => x > 0).sort((a, b) => a - b);
-  if (xs.length < 20) return null;
-  const pos = 0.95 * (xs.length - 1), lo = Math.floor(pos);
-  return xs[lo] + (xs[Math.min(lo + 1, xs.length - 1)] - xs[lo]) * (pos - lo);
+/** Faixas da Forma em % do Fitness (Joe Friel, adaptadas pelo intervals.icu). */
+export const FORM_ZONES = [
+  { max: -30, key: 'risco', label: 'Risco alto' },
+  { max: -10, key: 'produtivo', label: 'Treino produtivo' },
+  { max: 5, key: 'neutro', label: 'Neutro' },
+  { max: 20, key: 'descansado', label: 'Descansado' },
+  { max: Infinity, key: 'perdendo', label: 'Perdendo forma' },
+] as const;
+
+export function formZone(pct: number | null) {
+  if (pct == null) return null;
+  return FORM_ZONES.find((z) => pct < z.max) ?? FORM_ZONES[FORM_ZONES.length - 1];
 }
 
-/** Strain: % de um dia pesado típico (100 = dia pesado; pode passar de 100). */
-export const strain = (load: number, hard: number | null) => (hard ? Math.round((load / hard) * 100) : null);
-
-/** Ritmo de subida: variação do Fitness em 7 dias, em % do Fitness de 7 dias atrás. */
-export function ramp(days: PmcDay[]): { abs: number; pct: number } | null {
-  if (days.length < 8) return null;
-  const now = days[days.length - 1].fitness, before = days[days.length - 8].fitness;
-  return { abs: now - before, pct: before > 0 ? ((now - before) / before) * 100 : 0 };
-}
-
-/** Razão aguda/crônica no estilo Garmin: soma de 7 dias ÷ média semanal de 28 dias. */
+/** Razão aguda/crônica: soma de 7 dias ÷ média semanal de 28 dias. */
 export function acwr(loads: number[]): number | null {
   if (loads.length < 28) return null;
   const s7 = loads.slice(-7).reduce((a, b) => a + b, 0);

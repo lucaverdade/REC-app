@@ -12,9 +12,11 @@ Complementa `App_Backlog_e_Especificacao_REC.md`. Onde houver conflito, vale est
 
 ## Decisões novas
 - **Sem código de acesso por enquanto** (decisão do Luca). `APP_TOKEN` é opcional: se cadastrado, o app volta a pedir código. Login e Face ID ficam para quando o app for disponibilizado.
-- **Strain redefinido**: não é mais 0–21. Strain = carga do dia ÷ carga de um dia pesado do Luca (percentil 95 dos dias com treino nos últimos 365 dias) × 100. 100 = dia pesado; pode passar de 100.
+- **Strain = carga do treino por zonas de FC** (03/11, tarde): minutos em cada zona do Garmin × peso (Z1 = 1 … Z5 = 5) + 0,5 por minuto abaixo da Z1. Substitui a carga do Garmin (EPOC), que não crescia com a duração: bike de 2 h 50 em 01/11 = 127 no Garmin e 344 por zonas; Hyrox de 41 min = 242 no Garmin e 118 por zonas. Strain e carga passam a ser a mesma coisa (um número só). Fitness, Fadiga e Forma usam o Strain.
+- **Forma em %** do Fitness, com faixas de Joe Friel (via intervals.icu): < −30% risco alto, −30 a −10% treino produtivo, −10 a +5% neutro, +5 a +20% descansado, > +20% perdendo forma.
+- **Tendências por período de calendário**: Semana (seg–dom), Mês, 3 meses, 6 meses, 1 ano, com setas para voltar; mostra a variação de Fitness, Fadiga e Forma no período. Strain em barras de uma cor; Volume só em tabela.
+- **Hoje**: medidor semicircular da Forma com as faixas; deslizar para a direita volta um dia (até 7 dias).
 - **Forma no método TrainingPeaks**: Fitness = média ponderada de 42 dias da carga do Garmin; Fadiga = 7 dias; Forma = Fitness − Fadiga de ontem (forma ao acordar). Ritmo mostrado em % do Fitness em 7 dias. Detalhes em `Estudo_Carga_Treino.md`.
-- **Carga e horas lado a lado**: a carga do Garmin (EPOC) pesa intensidade; 1 h de Hyrox ≈ 8 h de bike em Z2.
 - **Strava fica para depois**, só para as descrições dos treinos (o que o Luca achou da sessão). Garmin cobre as atividades.
 - **Previsão de prova**: calcular no app pela fórmula de Riegel a partir dos melhores esforços recentes de corrida. Fonte a definir (voltas/splits do Garmin ou Strava).
 
@@ -23,7 +25,7 @@ Complementa `App_Backlog_e_Especificacao_REC.md`. Onde houver conflito, vale est
 - Modalidades (validadas para daltonismo e contraste sobre o preto): bike `#3f93d4`, corrida `#d2764a`, natação `#1f9e90`, Hyrox `#a86fd6`, academia cinza `#6e6e74` (à parte).
 - Fitness azul `#5e97e0`, Fadiga rosé `#d46a94`; Forma positiva em azul, negativa em rosé.
 - REC mantém o semáforo, levemente dessaturado (`#e2584f`, `#e7be45`, `#3fbf7f`). Inspiração: Oura usa uma cor por métrica, todas dessaturadas sobre preto.
-- Volume em Tendências: Semana / Mês / 3 meses / 6 meses com navegação para períodos anteriores; barras empilhadas por modalidade; tabela com horas, horas por semana, carga e sessões.
+- Gráficos com cor própria e degradê: Strain laranja, HRV verde-menta, FC de repouso âmbar, sono lavanda, REC com bolinhas no semáforo; faixas da Forma de rosé (risco) a azul (descansado).
 
 ## Falta (ordem sugerida)
 1. Confirmar FC de repouso e respiração no teste real da Garmin.

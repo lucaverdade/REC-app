@@ -23,6 +23,17 @@ function el(tag, attrs = {}, parent) {
   return e;
 }
 
+let gid = 0;
+/** Degradê vertical (cor da variável CSS → transparente) para áreas e barras. */
+function gradient(svg, colorVar, top = 0.55, bottom = 0.02) {
+  const id = `g${++gid}`;
+  const defs = el('defs', {}, svg);
+  const lg = el('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: '0%', style: `stop-color:var(${colorVar});stop-opacity:${top}` }, lg);
+  el('stop', { offset: '100%', style: `stop-color:var(${colorVar});stop-opacity:${bottom}` }, lg);
+  return `url(#${id})`;
+}
+
 /** Eixo X: 3–4 rótulos de data. */
 function xLabels(svg, dates, x, h) {
   const n = dates.length, idx = n <= 7 ? dates.map((_, i) => i) : [0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1];
@@ -87,6 +98,21 @@ export function lineChart(wrap, series, opts) {
   if (opts.zero) el('line', { x1: 0, x2: W, y1: y(0), y2: y(0), class: 'zero' }, svg);
   for (const b of opts.bands ?? []) el('rect', { x: 0, width: W, y: y(b[1]), height: Math.max(0, y(b[0]) - y(b[1])), class: 'band' }, svg);
 
+  // área em degradê sob a primeira série (opts.area = variável CSS da cor)
+  if (opts.area) {
+    const fill = gradient(svg, opts.area, 0.35, 0);
+    const v0 = series[0].values; let run = [];
+    const flush = () => {
+      if (run.length > 1) {
+        const pts = run.map((i) => `${x(i).toFixed(1)},${y(v0[i]).toFixed(1)}`).join(' L');
+        el('path', { d: `M${x(run[0]).toFixed(1)},${h} L${pts} L${x(run[run.length - 1]).toFixed(1)},${h} Z`, fill }, svg);
+      }
+      run = [];
+    };
+    v0.forEach((v, i) => { if (v == null) flush(); else run.push(i); });
+    flush();
+  }
+  const usedY = [];
   for (const s of series) {
     let d = '', pen = false;
     s.values.forEach((v, i) => {
@@ -98,7 +124,12 @@ export function lineChart(wrap, series, opts) {
     // rótulo direto no fim da linha
     if (s.label) {
       let i = s.values.length - 1; while (i > 0 && s.values[i] == null) i--;
-      if (s.values[i] != null) { const t = el('text', { x: x(i) + 4, y: y(s.values[i]) + 4, class: `dl ${s.cls ?? 'l1'}` }, svg); t.textContent = s.name; }
+      if (s.values[i] != null) {
+        let ly = y(s.values[i]) + 4;
+        for (const u of usedY) if (Math.abs(ly - u) < 11) ly = u + (ly >= u ? 11 : -11);
+        usedY.push(ly);
+        const t = el('text', { x: x(i) + 4, y: ly, class: `dl ${s.cls ?? 'l1'}` }, svg); t.textContent = s.name;
+      }
     }
   }
   xLabels(svg, opts.dates, x, h);
@@ -116,12 +147,14 @@ export function barChart(wrap, values, opts) {
   const svg = el('svg', { viewBox: `0 -6 ${W} ${h + 24}`, class: 'chart', role: 'img', 'aria-label': opts.label ?? '' });
   yGrid(svg, lo, hi, y, opts.yFmt ?? ((v) => nf(v)));
   el('line', { x1: 0, x2: W, y1: y(0), y2: y(0), class: 'zero' }, svg);
+  const gfill = opts.fill ? gradient(svg, opts.fill, 0.95, 0.35) : null;
   values.forEach((v, i) => {
     if (v == null || v === 0) return;
     const top = Math.min(y(v), y(0)), ht = Math.abs(y(v) - y(0));
     const r = Math.min(2, bw / 2, ht / 2);
-    const cls = opts.signColor ? (v < 0 ? 'bar neg2' : 'bar pos') : v < 0 ? 'bar neg' : `bar${opts.highlightLast && i === n - 1 ? ' hl' : ''}`;
-    el('rect', { x: x(i) - bw / 2, y: top, width: bw, height: Math.max(ht, 1), rx: r, class: cls }, svg);
+    const cls = opts.barClass ? opts.barClass(i, v) : opts.signColor ? (v < 0 ? 'bar neg2' : 'bar pos') : v < 0 ? 'bar neg' : `bar${opts.highlightLast && i === n - 1 ? ' hl' : ''}`;
+    const rect = el('rect', { x: x(i) - bw / 2, y: top, width: bw, height: Math.max(ht, 1), rx: r, class: cls }, svg);
+    if (gfill) rect.setAttribute('fill', gfill), rect.style.fill = gfill;
   });
   for (const ref of opts.refs ?? []) {
     el('line', { x1: 0, x2: W - 34, y1: y(ref.v), y2: y(ref.v), class: 'ref' }, svg);
