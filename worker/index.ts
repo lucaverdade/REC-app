@@ -438,20 +438,15 @@ async function predictionsPayload(env: Env, months: number) {
 
 
 // --- modo prova ---
-const RACE_CHECKLIST = [
-  { grupo: 'Bike', itens: ['Bike revisada (freios, câmbio, pneus)', 'Pneus calibrados', 'Câmara reserva, CO2 e espátulas', 'Ferramenta multiuso', 'Caramanholas', 'Sapatilha', 'Capacete', 'Números da bike e do capacete colados', 'Ciclocomputador e relógio carregados'] },
-  { grupo: 'Kit', itens: ['Macaquinho de triathlon', 'Óculos de natação (e reserva)', 'Touca da prova', 'Tênis com cadarço elástico', 'Boné ou viseira', 'Óculos de sol', 'Protetor solar', 'Cinto porta-número', 'Chip de cronometragem', 'Documento e credenciamento', 'Sacolas de transição etiquetadas'] },
-  { grupo: 'Nutrição', itens: ['Carbo da bike separado', 'Carbo da corrida separado', 'Sais / isotônico', 'Café da manhã de prova', 'Caramanholas cheias na véspera'] },
-];
+interface RaceItem { id: string; texto: string; done: boolean }
 const slug = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 async function racePayload(env: Env, req: Request) {
   const today = brtToday();
   let plan: any = null;
   try { const r = await env.ASSETS.fetch(new Request(new URL('/plan/prova.json', req.url))); if (r.ok) plan = await r.json(); } catch {}
-  const groups = (Array.isArray(plan?.checklist) && plan.checklist.length ? plan.checklist : RACE_CHECKLIST)
-    .map((g: { grupo: string; itens: string[] }) => ({ grupo: g.grupo, itens: g.itens.map((t) => ({ id: slug(`${g.grupo}-${t}`), texto: t })) }));
-  const check = (await getSetting<Record<string, boolean>>(env, 'race_check')) ?? {};
+  // checklist escrito pelo Luca no app (sem itens padrão)
+  const items = (await getSetting<RaceItem[]>(env, 'race_items')) ?? [];
   const ln = await loadOn(env, today);
   const rec = await env.DB.prepare('SELECT rec FROM rec_daily WHERE date = ?1').bind(today).first<{ rec: number | null }>();
   const pred = await (async () => {
@@ -465,7 +460,7 @@ async function racePayload(env: Env, req: Request) {
     race: { ...RACE, days: daysBetween(today, RACE.date), raceWeek: daysBetween(today, RACE.date) <= 6 && daysBetween(today, RACE.date) >= -1 },
     today: { rec: rec?.rec == null ? null : Math.round(rec.rec), formPct: ln.formPct, zone: ln.zone },
     halfPrediction: pred,
-    groups, check,
+    items,
     carbo: Array.isArray(plan?.carbo) ? plan.carbo : null,
     pace: plan?.pace ?? null,
     notas: plan?.notas ?? null,
@@ -617,13 +612,21 @@ export default {
       return json({ ok: true, factors });
     }
     if (url.pathname === '/api/race' && req.method === 'GET') return json(await racePayload(env, req));
-    if (url.pathname === '/api/race/check' && req.method === 'POST') {
-      const b = await req.json<{ id?: string; done?: boolean }>().catch(() => ({}) as { id?: string; done?: boolean });
-      if (!b.id || typeof b.id !== 'string' || b.id.length > 120) return json({ error: 'id_invalido' }, 400);
-      const cur = (await getSetting<Record<string, boolean>>(env, 'race_check')) ?? {};
-      if (b.done) cur[b.id] = true; else delete cur[b.id];
-      await setSetting(env, 'race_check', cur);
-      return json({ ok: true });
+    if (url.pathname === '/api/race/items' && req.method === 'POST') {
+      // { action: 'add', texto } | { action: 'toggle', id, done } | { action: 'remove', id }
+      const b = await req.json<{ action?: string; id?: string; texto?: string; done?: boolean }>().catch(() => ({}) as Record<string, never>);
+      const items = (await getSetting<RaceItem[]>(env, 'race_items')) ?? [];
+      if (b.action === 'add') {
+        const texto = String(b.texto ?? '').trim().slice(0, 200);
+        if (!texto) return json({ error: 'texto_vazio' }, 400);
+        items.push({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, texto, done: false });
+      } else if (b.action === 'toggle') {
+        const it = items.find((x) => x.id === b.id); if (it) it.done = !!b.done;
+      } else if (b.action === 'remove') {
+        const i = items.findIndex((x) => x.id === b.id); if (i >= 0) items.splice(i, 1);
+      } else return json({ error: 'acao_invalida' }, 400);
+      await setSetting(env, 'race_items', items);
+      return json({ items });
     }
     if (url.pathname === '/api/week' && req.method === 'GET') {
       const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, 0), 156);

@@ -15,8 +15,6 @@ export async function renderRace(screen, api) {
   try { d = await api('/api/race'); } catch (e) { if (e.message !== '401') screen.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
   const r = d.race, n = r.days;
   const count = n > 1 ? `<b>${n}</b><span>dias</span>` : n === 1 ? '<b>Amanhã</b>' : n === 0 ? '<b>Hoje</b>' : '<b>Prova feita</b>';
-  const total = d.groups.reduce((a, g) => a + g.itens.length, 0);
-  const done = d.groups.reduce((a, g) => a + g.itens.filter((i) => d.check[i.id]).length, 0);
 
   screen.innerHTML = `
     <header class="top"><h1>Modo prova</h1><a class="foot-link" href="#hoje">Voltar</a></header>
@@ -37,14 +35,7 @@ export async function renderRace(screen, api) {
       </div>
     </section>
 
-    <section class="block">
-      <h2>Checklist <span class="h2-num">${done} de ${total}</span></h2>
-      ${d.groups.map((g) => `
-        <h3 class="sub">${esc(g.grupo)}</h3>
-        <ul class="checklist">${g.itens.map((i) => `
-          <li><label><input type="checkbox" data-id="${esc(i.id)}" ${d.check[i.id] ? 'checked' : ''}><span>${esc(i.texto)}</span></label></li>`).join('')}
-        </ul>`).join('')}
-    </section>
+    <section class="block" id="chk"></section>
 
     <section class="block">
       <h2>Carbo por dia</h2>
@@ -61,11 +52,31 @@ export async function renderRace(screen, api) {
       ${d.halfPrediction ? `<p class="note">Previsão da meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b> (referência; no 70.3 a corrida vem depois de 90 km de bike).</p>` : ''}
     </section>`;
 
-  screen.querySelectorAll('.checklist input').forEach((cb) => cb.addEventListener('change', async () => {
-    const h = screen.querySelector('.h2-num');
-    const cur = Number(h.textContent.split(' ')[0]) + (cb.checked ? 1 : -1);
-    h.textContent = `${cur} de ${total}`;
-    try { await api('/api/race/check', { method: 'POST', body: JSON.stringify({ id: cb.dataset.id, done: cb.checked }) }); }
-    catch { cb.checked = !cb.checked; h.textContent = `${cur + (cb.checked ? 1 : -1)} de ${total}`; }
-  }));
+  renderChecklist(screen.querySelector('#chk'), d.items, api);
+}
+
+// Checklist escrito pelo Luca: adicionar, marcar e apagar; salvo no servidor.
+function renderChecklist(sec, items, api) {
+  const done = items.filter((i) => i.done).length;
+  sec.innerHTML = `
+    <h2>Checklist${items.length ? ` <span class="h2-num">${done} de ${items.length}</span>` : ''}</h2>
+    ${items.length ? `<ul class="checklist">${items.map((i) => `
+      <li><label><input type="checkbox" data-id="${esc(i.id)}" ${i.done ? 'checked' : ''}><span>${esc(i.texto)}</span></label>
+        <button type="button" class="ck-del" data-del="${esc(i.id)}" aria-label="Apagar ${esc(i.texto)}">×</button></li>`).join('')}</ul>`
+      : '<p class="empty">Lista vazia. Escreva o que não pode esquecer.</p>'}
+    <form class="ck-add">
+      <input name="t" maxlength="200" placeholder="Novo item" autocomplete="off" aria-label="Novo item">
+      <button class="btn" type="submit">Adicionar</button>
+    </form>`;
+  const send = async (body) => {
+    try { const r = await api('/api/race/items', { method: 'POST', body: JSON.stringify(body) }); renderChecklist(sec, r.items, api); }
+    catch (e) { sec.querySelector('.ck-add input').placeholder = `Não salvou: ${e.message}`; }
+  };
+  sec.querySelector('.ck-add').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const t = e.currentTarget.elements.t.value.trim();
+    if (t) send({ action: 'add', texto: t }).then(() => sec.querySelector('.ck-add input')?.focus());
+  });
+  sec.querySelectorAll('.checklist input').forEach((cb) => cb.addEventListener('change', () => send({ action: 'toggle', id: cb.dataset.id, done: cb.checked })));
+  sec.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => send({ action: 'remove', id: b.dataset.del })));
 }

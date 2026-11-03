@@ -56,11 +56,8 @@ Publicado pelo chat de treino quando quiser (o app mostra "ainda não publicado"
     "corrida": "texto curto (ex.: pace por bloco de km)",
     "nutricao": "texto curto (ex.: g/h de carbo, sódio, quando)"
   },
-  "notas": "Uma frase opcional.",
-  "checklist": [
-    { "grupo": "Bike", "itens": ["Item 1", "Item 2"] }
-  ]
+  "notas": "Uma frase opcional."
 }
 ```
-- Todos os campos são opcionais. Sem `checklist`, o app usa uma lista padrão de bike, kit e nutrição.
-- O que o Luca marca no checklist fica salvo no servidor (vale em qualquer aparelho).
+- Todos os campos são opcionais.
+- O **checklist não vem daqui**: o Luca escreve os próprios itens no app (Modo prova), e eles ficam salvos no servidor.
