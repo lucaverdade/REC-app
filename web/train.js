@@ -1,32 +1,18 @@
-// Aba Treino: semana (seg–dom) planejada × executada, com o REC do dia seguinte.
+// Aba Treino (repaginada 03/11): resumo da semana, faixa com os 7 dias e um dia por vez.
+// Cada sessão: nome grande, duração e zona, Strain previsto → feito. Detalhes ficam recolhidos.
 import { nf } from './charts.js';
 
 let offset = 0;
+let picked = null; // data escolhida na faixa da semana
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const hm = (min) => { if (min == null) return '–'; const m = Math.round(min); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
+const hm = (min) => { if (min == null) return '–'; const m = Math.round(min); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
 const zoneVar = (r) => (r == null ? 'var(--line)' : r <= 33 ? 'var(--rec-red)' : r <= 66 ? 'var(--rec-yellow)' : 'var(--rec-green)');
 const day = (iso, o) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', o).replace(/\./g, '');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const STATUS = {
-  feito: { icon: '●', label: 'Feito' },
-  parcial: { icon: '◐', label: 'Parcial' },
-  nao_feito: { icon: '○', label: 'Não feito' },
-  previsto: { icon: '◌', label: 'Previsto' },
-};
-
-// Strain previsto × feito (como TSS planejado × realizado no TrainingPeaks)
-function strainCompare(p) {
-  const done = p.doneStrain;
-  if (done == null) return `<div class="sc"><span>Strain previsto <b>${p.plannedStrain}</b></span></div>`;
-  const pct = Math.round((done / p.plannedStrain) * 100);
-  const cls = pct >= 80 && pct <= 120 ? 'ok' : pct < 80 ? 'low' : 'high';
-  return `<div class="sc"><span>Strain previsto <b>${p.plannedStrain}</b>, feito <b class="c-strain">${done}</b></span>
-    <span class="sc-pct ${cls}">${pct}%</span>
-    <span class="sc-bar"><i style="width:${Math.min(pct, 150) / 1.5}%"></i><em style="left:${100 / 1.5}%"></em></span></div>`;
-}
-
+const STATUS = { feito: 'Feito', parcial: 'Parcial', nao_feito: 'Não feito', previsto: 'Previsto' };
 const ZN = ['Abaixo da Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+
 function zoneBar(z) {
   if (!z) return '';
   const tot = z.reduce((a, b) => a + b, 0);
@@ -36,17 +22,51 @@ function zoneBar(z) {
     <ul class="ac-zlist">${used.map((x) => `<li><i class="zc-${x.i}"></i>${ZN[x.i]} <b>${x.m} min</b></li>`).join('')}</ul>`;
 }
 
-function exHtml(e) {
-  const bits = [hm(e.min)];
-  if (e.km >= 0.5) bits.push(`${nf(e.km, 1)} km`);
-  if (e.avghr) bits.push(`${Math.round(e.avghr)} bpm`);
-  if (e.rpe != null) bits.push(`RPE ${nf(e.rpe)}`);
-  return `<li class="ex">
-    <div class="ex-top"><span><i class="dot s-${esc(e.sport)}"></i>${esc(e.label)} <span class="meta">${esc(e.time)}</span></span>
-      <span class="strain-chip">${e.strain ?? '–'}</span></div>
-    <div class="ex-meta">${bits.join(', ')}</div>
-    ${zoneBar(e.zones)}
+// uma sessão: planejada (com ou sem o feito) ou só feita
+function sessionCard({ sport, title, sub, status, key, planned, done, detail, ex }) {
+  const pct = planned && done != null ? Math.round((done / planned) * 100) : null;
+  const cls = pct == null ? '' : pct >= 80 && pct <= 120 ? 'ok' : pct < 80 ? 'low' : 'high';
+  const facts = ex ? [ex.km >= 0.5 ? `${nf(ex.km, 1)} km` : null, ex.avghr ? `FC média ${Math.round(ex.avghr)}` : null, ex.rpe != null ? `RPE ${nf(ex.rpe)}` : null].filter(Boolean) : [];
+  return `<li class="ss s-${esc(sport)}-bar">
+    <div class="ss-top">
+      <div class="ss-name"><b>${esc(title)}</b>${key ? '<span class="key">chave</span>' : ''}<span class="ss-sub">${sub}</span></div>
+      ${status ? `<span class="ss-st st-${status}">${STATUS[status]}</span>` : ''}
+    </div>
+    <div class="ss-strain">
+      ${planned != null ? `<div><span class="lab">Previsto</span><span class="num">${planned}</span></div>` : ''}
+      ${done != null ? `<div><span class="lab">Feito</span><span class="num c-strain">${done}</span></div>` : ''}
+      ${pct != null ? `<div><span class="lab">do previsto</span><span class="num pct ${cls}">${pct}%</span></div>` : ''}
+    </div>
+    ${ex?.zones || facts.length || detail ? `<details class="ss-more"><summary>Detalhes</summary>
+      ${facts.length ? `<p class="ss-facts">${facts.join(' · ')}</p>` : ''}
+      ${ex?.zones ? zoneBar(ex.zones) : ''}
+      ${detail ? `<p class="ss-detail">${esc(detail)}</p>` : ''}
+    </details>` : ''}
   </li>`;
+}
+
+function dayHtml(d) {
+  const matchedBy = new Map(d.executed.filter((e) => e.matched).map((e) => [e.id, e]));
+  const extra = d.executed.filter((e) => !e.matched);
+  const cards = [
+    ...d.planned.map((p) => {
+      const e = p.activityId ? matchedBy.get(p.activityId) : null;
+      return sessionCard({
+        sport: p.sport, title: p.titulo || p.label, key: p.chave,
+        sub: `${p.label}${p.minutos ? ` · ${hm(p.minutos)}` : ''}${p.zona ? ` · ${esc(p.zona)}` : ''}${e && e.min ? ` · feito ${hm(e.min)}` : ''}`,
+        status: p.status, planned: p.plannedStrain, done: p.doneStrain, detail: p.detalhe, ex: e,
+      });
+    }),
+    ...extra.map((e) => sessionCard({ sport: e.sport, title: e.label, sub: `${esc(e.time)} · ${hm(e.min)}`, status: 'feito', planned: null, done: e.strain, ex: e })),
+  ];
+  const dRec = d.rec != null && d.recNext != null ? d.recNext - d.rec : null;
+  return `
+    <div class="td-head">
+      <h2>${cap(day(d.date, { weekday: 'long', day: 'numeric', month: 'long' }))}</h2>
+      ${d.rec != null ? `<span class="rec-chip"><i style="background:${zoneVar(d.rec)}"></i>REC ${d.rec}</span>` : ''}
+    </div>
+    ${cards.length ? `<ul class="sessions">${cards.join('')}</ul>` : `<p class="empty">${d.future ? 'Nada planejado.' : 'Sem treino.'}</p>`}
+    ${dRec != null && d.executed.length ? `<p class="next-rec">REC no dia seguinte <b style="color:${zoneVar(d.recNext)}">${d.recNext}</b> <span>(${dRec > 0 ? '+' : dRec < 0 ? '−' : ''}${Math.abs(dRec)})</span></p>` : ''}`;
 }
 
 export async function renderTrain(screen, api) {
@@ -60,7 +80,7 @@ export async function renderTrain(screen, api) {
     </div>
     <div id="wk-body"><p class="empty">Carregando…</p></div>`;
   screen.querySelectorAll('.vol-nav button').forEach((b) => b.addEventListener('click', () => {
-    offset = Math.max(0, offset + Number(b.dataset.step)); body(screen, api);
+    offset = Math.max(0, offset + Number(b.dataset.step)); picked = null; body(screen, api);
   }));
   await body(screen, api);
 }
@@ -72,42 +92,45 @@ async function body(screen, api) {
   try { w = await api(`/api/week?offset=${offset}`); }
   catch (e) { if (e.message !== '401') box.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
   screen.querySelector('#wk-title').textContent =
-    `${offset === 0 ? 'Esta semana, ' : ''}${day(w.monday, { day: 'numeric', month: 'short' })} – ${day(w.sunday, { day: 'numeric', month: 'short' })}`;
+    `${offset === 0 ? 'Esta semana · ' : ''}${day(w.monday, { day: 'numeric', month: 'short' })} – ${day(w.sunday, { day: 'numeric', month: 'short' })}`;
+  if (!picked || !w.days.some((d) => d.date === picked)) picked = (w.days.find((d) => d.isToday) ?? w.days[0]).date;
 
   const sm = w.summary;
+  const pct = sm.plannedStrain ? Math.min(100, (sm.strain / sm.plannedStrain) * 100) : null;
   box.innerHTML = `
-    <div class="trio wk-sum">
-      <div><span class="big">${sm.plannedHours == null ? '–' : nf(sm.plannedHours, 1)}</span><span class="lab">Horas planejadas</span></div>
-      <div><span class="big">${nf(sm.doneHours, 1)}</span><span class="lab">Horas feitas</span></div>
-      <div><span class="big c-strain">${nf(sm.strain)}</span><span class="lab">Strain${sm.plannedStrain != null ? ` de ${nf(sm.plannedStrain)} previsto` : ''}</span></div>
-    </div>
-    ${w.plan ? `<p class="note">${w.plan.fase ? `<b>${esc(w.plan.fase)}</b>. ` : ''}${esc(w.plan.notas ?? '')}</p>`
-      : '<p class="note">Plano desta semana ainda não publicado. Aparecem só os treinos feitos.</p>'}
-    <ol class="days">
+    <section class="wk-card">
+      <div class="wk-main">
+        <div><span class="num c-strain">${nf(sm.strain)}</span>${sm.plannedStrain != null ? `<span class="of">de ${nf(sm.plannedStrain)}</span>` : ''}<span class="lab">Strain da semana</span></div>
+        <div class="wk-h"><span class="num">${nf(sm.doneHours, 1)}</span>${sm.plannedHours != null ? `<span class="of">de ${nf(sm.plannedHours, 1)} h</span>` : '<span class="of">h</span>'}<span class="lab">Horas</span></div>
+      </div>
+      ${pct != null ? `<span class="wk-bar"><i style="width:${pct}%"></i></span>` : ''}
+      ${w.plan?.fase ? `<p class="wk-fase">${esc(w.plan.fase)}</p>` : ''}
+      ${w.plan?.notas ? `<details class="ss-more"><summary>Nota da semana</summary><p class="ss-detail">${esc(w.plan.notas)}</p></details>` : ''}
+      ${!w.plan ? '<p class="wk-fase">Plano desta semana ainda não publicado.</p>' : ''}
+    </section>
+
+    <ol class="wk-strip" role="tablist" aria-label="Dias da semana">
       ${w.days.map((d) => {
-        const extra = d.executed.filter((e) => !e.matched);
-        const matchedBy = new Map(d.executed.filter((e) => e.matched).map((e) => [e.id, e]));
-        const dRec = d.rec != null && d.recNext != null ? d.recNext - d.rec : null;
-        return `<li class="day${d.isToday ? ' is-today' : ''}${d.future ? ' is-future' : ''}">
-          <div class="day-head">
-            <span class="day-name">${cap(day(d.date, { weekday: 'long' }))} <span class="meta">${day(d.date, { day: 'numeric', month: 'short' })}</span></span>
-            ${d.rec != null ? `<span class="rec-chip"><i style="background:${zoneVar(d.rec)}"></i>REC ${d.rec}</span>` : ''}
-          </div>
-          ${d.planned.length ? `<ul class="plan">${d.planned.map((p) => {
-            const e = p.activityId ? matchedBy.get(p.activityId) : null;
-            return `<li class="pl st-${p.status}">
-              <div class="pl-top"><span><span class="st-icon" title="${STATUS[p.status].label}">${STATUS[p.status].icon}</span><i class="dot s-${esc(p.sport)}"></i>${esc(p.titulo || p.label)}${p.chave ? ' <span class="key">chave</span>' : ''}</span>
-                <span class="meta">${p.minutos ? hm(p.minutos) : ''}${p.zona ? `, ${esc(p.zona)}` : ''}</span></div>
-              ${p.detalhe ? `<div class="ex-meta">${esc(p.detalhe)}</div>` : ''}
-              ${p.plannedStrain != null ? strainCompare(p) : ''}
-              ${e ? `<ul class="acts-in">${exHtml(e)}</ul>` : ''}
-            </li>`;
-          }).join('')}</ul>` : ''}
-          ${extra.length ? `<ul class="acts-in">${extra.map(exHtml).join('')}</ul>` : ''}
-          ${!d.planned.length && !extra.length ? `<p class="empty small">${d.future ? 'Nada planejado.' : 'Sem treino.'}</p>` : ''}
-          ${dRec != null && d.executed.length ? `<p class="next-rec">REC no dia seguinte: <b style="color:${zoneVar(d.recNext)}">${d.recNext}</b> (${dRec > 0 ? '+' : dRec < 0 ? '−' : ''}${Math.abs(dRec)})</p>` : ''}
-        </li>`;
+        // uma bolinha por sessão: cheia = feita, vazada = prevista ou não feita
+        const dots = [...d.planned.map((p) => ({ s: p.sport, done: p.status === 'feito' || p.status === 'parcial' })),
+          ...d.executed.filter((e) => !e.matched).map((e) => ({ s: e.sport, done: true }))];
+        return `<li><button type="button" role="tab" data-date="${d.date}" aria-selected="${d.date === picked}" class="wd${d.isToday ? ' is-today' : ''}">
+          <span class="wd-n">${day(d.date, { weekday: 'narrow' })}</span>
+          <span class="wd-d">${day(d.date, { day: 'numeric' })}</span>
+          <span class="wd-dots">${dots.slice(0, 3).map((x) => `<i class="dot ${x.done ? `s-${x.s}` : `open c-${x.s}`}"></i>`).join('') || '<i class="dot none"></i>'}</span>
+        </button></li>`;
       }).join('')}
     </ol>
-    <p class="note">Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e mesma zona) dos últimos 120 dias. Sem 3 treinos parecidos, vale o Strain escrito no plano ou, na falta dele, minutos × peso da zona. Entre 80% e 120% do previsto conta como no alvo. Strain de cada treino no círculo à direita. A barra mostra o tempo em cada zona de FC: cinza abaixo da Z1, depois Z1 cinza-azulado, Z2 azul, Z3 verde, Z4 laranja e Z5 vermelho.</p>`;
+
+    <section class="td" id="td">${dayHtml(w.days.find((d) => d.date === picked))}</section>
+
+    <details class="ss-more how"><summary>Como funciona</summary>
+      <p class="ss-detail">Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e zona) dos últimos 120 dias; sem 3 treinos parecidos, vale o do plano ou minutos × peso da zona. Entre 80% e 120% do previsto está no alvo. Bolinha cheia no dia: tudo feito; vazada: falta algo.</p>
+    </details>`;
+
+  box.querySelectorAll('.wd').forEach((b) => b.addEventListener('click', () => {
+    picked = b.dataset.date;
+    box.querySelectorAll('.wd').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    box.querySelector('#td').innerHTML = dayHtml(w.days.find((d) => d.date === picked));
+  }));
 }
