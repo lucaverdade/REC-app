@@ -1,6 +1,10 @@
 # REC — ToDo (futuro)
 
-Lista viva do que o Luca pediu para depois. Ordem não é prioridade.
+Lista viva do que o Luca pediu para depois.
+
+**Ordem sugerida (03/11)**, pensando na prova em 29/11: 1) previsões de prova; 2) modo prova (semana de 23/11); 3) aba Nutrição; 4) indicadores de forma; 5) Strava (descrições); 6) sono (dívida e regularidade).
+
+**Pendente de confirmação no app real**: FC de repouso e respiração vindo da API (Garmin → Testar conexão) e quantas atividades chegaram com zonas de FC.
 
 ## Métricas
 - [ ] ~~Strain no padrão hrTSS~~ — **não adotado** (03/11): o Strain fica no TRIMP de Edwards (zonas × 1…5). Reavaliar só se houver potência na bike ou limiar de FC confiável. Ver `Estudo_Carga_Treino.md`, seção 7.
@@ -10,7 +14,8 @@ Lista viva do que o Luca pediu para depois. Ordem não é prioridade.
 - [ ] Regularidade do sono: horário de deitar e acordar (API entrega).
 - [ ] Indicadores de forma: pace na FC 145 (corrida), velocidade na FC 137 (bike), ritmo de natação por 100 m.
 
-- [ ] **Zonas de FC por modalidade**: o Luca configura zonas de ciclismo no Garmin (FC na bike é menor que na corrida). Treinos novos já chegam com o tempo em zonas certo. Opcional depois: recalcular o histórico baixando a FC segundo a segundo (arquivo FIT) e aplicando as zonas de cada esporte.
+- [x] **Zonas de FC por modalidade** (03/11): o Luca criou zonas de ciclismo no Garmin (%HRR; usar FC máx. da bike, ~185–186). Treinos novos já chegam com o tempo em zonas certo.
+- [ ] Opcional: recalcular o histórico baixando a FC segundo a segundo (arquivo FIT) e aplicando as zonas de cada esporte.
 
 ## Abas e telas
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
