@@ -834,3 +834,43 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .mr-meta b { color: var(--text); font-weight: 500; }
 .mr-night p { margin: 4px 0 0; font-size: 15px; } .mr-night b { color: var(--sleep); font-weight: 500; }
 .mr-alert { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--text); }
+
+/* treino: link para o cartão de compartilhar */
+.act-card { position: relative; }
+.ac-link { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+.ac-share { display: block; margin-top: 10px; font-size: 13px; color: var(--accent); }
+
+/* cartão de compartilhar (story 9:16) */
+body.is-share .tabs { display: none; }
+body.is-share main { padding-bottom: 0; }
+.share { position: relative; box-sizing: border-box; min-height: calc(100svh - 24px); margin: 0 -4px; padding: 22px 22px 20px; border-radius: 28px;
+  display: flex; flex-direction: column; gap: 18px; overflow: hidden;
+  background: radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--c) 30%, var(--bg)) 0%, var(--bg) 62%), var(--bg);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, var(--line)); animation: mr-in .45s ease-out both; }
+.sh-close { position: absolute; top: 12px; right: 14px; z-index: 2; background: none; border: 0; padding: 4px; font-size: 26px; line-height: 1; color: var(--text-2); cursor: pointer; }
+.sh-top { display: flex; justify-content: space-between; align-items: center; padding-right: 30px; font-size: 13px; color: var(--text-2); }
+.sh-brand { font: 700 15px/1 var(--font-display); letter-spacing: .18em; color: var(--text); }
+.sh-sport { margin: 6px 0 4px; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--c); }
+.sh-sport i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c); }
+.sh-title { margin: 0; font: 600 32px/1.08 var(--font-display); letter-spacing: -.02em; }
+.sh-strain { position: relative; align-self: center; width: 210px; display: grid; justify-items: center; }
+.sh-strain svg { width: 210px; height: 210px; }
+.sh-track { fill: none; stroke: color-mix(in srgb, var(--strain) 14%, transparent); stroke-width: 9; }
+.sh-arc { fill: none; stroke: var(--strain); stroke-width: 9; stroke-linecap: round; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--strain) 55%, transparent)); }
+.sh-sv { position: absolute; top: 0; height: 210px; display: grid; place-content: center; text-align: center; }
+.sh-sv b { font: 200 64px/1 var(--font-display); letter-spacing: -.03em; }
+.sh-sv span { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--strain); }
+.sh-rel { margin: 6px 0 0; font-size: 14px; color: var(--text-2); }
+.sh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+.sh-grid span { display: block; font-size: 12px; color: var(--text-2); letter-spacing: .02em; }
+.sh-grid b { display: block; margin-top: 3px; font: 300 30px/1.05 var(--font-display); letter-spacing: -.01em; white-space: nowrap; }
+.sh-grid b small { margin-left: 4px; font: 400 13px var(--font); color: var(--text-2); letter-spacing: 0; }
+.sh-zones { margin-top: auto; }
+.sh-zbar { display: flex; gap: 3px; height: 12px; }
+.sh-zbar i { border-radius: 3px; }
+.sh-zones ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--text-2); }
+.sh-zones li i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.sh-zones b { color: var(--text); font-weight: 500; }
+.sh-foot { display: flex; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line-soft); font-size: 14px; color: var(--text-2); }
+.sh-foot i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.sh-foot b { color: var(--text); font-weight: 600; }
