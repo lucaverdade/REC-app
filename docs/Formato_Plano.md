@@ -63,10 +63,16 @@ Publicado pelo chat de treino quando quiser (o app mostra "ainda não publicado"
     "corrida": "texto curto (ex.: pace por bloco de km)",
     "nutricao": "texto curto (ex.: g/h de carbo, sódio, quando)"
   },
-  "notas": "Uma frase opcional."
+  "notas": "Uma frase opcional.",
+  "taper": [
+    { "dia": "2026-11-26", "item": "Último treino de bike com 3 × 5 min no ritmo de prova" },
+    "Texto solto também vale (sem dia)"
+  ]
 }
 ```
 - Todos os campos são opcionais.
+- `taper` (04/11): lista da reta final que aparece na aba Prova com caixinhas para marcar. O que o Luca marca fica no aparelho.
+- `pace` também aparece no **relatório da prova** (depois de 29/11), ao lado de cada etapa.
 - O **checklist não vem daqui**: o Luca escreve os próprios itens no app (Modo prova), e eles ficam salvos no servidor.
 
 

@@ -45,10 +45,12 @@ export function readiness(rec: number | null, loads: number[], debtH: number | n
   parts.push({ key: 'corpo', label: 'Corpo (REC)', z: zBody, dir: dir(zBody), detail: rec == null ? 'sem REC hoje' : `REC ${Math.round(rec)}` });
 
   // carga de 7 dias × sua média de 4 semanas, contra o seu histórico dessa razão
+  // somas acumuladas: cada razão sai em O(1) (o backtest de 12 meses roda no Worker gratuito)
+  const pre = [0]; for (const v of loads) pre.push(pre[pre.length - 1] + v);
   const ratioAt = (end: number) => {
     if (end < 27) return null;
-    const acute = loads.slice(end - 6, end + 1).reduce((a, b) => a + b, 0);
-    const chronic = loads.slice(end - 27, end + 1).reduce((a, b) => a + b, 0) / 4;
+    const acute = pre[end + 1] - pre[end - 6];
+    const chronic = (pre[end + 1] - pre[end - 27]) / 4;
     return chronic > 1 ? acute / chronic : null;
   };
   const last = loads.length - 1;

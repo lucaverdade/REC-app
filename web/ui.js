@@ -51,3 +51,12 @@ export function countUp(root) {
     el.textContent = fmt(0); requestAnimationFrame(step);
   });
 }
+
+// cor contínua da Prontidão (04/11, opção C3): brasa → rosa-claro → lavanda → azul → gelo
+const READY_STOPS = ['#e2614f', '#d98aa6', '#b3a7e6', '#86c3f2', '#74e6ff'].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+export function readyColor(v) {
+  if (v == null) return 'var(--text-3)';
+  const x = Math.max(0, Math.min(100, v)) / 25, i = Math.min(3, Math.floor(x)), k = x - i;
+  return `rgb(${READY_STOPS[i].map((c, j) => Math.round(c + (READY_STOPS[i + 1][j] - c) * k)).join(',')})`;
+}
+

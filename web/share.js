@@ -4,6 +4,7 @@
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d = 0) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
 const ZN = ['<Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+import { readyColor } from './ui.js';
 const recKey = (r) => (r == null ? null : r <= 33 ? 'red' : r <= 66 ? 'yellow' : 'green');
 const MAX = 6;
 
@@ -77,7 +78,7 @@ function cardHtml(a, prefs) {
         <ul>${used.filter((x) => x.m / zt >= 0.04).map((x) => `<li><i class="zc-${x.i}"></i>${esc(ZN[x.i])} <b>${x.m}′</b></li>`).join('')}</ul>
       </div>` : ''}
       ${prefs.foot && (a.rec != null || a.form != null) ? `<footer class="sh-foot">
-        ${a.rec != null ? `<span><i style="background:var(--rec-${recKey(a.rec)})"></i>REC da manhã <b>${a.rec}</b></span>` : '<span></span>'}
+        ${a.ready != null ? `<span><i style="background:${readyColor(a.ready)}"></i>Prontidão <b>${Math.round(a.ready)}%</b></span>` : a.rec != null ? `<span><i style="background:var(--rec-${recKey(a.rec)})"></i>REC da manhã <b>${a.rec}</b></span>` : '<span></span>'}
         ${a.form != null ? `<span>Forma <b>${a.form > 0 ? '+' : a.form < 0 ? '−' : ''}${Math.abs(a.form)}%</b></span>` : ''}
       </footer>` : ''}
     </article>`;
@@ -236,10 +237,11 @@ async function drawPng(a, prefs) {
   if (footY < H) {
     g.strokeStyle = line; g.lineWidth = 2; g.beginPath(); g.moveTo(P, footY - 50); g.lineTo(W - P, footY - 50); g.stroke();
     g.font = font(400, 38);
-    if (a.rec != null) {
-      g.fillStyle = v(`--rec-${recKey(a.rec)}`, '#aaa'); g.beginPath(); g.arc(P + 11, footY + 8 - 13, 11, 0, 2 * Math.PI); g.fill();
-      g.fillStyle = t2; g.fillText('REC da manhã ', P + 36, footY + 8); const w = g.measureText('REC da manhã ').width;
-      g.fillStyle = text; g.font = font(600, 38); g.fillText(String(a.rec), P + 36 + w, footY + 8); g.font = font(400, 38);
+    if (a.ready != null || a.rec != null) {
+      const isR = a.ready != null, lab = isR ? 'Prontidão ' : 'REC da manhã ', val = isR ? `${Math.round(a.ready)}%` : String(a.rec);
+      g.fillStyle = isR ? readyColor(a.ready) : v(`--rec-${recKey(a.rec)}`, '#aaa'); g.beginPath(); g.arc(P + 11, footY + 8 - 13, 11, 0, 2 * Math.PI); g.fill();
+      g.fillStyle = t2; g.fillText(lab, P + 36, footY + 8); const w = g.measureText(lab).width;
+      g.fillStyle = text; g.font = font(600, 38); g.fillText(val, P + 36 + w, footY + 8); g.font = font(400, 38);
     }
     if (a.form != null) {
       const val = `${a.form > 0 ? '+' : a.form < 0 ? '−' : ''}${Math.abs(a.form)}%`;

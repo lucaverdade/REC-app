@@ -209,6 +209,129 @@ async function dailyLoads(env: Env, from: string, to: string) {
   return out;
 }
 
+// Prontidão de um dia qualquer (mesma conta da aba Hoje): REC do dia + carga, véspera e sono até a véspera
+async function readyOn(env: Env, date: string, rec?: number | null) {
+  if (rec === undefined) rec = (await env.DB.prepare('SELECT rec FROM rec_daily WHERE date = ?1').bind(date).first<{ rec: number | null }>())?.rec ?? null;
+  const ls = (await dailyLoads(env, addDays(date, -400), addDays(date, -1))).map((x) => x.load);
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(date, -140), date).all<SleepNight>();
+  const need = (await sleepBase(env, brtToday())).hours;
+  const dh: number[] = [];
+  for (let x = addDays(date, -120); x < date; x = addDays(x, 1)) { const v = sleepDebt(nights, need, x); if (v != null) dh.push(v); }
+  return readiness(rec, ls, sleepDebt(nights, need, date), dh);
+}
+
+// --- calibração contínua (04/11): backtest de 12 meses de REC e Prontidão + concordância com "como me sinto" ---
+// Roda sob pedido (/api/backtest) e sozinho uma vez por mês (cron); o resultado de cada mês fica em settings.calib_log.
+type CalibSnap = { month: string; at: string; days: number; rec: { mean: number; sd: number; zones: number[] }; ready: { mean: number; sd: number; zones: number[]; caps: number };
+  corr: number | null; feel: { n: number; rhoRec: number | null; rhoReady: number | null } };
+async function backtest(env: Env): Promise<CalibSnap> {
+  const today = brtToday(), from = addDays(today, -365);
+  const loads = await dailyLoads(env, addDays(from, -400), today);
+  const li = new Map(loads.map((x, i) => [x.date, i]));
+  const { results: recs } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2 AND rec IS NOT NULL ORDER BY date').bind(from, today).all<{ date: string; rec: number }>();
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(from, -140), today).all<SleepNight>();
+  const need = (await sleepBase(env, today)).hours;
+  const debt = new Map<string, number | null>();
+  for (let x = addDays(from, -120); x <= today; x = addDays(x, 1)) debt.set(x, sleepDebt(nights, need, x));
+  const { results: feels } = await env.DB.prepare('SELECT date, value FROM feel_notes WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string; value: number }>();
+  const feelBy = new Map(feels.map((f) => [f.date, f.value]));
+  const R: number[] = [], P: number[] = [], fr: [number, number, number][] = []; let caps = 0;
+  for (const { date, rec } of recs) {
+    const i = li.get(date); if (i == null) continue;
+    const dh: number[] = []; for (let x = addDays(date, -120); x < date; x = addDays(x, 1)) { const v = debt.get(x); if (v != null) dh.push(v); }
+    const r = readiness(rec, loads.slice(0, i).map((x) => x.load), debt.get(date) ?? null, dh);
+    if (r.score == null) continue;
+    R.push(rec); P.push(r.score); if (r.cap) caps++;
+    const f = feelBy.get(date); if (f != null) fr.push([rec, r.score, f]);
+  }
+  const mean = (x: number[]) => (x.length ? x.reduce((a, b) => a + b, 0) / x.length : 0);
+  const sd = (x: number[]) => { const m = mean(x); return Math.sqrt(mean(x.map((v) => (v - m) ** 2))); };
+  const zones = (x: number[]) => [x.filter((v) => v <= 33).length, x.filter((v) => v > 33 && v <= 66).length, x.filter((v) => v > 66).length];
+  const r1x = (v: number) => Math.round(v * 10) / 10, r2 = (v: number | null) => (v == null ? null : Math.round(v * 100) / 100);
+  const pear = (a: number[], b: number[]) => { if (a.length < 3) return null; const ma = mean(a), mb = mean(b); let n = 0, da = 0, db = 0; for (let k = 0; k < a.length; k++) { n += (a[k] - ma) * (b[k] - mb); da += (a[k] - ma) ** 2; db += (b[k] - mb) ** 2; } return da && db ? n / Math.sqrt(da * db) : null; };
+  return {
+    month: today.slice(0, 7), at: today, days: R.length,
+    rec: { mean: r1x(mean(R)), sd: r1x(sd(R)), zones: zones(R) },
+    ready: { mean: r1x(mean(P)), sd: r1x(sd(P)), zones: zones(P), caps },
+    corr: r2(pear(R, P)),
+    feel: { n: fr.length, rhoRec: r2(spearman(fr.map((x) => x[0]), fr.map((x) => x[2]))), rhoReady: r2(spearman(fr.map((x) => x[1]), fr.map((x) => x[2]))) },
+  };
+}
+async function monthlyCalib(env: Env, force = false) {
+  const log = (await getSetting<CalibSnap[]>(env, 'calib_log')) ?? [];
+  const month = brtToday().slice(0, 7);
+  if (!force && log.some((x) => x.month === month)) return log;
+  const snap = await backtest(env);
+  const next = [...log.filter((x) => x.month !== month), snap].slice(-24);
+  await setSetting(env, 'calib_log', next);
+  return next;
+}
+
+// --- semana da prova (04/11): reta final — noites, sono, taper e Prontidão; aparece a partir de 28 dias ---
+async function finalStretch(env: Env, today: string, projection: { raceDay?: { formPct: number | null } | null; end?: { formPct: number | null } | null } | null) {
+  const days = daysBetween(today, RACE.date);
+  if (days > 28 || days < 0) return null;
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(today, -140), today).all<SleepNight>();
+  const need = (await sleepBase(env, today)).hours;
+  const last7 = nights.filter((n) => n.date > addDays(today, -7) && n.sleep_h != null).map((n) => n.sleep_h as number);
+  const loads = await dailyLoads(env, addDays(today, -41), today);
+  const sum = (a: { load: number }[]) => a.reduce((x, y) => x + y.load, 0);
+  const wk = sum(loads.slice(-7)), prior = [1, 2, 3, 4].map((k) => sum(loads.slice(-7 * (k + 1), -7 * k)));
+  const peak = Math.max(...prior, 1), avg4 = prior.reduce((a, b) => a + b, 0) / 4;
+  const ready: { date: string; v: number | null }[] = [];
+  for (let k = 6; k >= 0; k--) { const d = addDays(today, -k); ready.push({ date: d, v: (await readyOn(env, d)).score }); }
+  const fp = projection?.raceDay?.formPct ?? null; // só quando o plano publicado chega até a prova
+  return {
+    nights: days, // noites até a prova, contando a de hoje
+    sleep7: last7.length ? Math.round((last7.reduce((a, b) => a + b, 0) / last7.length) * 100) / 100 : null, sleepBase: need,
+    debt: (() => { const v = sleepDebt(nights, need, today); return v == null ? null : Math.round(v * 100) / 100; })(),
+    strain7: Math.round(wk), strainAvg4: Math.round(avg4), strainPeak: Math.round(peak),
+    vsAvg: avg4 > 1 ? Math.round((wk / avg4 - 1) * 100) : null, vsPeak: Math.round((wk / peak - 1) * 100),
+    ready: ready.map((x) => ({ date: x.date, v: x.v == null ? null : Math.round(x.v) })),
+    formRace: fp == null ? null : Math.round(fp), formIdeal: [5, 20],
+  };
+}
+
+// --- relatório da prova (04/11): etapas e transições do dia × plano; dias até REC e HRV voltarem à base ---
+async function raceReport(env: Env, req: Request, date: string) {
+  const { results: acts } = await env.DB.prepare(`SELECT id, time, type, sport, name, min, km, avghr, maxhr, ${STRAIN_SQL} strain FROM activities WHERE date = ?1 ORDER BY time`).bind(date)
+    .all<{ id: string; time: string | null; type: string; sport: Sport; name: string | null; min: number; km: number | null; avghr: number | null; maxhr: number | null; strain: number | null }>();
+  const toMin = (t: string | null) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : null);
+  const multi = acts.find((a) => a.type === 'multi_sport') ?? null;
+  const legs = acts.filter((a) => a !== multi && ['natacao', 'bike', 'corrida'].includes(a.sport));
+  const pace = (a: (typeof legs)[number]) => {
+    if (!a.km || !a.min) return null;
+    if (a.sport === 'natacao') { const s = (a.min * 60) / (a.km * 10); return `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')} /100 m`; }
+    if (a.sport === 'bike') return `${(a.km / (a.min / 60)).toFixed(1).replace('.', ',')} km/h`;
+    const s = (a.min * 60) / a.km; return `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')} /km`;
+  };
+  const items: { kind: 'leg' | 'trans'; label: string; min: number; km?: number | null; pace?: string | null; avghr?: number | null; strain?: number | null; id?: string; sport?: Sport }[] = [];
+  legs.forEach((a, i) => {
+    if (i > 0) {
+      const p = legs[i - 1], end = (toMin(p.time) ?? 0) + p.min, st = toMin(a.time);
+      if (st != null && st - end >= 0 && st - end <= 30) items.push({ kind: 'trans', label: `T${i}`, min: Math.round((st - end) * 10) / 10 });
+    }
+    items.push({ kind: 'leg', label: SPORT_LABEL[a.sport], sport: a.sport, id: a.id, min: Math.round(a.min * 10) / 10, km: a.km, pace: pace(a), avghr: a.avghr, strain: a.strain == null ? null : Math.round(a.strain) });
+  });
+  const total = multi ? multi.min : (() => { const f = legs[0], l = legs[legs.length - 1]; return f && l && toMin(f.time) != null && toMin(l.time) != null ? (toMin(l.time) as number) + l.min - (toMin(f.time) as number) : items.reduce((a, x) => a + x.min, 0); })();
+  let plan: any = null;
+  try { const r = await env.ASSETS.fetch(new Request(new URL('/plan/prova.json', req.url))); if (r.ok) plan = await r.json(); } catch {}
+  // volta à base: REC ≥ média dos 30 dias antes da prova; HRV ≥ base do próprio dia
+  const { results: rd } = await env.DB.prepare('SELECT date, rec, v_hrv, b_hrv FROM rec_daily WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(date, -30), addDays(date, 21)).all<{ date: string; rec: number | null; v_hrv: number | null; b_hrv: number | null }>();
+  const pre = rd.filter((x) => x.date < date && x.rec != null).map((x) => x.rec as number);
+  const recBase = pre.length ? pre.reduce((a, b) => a + b, 0) / pre.length : null;
+  const after = rd.filter((x) => x.date > date);
+  const firstOk = (f: (x: (typeof rd)[number]) => boolean) => { const x = after.find(f); return x ? daysBetween(date, x.date) : null; };
+  return {
+    date, total: Math.round(total * 10) / 10, official: !!multi, items, targets: plan?.pace ?? null,
+    recovery: {
+      recBase: recBase == null ? null : Math.round(recBase), daysRec: recBase == null ? null : firstOk((x) => x.rec != null && x.rec >= recBase),
+      daysHrv: firstOk((x) => x.v_hrv != null && x.b_hrv != null && x.v_hrv >= x.b_hrv), daysSince: Math.max(0, daysBetween(date, brtToday())),
+      series: after.slice(0, 14).map((x) => ({ date: x.date, rec: x.rec == null ? null : Math.round(x.rec) })),
+    },
+  };
+}
+
 /** Fitness/Fadiga/Forma e Strain de um dia (aba Hoje). */
 async function loadOn(env: Env, date: string) {
   const loads = await dailyLoads(env, addDays(date, -400), date);
@@ -595,8 +718,10 @@ async function racePayload(env: Env, req: Request) {
   const heat = await heatPayload(env, req);
   return {
     projection, heat,
+    final: await finalStretch(env, today, projection as any),
+    taper: Array.isArray(plan?.taper) ? plan.taper : null,
     race: { ...RACE, days: daysBetween(today, RACE.date), raceWeek: daysBetween(today, RACE.date) <= 6 && daysBetween(today, RACE.date) >= -1 },
-    today: { rec: rec?.rec == null ? null : Math.round(rec.rec), formPct: ln.formPct, zone: ln.zone },
+    today: { rec: rec?.rec == null ? null : Math.round(rec.rec), ready: rec?.rec == null ? null : Math.round((await readyOn(env, today, rec.rec)).score ?? 0) || null, formPct: ln.formPct, zone: ln.zone },
     halfPrediction: pred,
     items,
     carbo: Array.isArray(plan?.carbo) ? plan.carbo : null,
@@ -712,6 +837,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const empty: RecRow = { date, rec: null, z: {} as RecRow['z'], value: {} as RecRow['value'], base: {} as RecRow['base'] };
   for (const k of K) { empty.z[k] = null; empty.value[k] = null; empty.base[k] = null; }
   const t = today ?? empty;
+  const ready = await readyOn(env, date, t.rec);
 
   const minsSinceSync = lastSync?.at ? Math.round((Date.now() - Date.parse(String(lastSync.at).replace(' ', 'T') + 'Z')) / 60000) : null;
   const syncIssue = await syncIssueOf(env, date, lastSync, minsSinceSync);
@@ -744,20 +870,16 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     feel: feel?.value ?? null,
     habits: { defs: HABITS, on: tagRows.map((t) => t.tag) },
     load: ln,
-    ready: await (async () => {
-      // Prontidão: REC + carga de 7 dias + treino de ontem + sono acumulado, contra o seu normal; dados até ontem
-      const ls = (await dailyLoads(env, addDays(date, -400), addDays(date, -1))).map((x) => x.load);
-      const dh: number[] = [];
-      for (let x = addDays(date, -120); x < date; x = addDays(x, 1)) { const v = sleepDebt(nights, need, x); if (v != null) dh.push(v); }
-      return readiness(t.rec, ls, debt, dh);
-    })(),
+    ready,
+    // manhã sem a noite: Prontidão de ontem, apagada na tela
+    readyPrev: ready.score == null && date === brtToday() ? (await readyOn(env, addDays(date, -1))).score : null,
     day: (() => {
       const recR = t.rec == null ? null : Math.round(t.rec);
       return {
         summary: dailySummary(recR, ln.zone?.key ?? null),
         trend: recTrend([...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec == null ? null : Math.round(r.rec) }))),
         target: strainTargetV2({
-          ...ln.tgt, recToday: recR, verdictLevel: verdict7?.level ?? null, zoneKey: ln.zone?.key ?? null,
+          ...ln.tgt, recToday: ready.score == null ? recR : Math.round(ready.score), verdictLevel: verdict7?.level ?? null, zoneKey: ln.zone?.key ?? null,
           plannedToday: planned.length ? planned.reduce((a, x) => a + (x.strain ?? 0), 0) : null,
         }),
       };
@@ -872,6 +994,7 @@ async function activityPayload(env: Env, id: string, req?: Request) {
     strainVsDay: ln.fitness ? Math.round((a.strain ?? 0) / ln.fitness * 100) / 100 : null,
     zones: has ? [Math.max(0, (a.min ?? 0) - inZ), ...z.map((v) => v ?? 0)].map((m) => Math.round(m)) : null,
     rec: rec?.rec == null ? null : Math.round(rec.rec),
+    ready: rec?.rec == null ? null : (await readyOn(env, a.date, rec.rec)).score,
     recNext: recNext?.rec == null ? null : Math.round(recNext.rec),
     form: ln.formPct, formZone: ln.zone && { key: ln.zone.key, label: ln.zone.label },
     garminLoad: a.load == null ? null : Math.round(a.load), teLabel: a.te_label ?? null,
@@ -1200,7 +1323,7 @@ async function syncIssueOf(env: Env, date: string, lastSync: Record<string, unkn
 // Qualquer escrita (sincronização com dado novo, nota, diário, recálculo…) sobe a versão e invalida tudo.
 // Campos que dependem do relógio (última busca, aviso de sincronização) são refeitos a cada abertura.
 const CACHEABLE = new Set(['/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
-  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day']);
+  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day', '/api/widget', '/api/race-report']);
 const CACHE_TTL = 30 * 60e3; // também expira em 30 min (plano novo publicado, virada de hora)
 async function dataVer(env: Env) {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'data_ver'").first<{ value: string }>();
@@ -1255,7 +1378,7 @@ export default {
     return res;
   },
   async scheduled(_c: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil((async () => { await ensureSchema(env); const r = await morningRoutine(env, 'cron'); if (r.changed) { await bumpData(env); await warm(env); } })());
+    ctx.waitUntil((async () => { await ensureSchema(env); const r = await morningRoutine(env, 'cron'); if (r.changed) { await bumpData(env); await warm(env); } await monthlyCalib(env).catch(() => {}); })());
   },
 } satisfies ExportedHandler<Env>;
 
@@ -1328,6 +1451,28 @@ async function handle(req: Request, env: Env): Promise<Response> {
         tagsPrev: tags.filter((t) => t.date === prev).map((t) => lbl.get(t.tag) ?? t.tag),
         feel: feel?.value ?? null,
       });
+    }
+    if (url.pathname === '/api/widget' && req.method === 'GET') {
+      // widget do iPhone (Scriptable): só o essencial do Hoje
+      const d = await todayPayload(env, brtToday(), req);
+      const r = d.ready?.score == null ? null : Math.round(d.ready.score);
+      return json({
+        date: d.date, ready: r, readyPrev: d.readyPrev == null ? null : Math.round(d.readyPrev), rec: d.rec,
+        form: d.load?.formPct ?? null, formLabel: d.load?.zone?.label ?? null,
+        strain: d.load?.strain ?? 0, target: d.day?.target?.target ?? null,
+        planned: (d.planned ?? []).map((p) => ({ sport: p.sport, label: p.titulo || p.label, min: p.minutos })),
+        bedtime: d.sleep?.bedtime?.bedtime ?? null, race: d.race?.days ?? null,
+      });
+    }
+    if (url.pathname === '/api/backtest') {
+      // GET: histórico mensal; POST: refaz o mês agora
+      const log = await monthlyCalib(env, req.method === 'POST');
+      return json({ log });
+    }
+    if (url.pathname === '/api/race-report' && req.method === 'GET') {
+      const date = url.searchParams.get('date') ?? RACE.date;
+      if (!isDate(date)) return json({ error: 'data_invalida' }, 400);
+      return json(await raceReport(env, req, date));
     }
     if (url.pathname === '/api/calibration' && req.method === 'GET') {
       const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress

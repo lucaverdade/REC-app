@@ -1,5 +1,5 @@
 import { predictions } from './trends.js';
-import { ICON, cardHead, countUp } from './ui.js';
+import { ICON, cardHead, countUp, readyColor } from './ui.js';
 // Modo prova: Ironman 70.3 Aracaju. Ativa sozinho na semana da prova; antes disso abre como prévia.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const tfmt = (m) => {
@@ -31,11 +31,14 @@ export async function renderRace(screen, api) {
         <div><i class="dot s-corrida"></i><b>21,1 km</b><small>Corrida</small></div>
       </div>
       <div class="rh-now">
-        <span><i style="background:${recVar(d.today.rec)}"></i>REC hoje <b>${d.today.rec ?? '–'}</b></span>
+        ${d.today.ready != null ? `<span><i style="background:${readyColor(d.today.ready)}"></i>Prontidão <b>${d.today.ready}%</b></span>` : `<span><i style="background:${recVar(d.today.rec)}"></i>REC hoje <b>${d.today.rec ?? '–'}</b></span>`}
         <span>Forma <b class="z-${d.today.zone?.key ?? 'neutro'}">${d.today.formPct == null ? '–' : (d.today.formPct > 0 ? '+' : d.today.formPct < 0 ? '−' : '') + Math.abs(d.today.formPct) + '%'}</b></span>
       </div>
     </section>
 
+    ${n < 0 ? `<a class="card rr-link" href="#relatorio/${r.date}">${cardHead('flag', 'Relatório da prova', { right: '›' })}<p class="note">Etapas, transições, o plano e quantos dias o corpo levou para voltar à base.</p></a>` : ''}
+    ${finalHtml(d.final)}
+    ${taperHtml(d.taper)}
     ${projHtml(d.projection, r.date)}
 
     <section class="card">${cardHead('stopwatch', 'Previsões de corrida', { color: 'var(--pred)' })}<div id="pred"></div></section>
@@ -57,11 +60,74 @@ export async function renderRace(screen, api) {
       ${d.halfPrediction ? `<p class="card-foot">Meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b>. No 70.3 a corrida vem depois de 90 km de bike.</p>` : ''}
     </section>`;
 
+  bindTaper(screen);
   renderChecklist(screen.querySelector('#chk'), d.items, api);
   renderWeather(screen.querySelector('#wx'), api);
   predictions(screen, api);
   bindCarbo(screen, d.carbo);
   countUp(screen);
+}
+
+// reta final (a partir de 28 dias): noites, sono, taper, Prontidão da semana e Forma prevista × faixa de prova
+const hmR = (h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
+function finalHtml(f) {
+  if (!f) return '';
+  const sg = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}%`;
+  const inIdeal = f.formRace != null && f.formRace >= f.formIdeal[0] && f.formRace <= f.formIdeal[1];
+  const max = 100, bars = f.ready.map((x) => `<span class="fs-b" title="${x.v ?? '–'}"><i style="height:${x.v == null ? 4 : Math.max(6, (x.v / max) * 100)}%;background:${x.v == null ? 'var(--line)' : readyColor(x.v)}"></i><em>${new Date(x.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'narrow' })}</em></span>`).join('');
+  return `<section class="card fs">${cardHead('moon', 'Reta final', { right: `${f.nights} ${f.nights === 1 ? 'noite' : 'noites'}`, info: 'Noites até a prova, contando a de hoje. Sono: média das últimas 7 noites contra a sua base. Carga: Strain dos últimos 7 dias contra a média das 4 semanas anteriores e contra a semana mais pesada delas. Forma no dia da prova: projeção pelo plano publicado, contra a faixa de prova (+5% a +20%, "descansado").' })}
+    <div class="fs-grid fs-2">
+      <div><small>Sono, 7 noites</small><b>${f.sleep7 != null ? hmR(f.sleep7) : '–'}</b><em>base ${hmR(f.sleepBase)}${f.debt >= 1 / 6 ? ` · dívida ${hmR(f.debt)}` : ''}</em></div>
+      <div><small>Strain, 7 dias</small><b>${f.strain7}</b><em>${f.vsAvg != null ? `${sg(f.vsAvg)} vs. 4 semanas<br>${sg(f.vsPeak)} vs. a semana mais pesada` : ''}</em></div>
+    </div>
+    ${f.formRace != null ? `<p class="fs-form">Forma prevista no dia da prova <b class="${inIdeal ? 'fs-ok' : ''}">${sg(f.formRace)}</b> · ${inIdeal ? 'dentro da faixa de prova' : f.formRace < f.formIdeal[0] ? 'abaixo da faixa de prova (+5 a +20%)' : 'acima da faixa de prova (+5 a +20%)'}</p>` : ''}
+    <div class="fs-ready"><small>Prontidão, últimos 7 dias</small><div class="fs-bars">${bars}</div></div>
+  </section>`;
+}
+// taper do plano (prova.json → "taper": ["texto", ...] ou [{ "dia": "2026-11-27", "item": "..." }]); marcar fica neste aparelho
+function taperHtml(list) {
+  if (!list?.length) return '';
+  let done = {}; try { done = JSON.parse(localStorage.getItem('rec.taper') || '{}'); } catch {}
+  const items = list.map((x, i) => (typeof x === 'string' ? { id: String(i), dia: null, item: x } : { id: String(i), dia: x.dia ?? null, item: x.item ?? '' }));
+  const n = items.filter((x) => done[x.id + x.item]).length;
+  return `<section class="card" id="taper">${cardHead('check', 'Taper do plano', { right: `${n} de ${items.length}`, info: 'Publicado pelo chat de treino em prova.json ("taper"). O que você marca fica guardado neste aparelho.' })}
+    <ul class="checklist">${items.map((x) => `<li><label><input type="checkbox" data-k="${esc(x.id + x.item)}" ${done[x.id + x.item] ? 'checked' : ''}><span>${x.dia ? `<b>${esc(new Date(x.dia + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }).replace('.', ''))}</b> · ` : ''}${esc(x.item)}</span></label></li>`).join('')}</ul></section>`;
+}
+function bindTaper(screen) {
+  const box = screen.querySelector('#taper'); if (!box) return;
+  box.querySelectorAll('input').forEach((cb) => cb.addEventListener('change', () => {
+    let done = {}; try { done = JSON.parse(localStorage.getItem('rec.taper') || '{}'); } catch {}
+    if (cb.checked) done[cb.dataset.k] = 1; else delete done[cb.dataset.k];
+    try { localStorage.setItem('rec.taper', JSON.stringify(done)); } catch {}
+    const n = box.querySelectorAll('input:checked').length, r = box.querySelector('.ch-r'); if (r) r.textContent = `${n} de ${box.querySelectorAll('input').length}`;
+  }));
+}
+
+// relatório da prova (ou de qualquer treino combinado): etapas, transições, plano e volta à base
+const fmtMin = (m) => { const s = Math.round(m * 60); const h = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60; return h ? `${h}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}` : `${mm}:${String(ss).padStart(2, '0')}`; };
+export async function renderReport(screen, api, date) {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  screen.innerHTML = '<header class="top"><h1>Relatório</h1><a class="foot-link" href="#prova">Voltar</a></header><p class="empty">Carregando…</p>';
+  let d; try { d = await api(`/api/race-report?date=${date}`); } catch (e) { screen.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
+  const dt = new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const legs = d.items.filter((x) => x.kind === 'leg');
+  const T = { natacao: 'natacao', bike: 'bike', corrida: 'corrida' };
+  const rc = d.recovery;
+  screen.innerHTML = `
+    <header class="top"><h1>Relatório</h1><a class="foot-link" href="#prova">Voltar</a></header>
+    <section class="race-hero rr-hero"><p class="rh-name">${d.date === '2026-11-29' ? 'Ironman 70.3 Aracaju' : 'Treino combinado'}</p><p class="rh-date">${esc(dt.charAt(0).toUpperCase() + dt.slice(1))}</p>
+      <div class="rh-count"><b>${legs.length ? fmtMin(d.total) : '–'}</b><span>${d.official ? 'tempo total (Garmin)' : 'do início ao fim'}</span></div></section>
+    ${legs.length ? `<section class="card">${cardHead('route', 'Etapas e transições')}
+      <ul class="rr-list">${d.items.map((x) => x.kind === 'trans'
+        ? `<li class="rr-t"><span>${x.label}</span><b>${fmtMin(x.min)}</b></li>`
+        : `<li><a href="#atv/${encodeURIComponent(x.id)}"><i class="dot s-${x.sport}"></i><span><b>${esc(x.label)}</b><small>${x.km ? `${String(x.km).replace('.', ',')} km` : ''}${x.pace ? ` · ${esc(x.pace)}` : ''}${x.avghr ? ` · FC ${x.avghr}` : ''}${x.strain != null ? ` · Strain ${x.strain}` : ''}</small>${d.targets?.[T[x.sport]] ? `<em>Plano: ${esc(d.targets[T[x.sport]])}</em>` : ''}</span><b>${fmtMin(x.min)}</b></a></li>`).join('')}</ul></section>`
+      : '<p class="empty">Nenhuma natação, bike ou corrida registrada neste dia.</p>'}
+    <section class="card">${cardHead('heart', 'Volta à base')}
+      ${rc.daysSince === 0 ? '<p class="empty">Aparece a partir de amanhã.</p>' : `<div class="fs-grid fs-2">
+        <div><small>REC (base ${rc.recBase ?? '–'}: média dos 30 dias antes)</small><b>${rc.daysRec != null ? `${rc.daysRec} ${rc.daysRec === 1 ? 'dia' : 'dias'}` : 'ainda não'}</b></div>
+        <div><small>HRV de volta à base</small><b>${rc.daysHrv != null ? `${rc.daysHrv} ${rc.daysHrv === 1 ? 'dia' : 'dias'}` : 'ainda não'}</b></div></div>
+        <div class="fs-bars rr-bars">${rc.series.map((x) => `<span class="fs-b"><i style="height:${x.rec == null ? 4 : Math.max(6, x.rec)}%;background:${x.rec == null ? 'var(--line)' : recVar(x.rec)}"></i><em>${Number(x.date.slice(8))}</em></span>`).join('')}</div>`}
+    </section>`;
 }
 
 // Carbo: colunas por dia (altura = gramas); toque mostra a nota do dia

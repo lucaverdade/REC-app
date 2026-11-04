@@ -1,10 +1,10 @@
 // REC — app. Sem framework.
 import { renderTrends, zoneOfPct, FORM_ZONES } from './trends.js';
 import { renderTrain } from './train.js';
-import { renderRace } from './race.js';
+import { renderRace, renderReport } from './race.js';
 import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
-import { ICON, cardHead, countUp } from './ui.js';
+import { ICON, cardHead, countUp, readyColor } from './ui.js';
 import { renderActivity } from './activity.js';
 import { recalcHistory, testOne } from './zones.js';
 const TOKEN_KEY = 'rec.token';
@@ -91,14 +91,6 @@ function contribHtml(list) {
         <span class="base">${esc(baseTxt)}</span>
       </li>`;
   }).join('');
-}
-
-// cor contínua da Prontidão (04/11, opção C3): brasa → rosa-claro → lavanda → azul → gelo
-const READY_STOPS = ['#e2614f', '#d98aa6', '#b3a7e6', '#86c3f2', '#74e6ff'].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
-function readyColor(v) {
-  if (v == null) return 'var(--text-3)';
-  const x = Math.max(0, Math.min(100, v)) / 25, i = Math.min(3, Math.floor(x)), k = x - i;
-  return `rgb(${READY_STOPS[i].map((c, j) => Math.round(c + (READY_STOPS[i + 1][j] - c) * k)).join(',')})`;
 }
 
 function readyPartsHtml(r) {
@@ -361,16 +353,17 @@ function sleepCard(d) {
 // ---------- relatório da manhã (A1): primeira abertura do dia, até 12 h ----------
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 function morningHtml(d) {
-  if (!d.isToday || new Date().getHours() >= 12 || ls.get('rec.morning') === d.date || d.rec == null) return '';
+  const rd = d.ready?.score == null ? null : Math.round(d.ready.score);
+  if (!d.isToday || new Date().getHours() >= 12 || ls.get('rec.morning') === d.date || rd == null) return '';
   const sg = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
-  const z = zoneOf(d.rec), zc = zoneVar(z);
+  const zc = readyColor(rd);
   const n = d.sleep?.night, base = d.sleep?.personalNeed, need = d.sleep?.need;
   const pl = d.planned ?? [];
   const prev = pl.reduce((a, p) => a + (p.strain ?? 0), 0);
   const HC = { acima: 'var(--good)', estavel: 'var(--text)', fadiga: 'var(--warn)', risco: 'var(--bad)' };
   const date = new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-  // anel pequeno do REC
-  const R = 30, C = 2 * Math.PI * R, fill = Math.max(0.02, Math.min(1, d.rec / 100));
+  // anel pequeno da Prontidão
+  const R = 30, C = 2 * Math.PI * R, fill = Math.max(0.02, Math.min(1, rd / 100));
   const ring = `<svg viewBox="0 0 76 76" class="mr-ring" aria-hidden="true">
     <circle cx="38" cy="38" r="${R}" class="mr-ring-bg"/>
     <circle cx="38" cy="38" r="${R}" class="mr-ring-fg" style="stroke:${zc}" stroke-dasharray="${(C * fill).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 38 38)"/>
@@ -387,9 +380,9 @@ function morningHtml(d) {
       <button type="button" class="mr-close" aria-label="Fechar o relatório até amanhã">×</button>
     </div>
     <div class="mr-hero">
-      <div class="mr-rec">${ring}<b>${d.rec}</b></div>
+      <div class="mr-rec">${ring}<b>${rd}<small>%</small></b></div>
       <div class="mr-hero-txt">
-        <span class="mr-lab">REC${d.day?.trend ? ` · ${esc(d.day.trend.txt.replace('REC ', ''))}` : ''}</span>
+        <span class="mr-lab">Prontidão · REC ${d.rec ?? '–'}${d.day?.trend ? ` (${esc(d.day.trend.txt.replace('REC ', ''))})` : ''}</span>
         ${d.day?.summary ? `<p class="mr-phrase">${esc(d.day.summary)}</p>` : ''}
       </div>
     </div>
@@ -526,9 +519,12 @@ function render(d) {
     ${(() => {
       const r = d.ready, sc = r?.score == null ? null : Math.round(r.score);
       const fp = d.load?.formPct;
-      return `<section class="hero" aria-label="Estou pronto hoje?">
-      ${ringTile({ id: 'ready', value: sc ?? '–', unit: sc == null ? '' : '%', frac: (sc ?? 0) / 100, color: readyColor(sc), valColor: sc == null ? '' : readyColor(sc), label: 'Prontidão',
-        sub: sc == null && d.isToday ? 'a noite ainda não chegou' : '', aria: 'Prontidão. Toque para ver o que entrou na conta.' })}
+      // manhã sem a noite: mostra a de ontem apagada, pulsando de leve, até a Garmin entregar
+      const wait = sc == null && d.isToday && d.readyPrev != null ? Math.round(d.readyPrev) : null;
+      const shownV = sc ?? wait;
+      return `<section class="hero${wait != null ? ' is-wait' : ''}" aria-label="Estou pronto hoje?">
+      ${ringTile({ id: 'ready', value: shownV ?? '–', unit: shownV == null ? '' : '%', frac: (shownV ?? 0) / 100, color: readyColor(shownV), valColor: shownV == null ? '' : readyColor(shownV), label: 'Prontidão',
+        sub: wait != null ? 'de ontem · esperando a noite de hoje' : sc == null && d.isToday ? 'a noite ainda não chegou' : '', aria: wait != null ? `Prontidão de ontem, ${wait}%. A noite de hoje ainda não chegou.` : 'Prontidão. Toque para ver o que entrou na conta.' })}
       <div class="hero-mini">
         <button type="button" class="mini" data-ring="rec" aria-expanded="false" aria-controls="contrib" aria-label="REC. Toque para ver o que compõe o número.">
           <span class="mini-l">REC</span><b style="color:${d.rec == null ? 'var(--text-3)' : zoneVar(zoneOf(d.rec))}">${d.rec ?? '–'}</b>
@@ -968,7 +964,7 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h === '#garmin' || h === '#tema' || h === '#ajustes' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -985,6 +981,7 @@ function route() {
   else if (h === '#tendencias') renderTrends(page(), api);
   else if (h === '#treino') renderTrain(page(), api);
   else if (h === '#prova') renderRace(page(), api);
+  else if (h.startsWith('#relatorio/')) renderReport(page(), api, h.slice(11));
   else load();
 }
 window.addEventListener('hashchange', route);

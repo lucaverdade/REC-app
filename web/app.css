@@ -1182,3 +1182,44 @@ body.is-share main { padding-bottom: 0; }
 /* abas: toque responde na hora (04/11) */
 .tab { touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color .12s; }
 .tab:active { opacity: .6; }
+.mr-rec b { display: flex; align-items: center; justify-content: center; }
+.mr-rec b small { font-size: 13px; color: var(--text-2); margin-left: 1px; }
+/* manhã sem a noite: Prontidão de ontem apagada, pulsando de leve (04/11) */
+.hero.is-wait .rt-ring { animation: wait-pulse 2.4s ease-in-out infinite; }
+.hero.is-wait .rt-arc, .hero.is-wait .rt-val { opacity: .38; }
+@keyframes wait-pulse { 50% { opacity: .55; transform: scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .hero.is-wait .rt-ring { animation: none; } }
+.hero .rt-sub { margin-top: 2px; }
+
+/* Prova: reta final, taper e relatório (04/11) */
+.fs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.fs-grid.fs-2 { grid-template-columns: 1fr 1fr; }
+.fs-grid > div { display: grid; gap: 2px; align-content: start; }
+.fs-grid small { font-size: 12px; color: var(--text-2); line-height: 1.3; }
+.fs-grid b { font: 300 26px/1.1 var(--font-display); }
+.fs-grid em { font-style: normal; font-size: 12px; color: var(--text-2); line-height: 1.35; }
+.fs-grid .fs-ok { color: var(--good); }
+.fs-ready { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.fs-ready small { font-size: 12px; color: var(--text-2); }
+.fs-bars { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; height: 64px; margin-top: 8px; }
+.fs-b { display: grid; grid-template-rows: 1fr auto; justify-items: center; gap: 4px; }
+.fs-b i { align-self: end; width: 100%; max-width: 22px; border-radius: 5px; }
+.fs-b em { font-style: normal; font-size: 11px; color: var(--text-3); }
+.rr-bars { height: 80px; margin-top: 14px; }
+.rr-link { display: block; color: var(--text); text-decoration: none; }
+.rr-list { list-style: none; margin: 0; padding: 0; }
+.rr-list li { border-top: 1px solid var(--line-soft); }
+.rr-list li:first-child { border-top: 0; }
+.rr-list a { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 10px; padding: 12px 0; color: var(--text); text-decoration: none; }
+.rr-list a > span { display: grid; gap: 2px; }
+.rr-list small { font-size: 12px; color: var(--text-2); }
+.rr-list em { font-style: normal; font-size: 12px; color: var(--text-3); }
+.rr-list a > b, .rr-t b { font: 400 17px var(--font-display); }
+.rr-t { display: flex; justify-content: space-between; padding: 8px 0 8px 20px; color: var(--text-2); font-size: 13px; }
+.rr-t b { font-size: 14px; color: var(--text-2); }
+.yd-rr { display: block; margin-top: 10px; font-size: 13px; color: var(--accent); text-decoration: none; }
+.fs-form { margin: 12px 0 0; font-size: 14px; color: var(--text-2); }
+.fs-form b { color: var(--text); font-weight: 600; }
+.fs-form b.fs-ok { color: var(--good); }
+.rr-hero .rh-count { flex-direction: column; align-items: center; gap: 2px; }
+.rr-hero .rh-count b { font-size: 64px; }

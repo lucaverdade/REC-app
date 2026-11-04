@@ -165,10 +165,25 @@ async function fageSec(box, api) {
 }
 
 // Calibração: REC × nota "como me sinto"
+// conferência mensal automática (backtest de 12 meses): uma linha por mês e aviso se algo piorou
+function calibLogHtml(log) {
+  if (!log.length) return '';
+  const last = log[log.length - 1], prev = log[log.length - 2];
+  const warn = [];
+  if (last.feel.n >= 15 && last.feel.rhoReady != null && last.feel.rhoRec != null && last.feel.rhoReady < last.feel.rhoRec - 0.1) warn.push('a Prontidão está acompanhando como você se sente pior que o REC sozinho: hora de recalibrar os pesos');
+  if (prev && last.feel.rhoReady != null && prev.feel.rhoReady != null && last.feel.rhoReady < prev.feel.rhoReady - 0.15) warn.push('a concordância da Prontidão caiu desde o mês passado');
+  if (Math.abs(last.ready.sd - last.rec.sd) > 6) warn.push('a Prontidão está espalhando os números bem diferente do REC');
+  const mm = (m) => { const [y, mo] = m.split('-'); return `${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][Number(mo) - 1]}/${y.slice(2)}`; };
+  return `<h3 class="dg-h3">Conferência mensal (12 meses)</h3>
+    ${warn.length ? `<p class="alert">${esc(warn.join('; ').replace(/^./, (c) => c.toUpperCase()))}.</p>` : ''}
+    <ul class="acts">${log.slice(-6).reverse().map((x) => `<li><span>${mm(x.month)}</span><span class="meta">REC ${nf(x.rec.mean, 0)} ± ${nf(x.rec.sd, 0)} · Prontidão ${nf(x.ready.mean, 0)} ± ${nf(x.ready.sd, 0)}${x.feel.n ? ` · sentir: REC ${x.feel.rhoRec == null ? '–' : nf(x.feel.rhoRec, 2)}, Prontidão ${x.feel.rhoReady == null ? '–' : nf(x.feel.rhoReady, 2)} (${x.feel.n})` : ''}</span></li>`).join('')}</ul>
+    <p class="note">Roda sozinha no começo de cada mês com os últimos 12 meses: média e dispersão do REC e da Prontidão e quanto cada um acompanha o "como me sinto".</p>`;
+}
+
 async function calibSec(box, api) {
   const sec = box.querySelector('#calib');
   sec.innerHTML = '<p class="empty">Carregando…</p>';
-  let d; try { d = await api('/api/calibration'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  let d, bt = null; try { [d, bt] = await Promise.all([api('/api/calibration'), api('/api/backtest').catch(() => null)]); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
   const SN = { hrv: 'HRV', sleep: 'Sono', rhr: 'FC de repouso', resp: 'Respiração', stress: 'Estresse' };
   const pctDone = Math.min(100, Math.round((d.withRec / d.target) * 100));
   const read = d.rho == null ? '' : d.rho >= 0.5 ? 'o REC acompanha bem como você se sente' : d.rho >= 0.3 ? 'o REC acompanha em parte como você se sente' : d.rho >= 0.1 ? 'relação fraca entre o REC e como você se sente' : 'o REC ainda não acompanha como você se sente';
@@ -178,6 +193,7 @@ async function calibSec(box, api) {
     ${d.withRec >= 15 ? `<ul class="acts">${d.groups.filter((g) => g.n).map((g) => `<li><span>Dias em que se sentiu ${esc(g.label.toLowerCase())}</span><span class="meta">REC médio <b>${g.rec}</b> · ${g.n} dias</span></li>`).join('')}</ul>
       <p class="note">Sinal que mais acompanha a sua nota: ${d.signals.filter((x) => x.rho != null).sort((a, b) => b.rho - a.rho).slice(0, 2).map((x) => `${SN[x.k]} (${nf(x.rho, 2)})`).join(', ') || '–'}.</p>` : ''}
     ${d.withRec >= 15 && d.ready?.rho != null ? `<p class="note">Prontidão × como me sinto: concordância <b>${nf(d.ready.rho, 2)}</b> (${d.ready.n} dias)${d.rho != null ? `; o REC sozinho: ${nf(d.rho, 2)}` : ''}. Se a Prontidão ficar abaixo do REC, os pesos da carga e do sono precisam de ajuste.</p>` : ''}
+    ${calibLogHtml(bt?.log ?? [])}
     <p class="note">${d.enough ? 'Já dá para calibrar: ajustar os pesos do REC para seguir melhor como você se sente.' : 'Marque a nota "como me sinto" na aba Hoje todo dia. Com 40 notas dá para ajustar os pesos e limites do REC (planejado para depois de Aracaju).'}</p>`;
 }
 
@@ -259,6 +275,7 @@ async function yrDay(box, api, date, dt) {
       ${up.length ? `<p><span class="yd-up">↑ ajudou</span>${up.map(line).join(' · ')}</p>` : ''}
     </div>` : d.rec != null ? '<p class="yd-ctx">Tudo perto da base: nenhum sinal fora do normal.</p>' : ''}
     ${ctx.length ? `<p class="yd-ctx">${ctx.join(' · ')}</p>` : ''}
+    ${d.acts.filter((a) => ['natacao', 'bike', 'corrida'].includes(a.sport)).length >= 2 ? `<a class="yd-rr" href="#relatorio/${d.date}">Ver como relatório de prova ›</a>` : ''}
     ${d.acts.length ? `<ul class="yd-acts">${d.acts.map((a) => `<li><a href="#atv/${encodeURIComponent(a.id)}"><i style="background:var(--${a.sport})"></i><span>${esc(a.label)}</span><em>${a.min} min${a.km ? ` · ${nf(a.km, 1)} km` : ''}${a.strain != null ? ` · Strain ${a.strain}` : ''}</em>›</a></li>`).join('')}</ul>` : '<p class="yd-ctx">Sem treino neste dia.</p>'}
   </div>`;
   box.querySelector('.yd-x').addEventListener('click', () => { box.innerHTML = ''; const t = box.parentElement.querySelector('.yr-tip'); if (t) t.hidden = false; box.parentElement.querySelectorAll('.yr rect.sel').forEach((r) => r.classList.remove('sel')); });

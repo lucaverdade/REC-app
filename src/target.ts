@@ -13,7 +13,7 @@ export interface TargetIn {
   fitness: number | null;
   fatigueNow: number | null; fatigue3dAgo: number | null;
   acwr: number | null;
-  recToday: number | null;
+  recToday: number | null; // Prontidão do dia (04/11; antes o REC)
   verdictLevel: string | null;     // bom | normal | atencao | abaixo | ruim
   zoneKey: string | null;          // faixa da Forma
   weekHi: number | null;           // teto da faixa semanal
@@ -33,7 +33,7 @@ export function strainTargetV2(i: TargetIn) {
   const add = (k: string, label: string, f: number) => { if (Math.abs(f - 1) > 0.001) factors.push({ k, label, f }); };
 
   const recF = i.recToday <= 33 ? 0.5 : i.recToday <= 66 ? 1.0 : 1.4;
-  add('rec', i.recToday <= 33 ? 'REC vermelho hoje' : i.recToday <= 66 ? 'REC amarelo hoje' : 'REC verde hoje', recF);
+  add('rec', i.recToday <= 33 ? 'Prontidão baixa hoje' : i.recToday <= 66 ? 'Prontidão média hoje' : 'Prontidão alta hoje', recF);
   if (i.verdictLevel && VERDICT_F[i.verdictLevel] != null)
     add('rec7', { bom: 'Recuperação da semana boa', normal: '', atencao: 'Recuperação da semana um pouco abaixo', abaixo: 'Recuperação da semana abaixo', ruim: 'Semana sem recuperar' }[i.verdictLevel] ?? '', VERDICT_F[i.verdictLevel]);
   if (i.zoneKey === 'risco') add('forma', 'Forma: muito cansado', 0.75);
