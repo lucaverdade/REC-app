@@ -333,10 +333,18 @@ const tfmt = (m) => {
 };
 // diferença curta: "28 s", "1 min 05 s", "3 min"
 const dfmt = (m) => { const s = Math.round(Math.abs(m) * 60); return s < 60 ? `${s} s` : s % 60 ? `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s` : `${s / 60} min`; };
+// tempo digitado só com números (teclado numérico do iPhone): os 2 últimos são segundos, os 2 anteriores minutos,
+// o resto horas. "2135" → 21:35; "15101" → 1:51:01. Com ":" também funciona.
+const fmtDigits = (txt) => {
+  const d = String(txt || '').replace(/\D/g, '').replace(/^0+(?=\d{3})/, '').slice(0, 6);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, -2)}:${d.slice(-2)}`;
+  return `${d.slice(0, -4)}:${d.slice(-4, -2)}:${d.slice(-2)}`;
+};
 const parseT = (txt) => {
-  const p = String(txt || '').trim().split(':').map(Number);
-  if (!p.length || p.some((x) => !Number.isFinite(x))) return null;
-  return p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p.length === 2 ? p[0] + p[1] / 60 : null;
+  const p = fmtDigits(txt).split(':').filter((x) => x !== '').map(Number);
+  if (p.length < 2 || p.some((x) => !Number.isFinite(x)) || p.slice(1).some((x) => x >= 60)) return null;
+  return p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p[0] + p[1] / 60;
 };
 
 async function predictions(box, api) {
@@ -376,7 +384,7 @@ async function predictions(box, api) {
       <summary>${p.calibrated ? 'Calibrado com o Strava. Ajustar de novo' : 'Ajustar com as previsões do Strava'}</summary>
       <p>Digite o que o Strava mostra hoje (Você → Progresso). O app guarda a diferença para cada distância e aplica dali em diante, então a tendência segue as suas corridas no mesmo nível do Strava.</p>
       <form class="pd-cal">
-        ${PD.map(([k, l]) => `<label>${l}<input name="${k}" inputmode="numeric" placeholder="${k === 'd5' || k === 'd10' ? 'mm:ss' : 'h:mm:ss'}"></label>`).join('')}
+        ${PD.map(([k, l]) => `<label>${l}<input name="${k}" inputmode="numeric" placeholder="${k === 'd5' || k === 'd10' ? 'mm:ss' : 'h:mm:ss'}" autocomplete="off"></label>`).join('')}
         <button class="btn" type="submit">Salvar</button>
         ${p.calibrated ? '<button class="btn ghost" type="button" data-reset>Remover calibração</button>' : ''}
       </form>
@@ -386,11 +394,13 @@ async function predictions(box, api) {
   sec.querySelectorAll('.pd').forEach((b) => b.addEventListener('click', () => { pDist = b.dataset.k; predictions(box, api); }));
   sec.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => { pMonths = Number(b.dataset.m); predictions(box, api); }));
   const form = sec.querySelector('.pd-cal'), msg = sec.querySelector('#pd-msg');
+  // coloca os ":" sozinho enquanto digita
+  form.querySelectorAll('input').forEach((i) => i.addEventListener('input', () => { i.value = fmtDigits(i.value); }));
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = {};
     for (const [k] of PD) { const t = parseT(form.elements[k].value); if (t) body[k] = t; }
-    if (!Object.keys(body).length) { msg.textContent = 'Preencha pelo menos uma distância (ex.: 22:30 ou 1:41:00).'; return; }
+    if (!Object.keys(body).length) { msg.textContent = 'Preencha pelo menos uma distância. Digite só os números: 2135 vira 21:35, 15101 vira 1:51:01.'; return; }
     try { await api('/api/predictions/calibrate', { method: 'POST', body: JSON.stringify(body) }); predictions(box, api); }
     catch (err) { msg.textContent = `Não salvou: ${err.message}`; }
   });
