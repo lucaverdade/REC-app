@@ -44,12 +44,54 @@ export function debtLevel(debt: number | null) {
   return { key: 'alta', label: 'alta' };
 }
 
-/** Necessidade para a próxima noite. */
-export function sleepNeedTonight(need: number, debt: number | null, strainToday: number | null, napToday: number | null) {
-  const fromDebt = Math.min(0.5, (debt ?? 0) / 4);
-  const fromStrain = Math.min(0.5, Math.max(0, ((strainToday ?? 0) - 100) / 400));
+/**
+ * Meta da próxima noite (dinâmica): base pela sua resposta de HRV
+ * + carga (Forma "em bloco de treino" ou "muito cansado": +30 min; nessas semanas seu HRV rende mais com 8–8,5 h)
+ * + dívida (¼ da dívida, até +30 min) + treino do dia (Strain acima de 100, até +30 min) − cochilo de hoje.
+ * Os acréscimos somam no máximo +1 h.
+ */
+export function sleepNeedTonight(need: number, debt: number | null, strainToday: number | null, napToday: number | null, heavyLoad = false) {
+  let fromLoad = heavyLoad ? 0.5 : 0;
+  let fromDebt = Math.min(0.5, (debt ?? 0) / 4);
+  let fromStrain = Math.min(0.5, Math.max(0, ((strainToday ?? 0) - 100) / 400));
+  const add = fromLoad + fromDebt + fromStrain;
+  if (add > 1) { const k = 1 / add; fromLoad *= k; fromDebt *= k; fromStrain *= k; }
   const nap = Math.min(napToday ?? 0, need);
-  return { total: Math.max(0, need + fromDebt + fromStrain - nap), base: need, fromDebt, fromStrain, nap };
+  return { total: Math.max(0, need + fromLoad + fromDebt + fromStrain - nap), base: need, fromLoad, fromDebt, fromStrain, nap };
+}
+
+/**
+ * Base de sono pela SUA resposta (refeita todo mês): a partir de quantas horas o HRV da noite chega ao seu platô.
+ * - HRV de cada noite contra a sua base dos 60 dias anteriores (em %, escala log); últimas 180 noites;
+ * - platô = HRV médio das noites com 7 h 30 ou mais;
+ * - para cada duração t (6 h 30 a 8 h 30, de 15 em 15 min): HRV médio das noites entre t − 30 min e t + 30 min;
+ * - base = menor t cujo HRV médio fica a até 1,5 ponto do platô; limitada entre 7 h e 8 h 30.
+ * Testado em janelas de 180 dias terminando em jul–nov/2026: estável (7 h 30 desde out/2026).
+ * Com menos de 90 noites (ou 30 noites ≥ 7 h 30), fica 7 h 30.
+ */
+export function responseNeed(rows: { date: string; hrv: number | null; sleep_h: number | null }[]) {
+  const ln = rows.map((r) => (r.hrv && r.hrv > 0 ? Math.log(r.hrv) : null));
+  const pts: { s: number; h: number }[] = [];
+  rows.forEach((r, i) => {
+    if (ln[i] == null || r.sleep_h == null || r.sleep_h < 4 || r.sleep_h > 10.5) return;
+    const prev = ln.slice(Math.max(0, i - 60), i).filter((v): v is number => v != null);
+    if (prev.length < 30) return;
+    const base = prev.reduce((a, b) => a + b, 0) / prev.length;
+    pts.push({ s: r.sleep_h, h: (Math.exp((ln[i] as number) - base) - 1) * 100 });
+  });
+  const recent = pts.slice(-180);
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const r1 = (x: number | null) => (x == null ? null : Math.round(x * 10) / 10);
+  const below7 = r1(avg(recent.filter((p) => p.s < 7).map((p) => p.h))), above7 = r1(avg(recent.filter((p) => p.s >= 7).map((p) => p.h)));
+  const long = recent.filter((p) => p.s >= 7.5).map((p) => p.h);
+  if (recent.length < 90 || long.length < 30) return { hours: 7.5, n: recent.length, fallback: true, below7, above7 };
+  const plateau = avg(long) as number;
+  let hours = 8.5;
+  for (let t = 6.5; t <= 8.5 + 1e-9; t += 0.25) {
+    const w = recent.filter((p) => p.s >= t - 0.5 && p.s < t + 0.5).map((p) => p.h);
+    if (w.length >= 8 && (avg(w) as number) >= plateau - 1.5) { hours = t; break; }
+  }
+  return { hours: Math.min(8.5, Math.max(7, Math.round(hours * 4) / 4)), n: recent.length, fallback: false, below7, above7 };
 }
 
 /** Minutos desde o meio-dia (para média de horários que cruzam a meia-noite). */

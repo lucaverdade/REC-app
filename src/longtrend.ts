@@ -4,7 +4,6 @@
 //  - FC de repouso: mediana ± 1 desvio em 60 dias (desvio mínimo 1 bpm)
 //  - Sono: necessidade pessoal (ver sleep.ts)
 import { formZone, pmc } from './load.ts';
-import { personalNeed } from './sleep.ts';
 import { recoveryVerdict } from './verdict.ts';
 
 interface Metric { date: string; hrv: number | null; rhr: number | null; sleep_h: number | null; nap_h: number | null }
@@ -14,7 +13,7 @@ const sd = (xs: number[]) => { const m = mean(xs); return Math.sqrt(xs.reduce((a
 const median = (xs: number[]) => { const a = [...xs].sort((p, q) => p - q); const n = a.length; return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2; };
 const avg = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? mean(v) : null; };
 
-export function longTrend(o: { from: string; to: string; loads: { date: string; load: number }[]; metrics: Metric[]; recs: { date: string; rec: number | null; z_hrv?: number | null; z_rhr?: number | null; z_sleep?: number | null; z_resp?: number | null; z_stress?: number | null }[] }) {
+export function longTrend(o: { from: string; to: string; sleepNeed?: number; loads: { date: string; load: number }[]; metrics: Metric[]; recs: { date: string; rec: number | null; z_hrv?: number | null; z_rhr?: number | null; z_sleep?: number | null; z_resp?: number | null; z_stress?: number | null }[] }) {
   const p = pmc(o.loads);
   const pBy = new Map(p.map((d) => [d.date, d]));
   const mIdx = new Map(o.metrics.map((m, i) => [m.date, i]));
@@ -41,7 +40,7 @@ export function longTrend(o: { from: string; to: string; loads: { date: string; 
       sleep: m?.sleep_h == null ? null : r1(m.sleep_h + (m.nap_h ?? 0)),
     });
   }
-  const need = personalNeed(o.metrics.filter((m) => m.date <= o.to));
+  const need = o.sleepNeed ?? 7.5;
   const last = days[days.length - 1], last7 = days.slice(-7), prev7 = days.slice(-14, -7);
   const d28 = days.length > 28 ? days[days.length - 29] : days[0];
 

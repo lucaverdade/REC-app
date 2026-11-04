@@ -58,12 +58,13 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - Abaixo = semana leve (recuperação/polimento) · Dentro = progressão gradual · Acima (até 1,5×) = cresceu rápido · Bem acima (> 1,5×) = salto grande.
 - Aviso na aba Hoje: Strain de 7 dias fora de 0,8–1,4 da média semanal de 4 semanas; corrida da semana +15% sobre a média de 4 semanas.
 
-## 7. Sono — dívida e meta
-(`src/sleep.ts`, método Oura + Whoop)
-- Necessidade pessoal: média de 90 noites sem extremos (6 h 30 a 9 h).
-- Dívida: 14 dias, noites recentes pesam mais (meia-vida 7 dias); cochilos contam; noites acima da necessidade pagam. Faixas Oura: baixa < 2 h, moderada 2–5 h, alta > 5 h.
-- Meta da noite: necessidade + até 30 min (dívida) + até 30 min (Strain do dia acima do normal) − cochilo do dia.
-- Regularidade: horário médio de deitar/acordar e variação em 14 noites.
+## 7. Sono — base, dívida e meta (revisado 04/11)
+(`src/sleep.ts`)
+- **Base pela resposta do HRV** (não pelo hábito; antes era a média de 90 noites = 7 h 25): HRV de cada noite contra a base de 60 dias; platô = HRV médio das noites ≥ 7 h 30; base = menor duração t (6 h 30–8 h 30) cujo HRV médio entre t ± 30 min fica a até 1,5 ponto do platô. Últimas 180 noites, refeita no 1º dia de cada mês, limitada a 7 h–8 h 30. Nov/2026: **7 h 45** (abaixo de 7 h o HRV fica ~+1,6% da base; com 7 h ou mais, ~+8,4%).
+- Análise de 04/11 (347 noites): abaixo de 7 h o HRV cai; de 7 h a 8 h 30 o ganho é ~1%/h; em semanas de carga alta o HRV rende mais com 8–8,5 h (+8%) do que com 7–7,5 h.
+- **Dívida**: 14 dias contra a base, noites recentes pesam mais (meia-vida 7 dias); cochilos contam. Faixas Oura: baixa < 2 h, moderada 2–5 h, alta > 5 h.
+- **Meta da noite (muda todo dia)**: base + 30 min se a Forma está em bloco de treino ou muito cansado + até 30 min pela dívida + até 30 min pelo treino do dia − cochilo; acréscimos no máximo +1 h.
+- **Deitar até** e **regularidade**: ver 8d.
 
 ## 8. "Meu corpo está recuperando?" — a resposta
 (`src/verdict.ts`)

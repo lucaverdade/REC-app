@@ -4,7 +4,7 @@ import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
-import { bedtimeTarget, debtLevel, irregularNights, personalNeed, regularity, regularityScore, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
+import { bedtimeTarget, debtLevel, irregularNights, regularity, regularityScore, responseNeed, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
 import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
 import { hrvTrendNow } from '../src/hrvtrend.ts';
 import { illnessAlert } from '../src/illness.ts';
@@ -672,7 +672,9 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   })();
   const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
     .bind(addDays(date, -95), date).all<SleepNight>();
-  const need = personalNeed(nights.filter((n) => n.date <= date));
+  const sb = await sleepBase(env, date);
+  const need = sb.hours;
+  const heavy = ln.zone?.key === 'produtivo' || ln.zone?.key === 'risco';
   const debt = sleepDebt(nights, need, date);
   const lastNight = nights.find((n) => n.date === date) ?? null;
   const yesterdayNap = nights.find((n) => n.date === addDays(date, -1))?.nap_h ?? null;
@@ -742,10 +744,11 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       debt: debt == null ? null : Math.round(debt * 100) / 100,
       level: debtLevel(debt),
       personalNeed: Math.round(need * 100) / 100,
-      need: sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null),
+      base: { hours: sb.hours, month: sb.month, n: sb.n, fallback: sb.fallback, below7: sb.below7, above7: sb.above7 },
+      need: sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null, heavy),
       regularity: regularity(nights),
       regularityScore: regularityScore(regularity(nights)),
-      bedtime: bedtimeTarget(nights, sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null).total, addDays(date, 1)),
+      bedtime: bedtimeTarget(nights, sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null, heavy).total, addDays(date, 1)),
     },
     isToday: date === brtToday(),
     race: { ...RACE, days: daysBetween(date, RACE.date), raceWeek: daysBetween(date, RACE.date) <= 6 && daysBetween(date, RACE.date) >= -1 },
@@ -792,6 +795,23 @@ async function weatherPayload(env: Env) {
   return { mode, days, rows, years: years ?? null, cached: false, availableFrom: addDays(RACE.date, -15) };
 }
 
+// --- base de sono pela resposta do HRV (refeita uma vez por mês, guardada em settings) ---
+type SleepBase = { month: string; hours: number; n: number; fallback: boolean; below7: number | null; above7: number | null };
+async function sleepBase(env: Env, date: string): Promise<SleepBase> {
+  const month = date.slice(0, 7);
+  const c = await getSetting<SleepBase>(env, 'sleep_base');
+  if (c && c.month === month) return c;
+  const to = `${month}-01`, from = addDays(to, -260);
+  const { results } = await env.DB.prepare('SELECT date, hrv, sleep_h FROM daily_metrics WHERE date >= ?1 AND date < ?2').bind(from, to).all<{ date: string; hrv: number | null; sleep_h: number | null }>();
+  const m = new Map(results.map((r) => [r.date, r]));
+  const rows = [];
+  for (let d = from; d < to; d = addDays(d, 1)) rows.push(m.get(d) ?? { date: d, hrv: null, sleep_h: null });
+  const r = responseNeed(rows);
+  const out = { month, ...r };
+  await setSetting(env, 'sleep_base', out);
+  return out;
+}
+
 // --- tendência do HRV (A2) ---
 async function hrvTrendOn(env: Env, date: string) {
   const from = addDays(date, -140);
@@ -825,7 +845,7 @@ async function reviewPayload(env: Env, req: Request, monday: string) {
     .all<{ rec: number | null; v_hrv: number | null; b_hrv: number | null; v_rhr: number | null; b_rhr: number | null }>();
   const mean = (v: (number | null)[]) => { const x = v.filter((y): y is number => y != null); return x.length ? x.reduce((a, b) => a + b, 0) / x.length : null; };
   const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(monday, -95), end).all<SleepNight>();
-  const need = personalNeed(nights.filter((n) => n.date < monday));
+  const need = (await sleepBase(env, end)).hours;
   const wk = nights.filter((n) => n.date >= monday);
   const dt = dist.low + dist.mid + dist.high;
   let text: string | null = null;
@@ -973,7 +993,7 @@ export default {
         .bind(addDays(from, -130), e).all<{ date: string; hrv: number | null; rhr: number | null; sleep_h: number | null; nap_h: number | null }>();
       const { results: rc } = await env.DB.prepare('SELECT date, rec, z_hrv, z_rhr, z_sleep, z_resp, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2')
         .bind(addDays(from, -14), e).all<{ date: string; rec: number | null; z_hrv: number | null; z_rhr: number | null; z_sleep: number | null; z_resp: number | null; z_stress: number | null }>();
-      return json(longTrend({ from, to: e, loads, metrics: dm, recs: rc }));
+      return json(longTrend({ from, to: e, loads, metrics: dm, recs: rc, sleepNeed: (await sleepBase(env, e)).hours }));
     }
     if (url.pathname === '/api/strain-weeks' && req.method === 'GET') {
       const n = Math.min(Math.max(Number(url.searchParams.get('weeks')) || 16, 4), 52);

@@ -295,6 +295,7 @@ function sleepCard(d) {
   const pn = s.personalNeed ?? 7.5;
   const pct = n?.hours != null ? Math.min(1.25, n.hours / pn) : 0;
   const extra = [];
+  if (need.fromLoad >= 1 / 60) extra.push(`carga +${Math.round(need.fromLoad * 60)} min`);
   if (need.fromDebt >= 1 / 60) extra.push(`dívida +${Math.round(need.fromDebt * 60)} min`);
   if (need.fromStrain >= 1 / 60) extra.push(`treino +${Math.round(need.fromStrain * 60)} min`);
   if (need.nap >= 1 / 60) extra.push(`cochilo −${Math.round(need.nap * 60)} min`);
@@ -303,7 +304,7 @@ function sleepCard(d) {
     <section class="sleep-card" aria-label="Sono">
       <div class="sl-head"><span class="sl-title">Sono</span>
         ${n?.start && n?.end ? `<span class="meta">${esc(n.start)} → ${esc(n.end)}</span>` : ''}</div>
-      <div class="sl-main"><b>${hmm(n?.hours)}</b><span>de ${hmm(pn)} (sua necessidade)</span></div>
+      <div class="sl-main"><b>${hmm(n?.hours)}</b><span>de ${hmm(pn)} (sua base)</span></div>
       <div class="sl-bar"><i style="width:${(pct / 1.25) * 100}%"></i><em style="left:${(1 / 1.25) * 100}%"></em></div>
       <div class="sl-stats">
         <div><span class="debt-${s.level?.key ?? 'nenhuma'}">${s.debt == null ? '–' : s.debt < 1 / 6 ? 'nenhuma' : hmm(s.debt)}</span><small>Dívida (14 dias)${s.level && s.level.key !== 'nenhuma' ? `, ${s.level.label}` : ''}</small></div>
@@ -313,11 +314,11 @@ function sleepCard(d) {
       ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).${s.regularityScore != null ? ` Regularidade <b>${s.regularityScore}</b>/100.` : ''}</p>` : ''}
       ${s.napYesterday ? `<p class="sl-reg">Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}: <b>${Math.round(s.napYesterday * 60)} min</b> (conta na dívida).</p>` : ''}
       <details class="explain sl-exp"><summary>Como é calculado</summary>
-        <p><b>Sua necessidade</b> é a média das suas últimas 90 noites, sem as 10% mais curtas e as 10% mais longas (como a Oura faz). Cochilos contam.</p>
+        <p><b>Sua base</b> vem da resposta do seu HRV, não do hábito: o app cruza as horas dormidas com o HRV da noite (contra a sua base de 60 dias) nos últimos 180 dias e acha a partir de quantas horas o HRV para de melhorar. Refeita todo mês${s.base && !s.base.fallback ? ` (em ${s.base.month.slice(5)}/${s.base.month.slice(0, 4)}: ${s.base.n} noites; abaixo de 7 h seu HRV ficou ${s.base.below7 > 0 ? '+' : ''}${String(s.base.below7).replace('.', ',')}% da base, com 7 h ou mais ${s.base.above7 > 0 ? '+' : ''}${String(s.base.above7).replace('.', ',')}%)` : ''}.</p>
         <p><b>Dívida</b>: nos últimos 14 dias, quanto você dormiu abaixo da sua necessidade, com as noites recentes pesando mais (uma noite curta perde metade do peso a cada 7 dias). Noites acima da necessidade e cochilos pagam a dívida. Faixas da Oura: baixa até 2 h, moderada de 2 a 5 h, alta acima de 5 h.</p>
         <p><b>Deitar até</b>: horário em que você costuma acordar (mediana das últimas noites do mesmo tipo de dia, útil ou fim de semana) − a meta − o tempo que você costuma ficar acordado na cama − 15 min para pegar no sono.</p>
         <p><b>Regularidade</b>: 100 menos a variação média dos horários de deitar e acordar nas últimas 14 noites (variação de 15 min ≈ 82; de 30 min ≈ 64).</p>
-        <p><b>Meta de hoje</b>: sua necessidade + até 30 min por causa da dívida + até 30 min pelo treino do dia − cochilo de hoje (como o Whoop). Não é preciso pagar a dívida de uma vez: ela some aos poucos com noites um pouco mais longas, cochilos e o próprio tempo.</p>
+        <p><b>Meta de hoje</b> muda todo dia: sua base + 30 min quando a Forma está em bloco de treino ou muito cansado (nessas semanas seu HRV rende mais com 8 a 8,5 h) + até 30 min pela dívida + até 30 min pelo treino do dia − cochilo de hoje. Os acréscimos somam no máximo 1 h. Não é preciso pagar a dívida de uma vez: ela some aos poucos com noites um pouco mais longas, cochilos e o próprio tempo.</p>
       </details>
     </section>`;
 }
