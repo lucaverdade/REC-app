@@ -153,6 +153,7 @@ async function morningRoutine(env: Env, trigger: 'cron' | 'manual' | 'open') {
       const nd = await writeDays(env, days);
       const na = await writeActivities(env, await fetchActivities(env, from, today));
       detail = `garmin: ${nd} dias, ${na} atividades`; changed = nd > 0 || na > 0;
+      await markFetched(env, 'days', from, addDays(today, -1)); await markFetched(env, 'acts', from, addDays(today, -1));
       if (!(await hasTonight(env, today))) status = 'sem_dados';
     }
     if (!(light && trigger !== 'manual')) detail += `; rec: ${await recompute(env, today)} dias`;
@@ -955,6 +956,88 @@ async function stress31Payload(env: Env) {
   return r;
 }
 
+// --- diagnóstico da tela Garmin (04/11): o que tem, o que falta e a ordem para completar ---
+// "fetched" guarda os intervalos já pedidos à API: um dia sem dado que a Garmin não tem não vira pendência eterna.
+const HISTORY_FROM = '2025-05-01';
+type Ranges = [string, string][];
+async function markFetched(env: Env, kind: 'days' | 'acts', from: string, to: string) {
+  const f = (await getSetting<{ days?: Ranges; acts?: Ranges }>(env, 'fetched')) ?? {};
+  const all = [...(f[kind] ?? []), [from, to] as [string, string]].sort((a, b) => a[0].localeCompare(b[0]));
+  const out: Ranges = [];
+  for (const r of all) {
+    const last = out[out.length - 1];
+    if (last && r[0] <= addDays(last[1], 1)) { if (r[1] > last[1]) last[1] = r[1]; } else out.push([r[0], r[1]]);
+  }
+  f[kind] = out; await setSetting(env, 'fetched', f);
+}
+const inRanges = (d: string, rs: Ranges) => rs.some(([a, b]) => d >= a && d <= b);
+function windows(dates: string[], len: number, today: string): Ranges {
+  const out: Ranges = [];
+  for (const d of [...dates].sort()) {
+    if (out.length && d <= out[out.length - 1][1]) continue;
+    const end = addDays(d, len - 1);
+    out.push([d, end > today ? today : end]);
+  }
+  return out;
+}
+async function diagPayload(env: Env) {
+  await ensureSchema(env);
+  const today = brtToday(), yest = addDays(today, -1);
+  const fetched = (await getSetting<{ days?: Ranges; acts?: Ranges }>(env, 'fetched')) ?? {};
+  const fd = fetched.days ?? [], fa = fetched.acts ?? [];
+  const last = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first<{ at: string; status: string; detail: string }>();
+  const okSync = await env.DB.prepare("SELECT at FROM sync_log WHERE status != 'erro' ORDER BY id DESC LIMIT 1").first<{ at: string }>();
+  const mins = (at?: string) => (at ? Math.round((Date.now() - Date.parse(at.replace(' ', 'T') + 'Z')) / 60000) : null);
+
+  const t = await env.DB.prepare('SELECT hrv, rhr, sleep_h, resp FROM daily_metrics WHERE date = ?1').bind(today).first<Record<string, number | null>>();
+  const y = await env.DB.prepare('SELECT stress FROM daily_metrics WHERE date = ?1').bind(yest).first<{ stress: number | null }>();
+  const noite = { hrv: t?.hrv != null, rhr: t?.rhr != null, sleep: t?.sleep_h != null, resp: t?.resp != null, stress: y?.stress != null };
+
+  // dias: sem linha nenhuma e ainda não pedidos à API (até ontem)
+  const { results: dr } = await env.DB.prepare('SELECT date, sleep_h, sleep_start FROM daily_metrics WHERE date >= ?1').bind(HISTORY_FROM).all<{ date: string; sleep_h: number | null; sleep_start: string | null }>();
+  const have = new Set(dr.map((r) => r.date));
+  const missDays: string[] = [];
+  for (let d = HISTORY_FROM; d <= yest; d = addDays(d, 1)) if (!have.has(d) && !inRanges(d, fd)) missDays.push(d);
+  const lastHole: string[] = []; // dias sem dado mesmo depois de pedir (relógio fora do pulso etc.), últimos 120
+  for (let d = addDays(today, -120); d <= yest; d = addDays(d, 1)) if (!have.has(d) && inRanges(d, fd)) lastHole.push(d);
+  // horários de sono (só vêm pela API): últimos 90 dias com sono e sem horário, ainda não pedidos
+  const from90 = addDays(today, -89);
+  const missTimes = dr.filter((r) => r.date >= from90 && r.date <= yest && r.sleep_h != null && !r.sleep_start && !inRanges(r.date, fd)).map((r) => r.date);
+
+  // treinos: linhas do arquivo inicial (sem id da Garmin) no último ano, ainda não pedidas
+  const from365 = addDays(today, -365);
+  const { results: ar } = await env.DB.prepare("SELECT date FROM activities WHERE date >= ?1 AND id GLOB '*[^0-9]*'").bind(from365).all<{ date: string }>();
+  const missActs = ar.map((r) => r.date).filter((d) => !inRanges(d, fa));
+  const actsTotal = await env.DB.prepare('SELECT COUNT(*) n FROM activities WHERE date >= ?1').bind(from365).first<{ n: number }>();
+
+  // zonas
+  const { results: zs } = await env.DB.prepare(`SELECT CASE WHEN id GLOB '*[^0-9]*' THEN 'sem_id' ELSE COALESCE(z_src, 'pendente') END s, COUNT(*) n FROM activities WHERE sport IN ('bike','corrida','natacao','hyrox') AND date >= ?1 AND date < '2026-11-03' GROUP BY 1`).bind(from365).all<{ s: string; n: number }>();
+  const { results: ze } = await env.DB.prepare("SELECT z_err e, COUNT(*) n FROM activities WHERE z_src = 'erro' GROUP BY 1 ORDER BY 2 DESC LIMIT 3").all<{ e: string; n: number }>();
+
+  // REC: dias com HRV e sono que nunca passaram pelo cálculo
+  const { results: rr } = await env.DB.prepare(`SELECT d.date FROM daily_metrics d LEFT JOIN rec_daily r ON r.date = d.date
+    WHERE d.date >= '2025-09-15' AND d.date <= ?1 AND d.hrv IS NOT NULL AND d.sleep_h IS NOT NULL AND r.date IS NULL ORDER BY d.date`).bind(today).all<{ date: string }>();
+  const recTo = windows(rr.map((r) => r.date), 60, today).map((w) => w[1]);
+
+  const intr = await env.DB.prepare('SELECT MAX(date) d FROM intraday').first<{ d: string | null }>();
+  const fage = await getSetting<{ fitnessAge: number | null; error?: string; month: string }>(env, 'fitness_age');
+  const sb = await getSetting<{ month: string; hours: number; fallback: boolean }>(env, 'sleep_base');
+  const counts = await env.DB.prepare(`SELECT COUNT(*) n, MIN(date) first, SUM(hrv IS NOT NULL) hrv FROM daily_metrics`).first<{ n: number; first: string; hrv: number }>();
+  const recs = await env.DB.prepare('SELECT COUNT(*) n FROM rec_daily WHERE rec IS NOT NULL').first<{ n: number }>();
+
+  return {
+    hoje: today, hasKey: hasKey(env),
+    sync: { at: last?.at ?? null, status: last?.status ?? null, detail: last?.detail ?? null, mins: mins(last?.at), okMins: mins(okSync?.at) },
+    noite,
+    dias: { n: counts?.n ?? 0, first: counts?.first ?? null, hrv: counts?.hrv ?? 0, falta: missDays.length, janelas: windows(missDays, 14, yest), buracos: lastHole.length },
+    horarios: { falta: missTimes.length, janelas: windows(missTimes, 14, yest) },
+    treinos: { total: actsTotal?.n ?? 0, falta: missActs.length, janelas: windows(missActs, 31, today) },
+    zonas: { states: Object.fromEntries(zs.map((x) => [x.s, x.n])), erros: ze },
+    rec: { n: recs?.n ?? 0, falta: rr.length, ate: recTo },
+    extras: { linhaDoTempo: intr?.d ?? null, idadeFitness: fage ?? null, baseSono: sb ?? null },
+  };
+}
+
 // --- I6: idade fitness (Garmin, cache mensal) e VO2máx das atividades ---
 async function fitnessAgePayload(env: Env) {
   const today = brtToday();
@@ -1304,6 +1387,11 @@ async function handle(req: Request, env: Env): Promise<Response> {
       const log = await env.DB.prepare('SELECT at, trigger, status, detail FROM sync_log ORDER BY id DESC LIMIT 5').all();
       return json({ hasKey: hasKey(env), dias: agg, recs: recs?.n ?? 0, atividades: acts, log: log.results, hoje: brtToday() });
     }
+    if (url.pathname === '/api/diag' && req.method === 'GET') return json(await diagPayload(env));
+    if (url.pathname === '/api/zones/retry' && req.method === 'POST') {
+      await env.DB.prepare("UPDATE activities SET z_src = NULL, z_err = NULL WHERE z_src = 'erro'").run();
+      return json({ ok: true });
+    }
     if (url.pathname === '/api/garmin/check' && req.method === 'GET') {
       if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);
       const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 14, 3), 28);
@@ -1373,6 +1461,7 @@ async function handle(req: Request, env: Env): Promise<Response> {
         const { days } = await fetchDays(env, from, to);
         const nd = await writeDays(env, days);
         const na = await writeActivities(env, await fetchActivities(env, from, to));
+        await markFetched(env, 'days', from, to); await markFetched(env, 'acts', from, to);
         return json({ from, to, dias: nd, atividades: na });
       } catch (e) { return json({ error: garminMsg(e) }, 502); }
     }
@@ -1383,6 +1472,7 @@ async function handle(req: Request, env: Env): Promise<Response> {
       if (!isDate(from) || !isDate(to) || to < from || daysBetween(from, to) > 61) return json({ error: 'intervalo_invalido (máx. 62 dias)' }, 400);
       try {
         const na = await writeActivities(env, await fetchActivities(env, from, to));
+        await markFetched(env, 'acts', from, to);
         const left = await env.DB.prepare("SELECT COUNT(*) n FROM activities WHERE date BETWEEN ?1 AND ?2 AND id GLOB '*[^0-9]*'").bind(from, to).first<{ n: number }>();
         return json({ from, to, atividades: na, semId: left?.n ?? 0 });
       } catch (e) { return json({ error: garminMsg(e) }, e instanceof GarminError && e.status === 429 ? 429 : 502); }

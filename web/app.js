@@ -690,214 +690,179 @@ const errText = (e) => ERR[e.message] || e.message;
 
 async function renderGarmin() {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
-  screen.innerHTML = '<header class="top"><h1>Garmin</h1><a class="foot-link" href="#hoje">Voltar</a></header><p class="empty">Carregando…</p>';
-  let st;
-  try { st = await api('/api/garmin/status'); } catch (e) { if (e.message !== '401') screen.querySelector('.empty').textContent = errText(e); return; }
+  const head = '<header class="top"><h1>Garmin</h1><a class="foot-link" href="#hoje">Voltar</a></header>';
+  screen.innerHTML = `${head}<p class="empty">Conferindo…</p>`;
+  let d;
+  try { d = await api('/api/diag'); } catch (e) { if (e.message !== '401') screen.querySelector('.empty').textContent = errText(e); return; }
   const n = (v) => (v ?? 0).toLocaleString('pt-BR');
   const fmt = (iso) => (iso ? fmtDate(iso, { day: 'numeric', month: 'short', year: 'numeric' }) : '–');
-  screen.innerHTML = `
-    <header class="top"><h1>Garmin</h1><a class="foot-link" href="#hoje">Voltar</a></header>
-    <ul class="acts kv">
-      <li><span>Chave</span><span class="meta">${st.hasKey ? 'cadastrada' : 'não cadastrada'}</span></li>
-      <li><span>Dias no banco</span><span class="meta">${n(st.dias.n)} (${fmt(st.dias.first)} a ${fmt(st.dias.last)})</span></li>
-      <li><span>Noites com HRV</span><span class="meta">${n(st.dias.hrv)}</span></li>
-      <li><span>Dias com REC</span><span class="meta">${n(st.recs)}</span></li>
-      <li><span>Atividades</span><span class="meta">${n(st.atividades.n)}</span></li>
-      <li><span>Com zonas de FC (base do Strain)</span><span class="meta">${n(st.atividades.zonas)}</span></li>
-    </ul>
-    ${st.hasKey ? '' : `<p class="alert">${esc(ERR.sem_chave)}</p>`}
+  const ago = (m) => (m == null ? '' : m < 60 ? `há ${m} min` : m < 48 * 60 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} dias`);
+  const hour = new Date(Date.now() - 3 * 3600e3).getUTCHours();
+  const z = d.zonas.states, zPend = z.pendente ?? 0, zErr = z.erro ?? 0, zFit = z.fit ?? 0, zSemId = z.sem_id ?? 0;
 
-    <section class="card cardx">
-      <h2>Histórico</h2>
-      <p class="note">Busca tudo desde ${fmt(HISTORY_FROM)} direto da API, em blocos de 14 dias. Só precisa uma vez; depois o app se atualiza sozinho.</p>
-      <button class="btn" id="hist" ${st.hasKey ? '' : 'disabled'}>Puxar histórico</button>
-      <p class="progress" id="hist-out" aria-live="polite"></p>
+  // cada linha: estado (ok | falta | erro | info), título, texto; "passo" = o que o botão principal faz
+  const rows = [];
+  rows.push(!d.hasKey ? { s: 'erro', t: 'Conexão', x: 'A chave não está cadastrada no servidor.' }
+    : d.sync.status === 'erro' ? { s: 'erro', t: 'Conexão', x: `A última busca falhou ${ago(d.sync.mins)}: ${String(d.sync.detail ?? '').slice(0, 120)}`, now: true }
+    : d.sync.okMins == null ? { s: 'falta', t: 'Conexão', x: 'O servidor ainda não buscou nada na Garmin.', now: true }
+    : d.sync.okMins > 120 && hour >= 6 ? { s: 'falta', t: 'Conexão', x: `Última busca ${ago(d.sync.okMins)}. A automática pode ter parado.`, now: true }
+    : { s: 'ok', t: 'Conexão', x: `Última busca ${ago(d.sync.okMins)}. Busca sozinha a cada 15–30 min.` });
+  const NF = { hrv: 'HRV', rhr: 'FC de repouso', sleep: 'sono', resp: 'respiração', stress: 'estresse de ontem' };
+  const miss = Object.keys(NF).filter((k) => !d.noite[k]);
+  rows.push(!miss.length ? { s: 'ok', t: 'Noite de hoje', x: 'HRV, FC de repouso, sono, respiração e estresse de ontem.' }
+    : miss.length === 5 || (!d.noite.sleep && !d.noite.hrv) ? { s: hour < 11 ? 'info' : 'falta', t: 'Noite de hoje', x: hour < 11 ? 'Ainda não chegou. O relógio precisa sincronizar com o Garmin Connect.' : 'Não chegou. Abra o Garmin Connect no celular para o relógio sincronizar.', now: true }
+    : { s: 'falta', t: 'Noite de hoje', x: `Falta: ${miss.map((k) => NF[k]).join(', ')}.${miss.includes('resp') && miss.length === 1 ? ' O REC sai sem ela.' : ''}`, now: true });
+  rows.push(d.dias.falta ? { s: 'falta', t: 'Dias', x: `Faltam ${n(d.dias.falta)} dias desde ${fmt(HISTORY_FROM)}.`, passo: 'dias' }
+    : { s: 'ok', t: 'Dias', x: `${n(d.dias.n)} dias desde ${fmt(d.dias.first)}, HRV em ${n(d.dias.hrv)} noites.${d.dias.buracos ? ` ${d.dias.buracos} dias dos últimos 120 a Garmin não tem (relógio fora do pulso).` : ''}` });
+  rows.push(d.horarios.falta ? { s: 'falta', t: 'Horários de sono', x: `${n(d.horarios.falta)} noites dos últimos 90 dias sem hora de deitar e acordar.`, passo: 'horarios' }
+    : { s: 'ok', t: 'Horários de sono', x: 'Hora de deitar e acordar nos últimos 90 dias.' });
+  rows.push(d.treinos.falta ? { s: 'falta', t: 'Treinos do último ano', x: `${n(d.treinos.falta)} treinos vieram do arquivo inicial, sem calorias, efeito de treino e o arquivo para as zonas.`, passo: 'treinos' }
+    : { s: 'ok', t: 'Treinos do último ano', x: `${n(d.treinos.total)} treinos com os dados completos da Garmin.` });
+  const errTxt = d.zonas.erros.map((e) => `${e.e ?? 'sem motivo'} (${e.n})`).join('; ');
+  rows.push(zErr && !zPend ? { s: 'erro', t: 'Zonas do histórico', x: `${n(zErr)} treinos deram erro ao reler o arquivo: ${errTxt}.`, passo: 'zonas_erro' }
+    : zPend ? { s: 'falta', t: 'Zonas do histórico', x: `${n(zPend)} treinos ainda com as zonas antigas do Garmin.${d.treinos.falta && zSemId ? ' Vem depois dos treinos.' : ''}${zErr ? ` ${zErr} com erro.` : ''}`, passo: 'zonas' }
+    : zSemId && d.treinos.falta ? { s: 'falta', t: 'Zonas do histórico', x: 'Vem depois dos treinos.', passo: 'zonas' }
+    : { s: 'ok', t: 'Zonas do histórico', x: `${n(zFit)} treinos refeitos com as zonas atuais.${z.sem_fc ? ` ${z.sem_fc} sem FC no arquivo.` : ''}${z.sem_arquivo ? ` ${z.sem_arquivo} sem arquivo na Garmin.` : ''}` });
+  rows.push(d.rec.falta ? { s: 'falta', t: 'REC', x: `${n(d.rec.falta)} dias com HRV e sono ainda sem o cálculo.`, passo: 'rec' }
+    : { s: 'ok', t: 'REC', x: `${n(d.rec.n)} dias calculados.` });
+
+  const todo = rows.filter((r) => r.passo);
+  const bad = rows.filter((r) => r.s === 'falta' || r.s === 'erro').length;
+  const MARK = { ok: '✓', falta: '!', erro: '×', info: '·' };
+  const fa = d.extras.idadeFitness, sb = d.extras.baseSono;
+
+  screen.innerHTML = `${head}
+    <section class="card dg">
+      ${cardHead('check', 'Situação', { right: bad ? `${bad} para ver` : 'tudo em dia', info: `<p>Cada linha é uma parte dos dados que o app usa. <b>✓</b> está completa; <b>!</b> falta algo; <b>×</b> deu erro.</p><p>O botão faz só o que falta, sempre na mesma ordem: dias → horários de sono → treinos → zonas → REC. Um passo nunca desfaz outro: completar treinos mantém as zonas já refeitas.</p><p>Se a Garmin pedir pausa, ele espera e continua sozinho. Se você fechar o app no meio, toque de novo: retoma de onde parou.</p>` })}
+      <ul class="dg-list">${rows.map((r, i) => `
+        <li class="dg-${r.s}"><span class="dg-m" aria-label="${r.s}">${MARK[r.s]}</span>
+          <div><b>${r.t}</b><p>${esc(r.x)}</p>${r.now && d.hasKey ? `<button type="button" class="dg-now" data-i="${i}">Buscar agora</button>` : ''}</div></li>`).join('')}
+      </ul>
+      ${todo.length ? `<button class="btn dg-go" id="go" ${d.hasKey ? '' : 'disabled'}>Completar o que falta</button>` : ''}
+      <p class="progress" id="go-out" aria-live="polite"></p>
     </section>
 
-    <section class="card cardx">
-      <h2>Atualizar os últimos 90 dias</h2>
-      <p class="note">Busca de novo os últimos 90 dias, inclusive dados que o app passou a guardar depois (horários de sono, cochilos).</p>
-      <button class="btn ghost" id="refill" ${st.hasKey ? '' : 'disabled'}>Buscar 90 dias</button>
-      <p class="progress" id="refill-out" aria-live="polite"></p>
+    <section class="card dg">
+      ${cardHead('heart', 'Também vem da Garmin')}
+      <ul class="dg-list dg-quiet">
+        <li><span class="dg-m">·</span><div><b>Linha do tempo do dia</b><p>${d.extras.linhaDoTempo ? `Curvas de FC e estresse até ${esc(fmt(d.extras.linhaDoTempo))}. Busca ao abrir o dia.` : 'Busca ao abrir a linha do tempo de um dia.'}</p></div></li>
+        <li><span class="dg-m">·</span><div><b>Idade fitness</b><p>${fa?.fitnessAge != null ? `${Math.round(fa.fitnessAge)} anos (atualiza 1× por mês).` : fa?.error ? (/404/.test(fa.error) ? 'A Garmin não libera esse dado pela API pessoal.' : `A Garmin não entregou: ${esc(fa.error)}`) : 'Ainda não buscada; abre em Tendências.'}</p></div></li>
+        <li><span class="dg-m">·</span><div><b>Base de sono</b><p>${sb ? `${Math.floor(sb.hours)}h${String(Math.round((sb.hours % 1) * 60)).padStart(2, '0')}, refeita em ${esc(sb.month.split('-').reverse().join('/'))}${sb.fallback ? ' (padrão de 7h30; poucas noites para medir)' : ''}.` : 'Calculada na próxima abertura do Hoje.'}</p></div></li>
+      </ul>
     </section>
 
-    <section class="card cardx">
-      <h2>Teste da conexão</h2>
-      <p class="note">Busca os últimos 14 dias e mostra quais campos a API entrega.</p>
-      <button class="btn ghost" id="check" ${st.hasKey ? '' : 'disabled'}>Testar conexão</button>
-      <div id="check-out"></div>
-    </section>
+    <details class="card dg-adv">
+      <summary>Avançado</summary>
+      <p class="note">Ferramentas de conferência. Nada aqui é necessário no dia a dia.</p>
+      <div class="dg-tools">
+        <button class="btn ghost" id="check" ${d.hasKey ? '' : 'disabled'}>Testar conexão</button>
+        <button class="btn ghost" id="zcur" ${d.hasKey ? '' : 'disabled'}>Ver zonas atuais</button>
+        <button class="btn ghost" id="ztest" ${d.hasKey ? '' : 'disabled'}>Testar zonas com 1 treino</button>
+        <button class="btn ghost" id="refill" ${d.hasKey ? '' : 'disabled'}>Buscar de novo os últimos 90 dias</button>
+        <button class="btn ghost" id="zundo">Voltar às zonas originais</button>
+      </div>
+      <div id="adv-out" class="dg-out" aria-live="polite"></div>
+      <h3 class="dg-h3">Últimas buscas</h3>
+      <div id="log"><p class="progress">…</p></div>
+    </details>`;
 
-    <section class="card cardx">
-      <h2>Completar treinos (12 meses)</h2>
-      <p class="note">Os treinos que vieram do arquivo inicial não têm o identificador da Garmin, então ficam sem calorias, nome, efeito de treino e VO2máx, e o recálculo de zonas não chega neles. Isto busca os treinos do último ano direto da API e troca as linhas antigas pelas completas (sem duplicar). Faça antes de recalcular as zonas.</p>
-      <button class="btn" id="acts12" ${st.hasKey ? '' : 'disabled'}>Completar treinos</button>
-      <p class="progress" id="acts12-out" aria-live="polite"></p>
-    </section>
-
-    <section class="card cardx">
-      <h2>Zonas do histórico</h2>
-      <p class="note">Os treinos até 02/11 usam as zonas que estavam no Garmin na época (bike e natação mudaram em 03/11). Isto relê o arquivo de cada treino do último ano (bike, corrida, natação e Hyrox) e refaz o tempo em zona com as suas zonas atuais. Strain, Fitness, Fadiga e Forma mudam junto. Dá para desfazer.</p>
-      <button class="btn ghost" id="zcur" ${st.hasKey ? '' : 'disabled'}>Ver zonas atuais</button>
-      <div id="zcur-out"></div>
-      <button class="btn ghost" id="ztest" ${st.hasKey ? '' : 'disabled'}>Testar com 1 treino</button>
-      <button class="btn" id="zrun" ${st.hasKey ? '' : 'disabled'}>Recalcular histórico</button>
-      <button class="btn ghost" id="zundo">Desfazer</button>
-      <p class="progress" id="zrun-out" aria-live="polite"></p>
-    </section>
-
-    <section class="card cardx">
-      <h2>Zonas de FC do Garmin</h2>
-      <p class="note">FC máxima, de repouso e limiar configurados no seu Garmin. São a base do cálculo de carga padrão do mercado (hrTSS).</p>
-      <button class="btn ghost" id="zones" ${st.hasKey ? '' : 'disabled'}>Ver zonas</button>
-      <div id="zones-out"></div>
-    </section>
-
-    <section class="card cardx">
-      <h2>Últimas sincronizações</h2>
-      ${st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>'}
-    </section>`;
-
-  // completar treinos: janelas de 31 dias do mais antigo para o mais recente; retoma de onde parou
-  screen.querySelector('#acts12').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget, out = screen.querySelector('#acts12-out'); btn.disabled = true;
-    const iso = (d) => d.toISOString().slice(0, 10), add = (s, n) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
-    const today = iso(new Date(Date.now() - 3 * 3600e3));
-    let from = ls.get('rec.acts12') || add(today, -365), total = 0;
-    try {
-      while (from <= today) {
-        const to = add(from, 30) > today ? today : add(from, 30);
-        let tries = 0, r;
-        for (;;) {
-          try { r = await api(`/api/garmin/activities?from=${from}&to=${to}`, { method: 'POST' }); break; }
-          catch (e) {
-            if (/limite|429/.test(e.message) && tries < 6) { tries++; out.textContent = `A Garmin pediu pausa; tentando de novo em 60 s (${tries}/6)…`; await new Promise((ok) => setTimeout(ok, 60000)); continue; }
-            throw e;
-          }
-        }
-        total += r.atividades; ls.set('rec.acts12', add(to, 1));
-        out.textContent = `${from.split('-').reverse().slice(0, 2).join('/')} a ${to.split('-').reverse().slice(0, 2).join('/')}: ${r.atividades} treinos. Total ${total}.`;
-        from = add(to, 1);
+  const out = screen.querySelector('#go-out'), adv = screen.querySelector('#adv-out');
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const short = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
+  // chamada que espera sozinha quando a Garmin pede pausa
+  async function call(path, label) {
+    for (let tent = 1; ; tent++) {
+      try { return await api(path, { method: 'POST' }); }
+      catch (e) {
+        if (!/limite|429/.test(e.message) || tent >= 15) throw e;
+        for (let s = 60; s > 0; s--) { label(`a Garmin pediu pausa, retomando em ${s} s`); await sleep(1000); }
       }
-      out.textContent = `Pronto: ${total} treinos atualizados com os dados completos da Garmin.`;
-      try { localStorage.removeItem('rec.acts12'); } catch {}
-    } catch (e) { out.textContent = `Parou: ${e.message}. Toque de novo para continuar de onde parou.`; }
-    btn.disabled = false;
-  });
-
-  // zonas do histórico
-  const zout = screen.querySelector('#zrun-out');
-  const SL = { default: 'Padrão (Hyrox e outros)', bike: 'Bike', corrida: 'Corrida', natacao: 'Natação' };
-  screen.querySelector('#zcur').addEventListener('click', async () => {
-    const box = screen.querySelector('#zcur-out'); box.innerHTML = '<p class="progress">Buscando…</p>';
-    try {
-      const { zones } = await api('/api/zones/current');
-      box.innerHTML = `<ul class="acts">${Object.entries(zones).map(([k, z]) => `<li><span>${SL[k] ?? k}</span><span class="meta">Z1 ${z.floors[0]} · Z2 ${z.floors[1]} · Z3 ${z.floors[2]} · Z4 ${z.floors[3]} · Z5 ${z.floors[4]}${z.max ? ` · máx ${z.max}` : ''}</span></li>`).join('')}</ul>`;
-    } catch (e) { box.innerHTML = `<p class="progress">Não leu as zonas: ${esc(e.message)}</p>`; }
-  });
-  screen.querySelector('#zrun').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget; btn.disabled = true; zout.textContent = 'Começando…';
-    try {
-      const r = await recalcHistory(api, { onEach: ({ item, z, error, left }) => {
-        zout.textContent = error ? `${item.date}: pulado (${error})` : `${item.date} ${item.sport}: ${z ? 'zonas refeitas' : 'sem FC no arquivo'}${left != null ? ` · faltam ${Math.max(0, left)}` : ''}`;
-      } });
-      const errs = Object.entries(r.errors ?? {});
-      zout.textContent = r.busy ? 'Já está rodando.' : r.stop ?? (r.found === 0 ? 'Nenhum treino pendente para recalcular (todos já processados). Toque em "Desfazer" para refazer do zero.'
-        : `Pronto: ${r.done} treinos recalculados${r.noHr ? `, ${r.noHr} sem FC no arquivo` : ''}${errs.length ? `, ${errs.reduce((a, [, n]) => a + n, 0)} com erro (${errs.map(([m, n]) => `${m}: ${n}`).join('; ')})` : ''}.`);
-    } catch (e) { zout.textContent = `Parou: ${e.message}`; }
-    btn.disabled = false;
-  });
-  screen.querySelector('#ztest').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget; btn.disabled = true; zout.textContent = 'Testando…';
-    try { zout.innerHTML = (await testOne(api)).map((x) => esc(x)).join('<br>'); } catch (e) { zout.textContent = `Falhou em: ${e.message}`; }
-    btn.disabled = false;
-  });
-  screen.querySelector('#zundo').addEventListener('click', async () => {
-    try { await api('/api/zones/undo', { method: 'POST' }); zout.textContent = 'Zonas originais da Garmin de volta.'; } catch (e) { zout.textContent = `Falhou: ${e.message}`; }
-  });
-
-  screen.querySelector('#hist').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget, out = screen.querySelector('#hist-out');
-    btn.disabled = true;
-    const today = st.hoje, chunks = [];
-    for (let d = HISTORY_FROM; d <= today; d = addDaysIso(d, 14)) chunks.push([d, addDaysIso(d, 13) > today ? today : addDaysIso(d, 13)]);
-    let dias = 0, ativ = 0;
-    try {
-      // retoma de onde parou (o que já veio fica salvo no banco)
-      let done = ''; try { done = localStorage.getItem('rec.histDone') || ''; } catch {}
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-      for (let i = 0; i < chunks.length; i++) {
-        if (chunks[i][1] <= done && chunks[i][1] < addDaysIso(today, -3)) continue;
-        for (let tent = 1; ; tent++) {
-          out.textContent = `Buscando bloco ${i + 1} de ${chunks.length}…`;
-          try {
-            const r = await api(`/api/garmin/backfill?from=${chunks[i][0]}&to=${chunks[i][1]}`, { method: 'POST' });
-            dias += r.dias; ativ += r.atividades;
-            try { localStorage.setItem('rec.histDone', chunks[i][1]); } catch {}
-            break;
-          } catch (e) {
-            // Garmin recusou por excesso de chamadas: espera e tenta de novo sozinho
-            if (!/limite|429/.test(e.message) || tent >= 15) throw e;
-            for (let s = 60; s > 0; s--) { out.textContent = `A Garmin pediu uma pausa. Bloco ${i + 1} de ${chunks.length}, retomando em ${s} s…`; await sleep(1000); }
-          }
-        }
-        await sleep(1500); // ritmo mais leve para não estourar o limite
-      }
-      for (let d = '2025-09-01'; d <= today; d = addDaysIso(d, 60)) {
-        out.textContent = `Calculando o REC até ${fmt(d)}…`;
-        const to = addDaysIso(d, 59) > today ? today : addDaysIso(d, 59);
-        await api(`/api/recompute?to=${to}&keep=60`, { method: 'POST' });
-      }
-      out.textContent = `Pronto: ${n(dias)} dias e ${n(ativ)} atividades.`;
-      setTimeout(renderGarmin, 1500);
-    } catch (e) {
-      out.textContent = `Parou: ${errText(e)} Toque de novo para continuar; o que já veio fica salvo.`;
-      btn.disabled = false;
     }
-  });
+  }
 
-  screen.querySelector('#refill').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget, out = screen.querySelector('#refill-out');
-    btn.disabled = true;
-    const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
-    const today = st.hoje, chunks = [];
-    for (let d = addDaysIso(today, -89); d <= today; d = addDaysIso(d, 14)) chunks.push([d, addDaysIso(d, 13) > today ? today : addDaysIso(d, 13)]);
+  screen.querySelectorAll('.dg-now').forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true; b.textContent = 'Buscando…';
+    try { await api('/api/refresh', { method: 'POST' }); } catch (e) { b.textContent = errText(e); return; }
+    renderGarmin();
+  }));
+
+  screen.querySelector('#go')?.addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget; btn.disabled = true;
+    const steps = todo.map((r) => r.passo), total = steps.length;
+    const say = (i, t, msg) => { out.textContent = `Passo ${i + 1} de ${total} · ${t}: ${msg}`; };
     try {
-      for (let i = 0; i < chunks.length; i++) {
-        for (let tent = 1; ; tent++) {
-          out.textContent = `Bloco ${i + 1} de ${chunks.length}…`;
-          try { await api(`/api/garmin/backfill?from=${chunks[i][0]}&to=${chunks[i][1]}`, { method: 'POST' }); break; }
-          catch (e) {
-            if (!/limite|429/.test(e.message) || tent >= 15) throw e;
-            for (let s = 60; s > 0; s--) { out.textContent = `A Garmin pediu uma pausa. Retomando em ${s} s…`; await sleepMs(1000); }
+      for (let i = 0; i < steps.length; i++) {
+        const p = steps[i];
+        if (p === 'dias' || p === 'horarios') {
+          const t = p === 'dias' ? 'dias' : 'horários de sono', js = d[p === 'dias' ? 'dias' : 'horarios'].janelas;
+          for (let k = 0; k < js.length; k++) {
+            say(i, t, `bloco ${k + 1} de ${js.length} (${short(js[k][0])} a ${short(js[k][1])})`);
+            await call(`/api/garmin/backfill?from=${js[k][0]}&to=${js[k][1]}`, (m) => say(i, t, m));
+            await sleep(1200);
           }
+        } else if (p === 'treinos') {
+          const js = d.treinos.janelas;
+          for (let k = 0; k < js.length; k++) {
+            say(i, 'treinos', `${short(js[k][0])} a ${short(js[k][1])} (${k + 1} de ${js.length})`);
+            await call(`/api/garmin/activities?from=${js[k][0]}&to=${js[k][1]}`, (m) => say(i, 'treinos', m));
+          }
+        } else if (p === 'zonas' || p === 'zonas_erro') {
+          if (p === 'zonas_erro') await api('/api/zones/retry', { method: 'POST' });
+          const r = await recalcHistory(api, { onEach: ({ item, z, error, left }) => say(i, 'zonas', error ? `${short(item.date)} pulado (${error})` : `${short(item.date)} ${z ? 'refeito' : 'sem FC'}${left != null ? ` · faltam ${Math.max(0, left)}` : ''}`) });
+          if (r.stop) throw new Error(r.stop);
         }
-        await sleepMs(1500);
       }
-      await api(`/api/recompute?to=${today}&keep=60`, { method: 'POST' });
-      out.textContent = 'Pronto.';
-    } catch (e) { out.textContent = `Parou: ${errText(e)}`; }
-    btn.disabled = false;
+      // dias novos mudam o REC: recalcula do primeiro dia que mudou até hoje, em blocos de 60
+      const starts = [...(steps.includes('dias') ? [d.dias.janelas[0]?.[0]] : []), ...(steps.includes('rec') ? [addDaysIso(d.rec.ate[0], -59)] : [])].filter(Boolean).sort();
+      if (starts.length) for (let to = addDaysIso(starts[0], 59); ; to = addDaysIso(to, 60)) {
+        const end = to > d.hoje ? d.hoje : to; out.textContent = `Recalculando o REC até ${short(end)}…`;
+        await api(`/api/recompute?to=${end}&keep=60`, { method: 'POST' }); if (end === d.hoje) break;
+      }
+      out.textContent = 'Pronto. Conferindo de novo…';
+      setTimeout(renderGarmin, 900);
+    } catch (e) { out.textContent = `Parou: ${errText(e)} Toque de novo: continua do que falta.`; btn.disabled = false; }
   });
 
-  screen.querySelector('#zones').addEventListener('click', async (ev) => {
-    const out = screen.querySelector('#zones-out');
-    out.innerHTML = '<p class="progress">Buscando…</p>';
-    try { out.innerHTML = `<pre class="raw-pre">${esc(JSON.stringify(await api('/api/garmin/zones'), null, 1))}</pre>`; }
-    catch (e) { out.innerHTML = `<p class="alert">${esc(errText(e))}</p>`; }
+  // --- avançado ---
+  const SL = { default: 'Padrão (Hyrox e outros)', bike: 'Bike', corrida: 'Corrida', natacao: 'Natação' };
+  const tool = (id, fn) => screen.querySelector(id).addEventListener('click', async (ev) => {
+    const b = ev.currentTarget; b.disabled = true; adv.innerHTML = '<p class="progress">…</p>';
+    try { await fn(b); } catch (e) { adv.innerHTML = `<p class="alert">${esc(errText(e))}</p>`; }
+    b.disabled = false;
   });
-
-  screen.querySelector('#check').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget, out = screen.querySelector('#check-out');
-    btn.disabled = true; out.innerHTML = '<p class="progress">Testando…</p>';
+  tool('#check', async () => {
+    const r = await api('/api/garmin/check?days=14');
+    const LABEL = { hrv: 'HRV', rhr: 'FC de repouso', sleep_h: 'Sono', sleep_score: 'Score do sono', resp: 'Respiração', stress: 'Estresse' };
+    adv.innerHTML = `<ul class="acts">${r.fields.map((f) => `<li><span>${LABEL[f.field]}</span><span class="meta">${f.api} de 14 dias${f.ambos ? `, ${f.iguais}/${f.ambos} iguais ao banco` : ''}</span></li>`).join('')}</ul>
+      <details class="raw"><summary>Detalhes técnicos</summary><pre>${esc(JSON.stringify({ campos: r.raw, detalhe: r.detail, amostra: r.sample }, null, 1))}</pre></details>`;
+  });
+  tool('#zcur', async () => {
+    const { zones } = await api('/api/zones/current');
+    adv.innerHTML = `<ul class="acts">${Object.entries(zones).map(([k, z]) => `<li><span>${SL[k] ?? k}</span><span class="meta">Z1 ${z.floors[0]} · Z2 ${z.floors[1]} · Z3 ${z.floors[2]} · Z4 ${z.floors[3]} · Z5 ${z.floors[4]}${z.max ? ` · máx ${z.max}` : ''}</span></li>`).join('')}</ul>`;
+  });
+  tool('#ztest', async () => { adv.innerHTML = `<p class="progress">${(await testOne(api)).map((x) => esc(x)).join('<br>')}</p>`; });
+  tool('#refill', async () => {
+    const today = d.hoje, js = [];
+    for (let x = addDaysIso(today, -89); x <= today; x = addDaysIso(x, 14)) js.push([x, addDaysIso(x, 13) > today ? today : addDaysIso(x, 13)]);
+    const p = document.createElement('p'); p.className = 'progress'; adv.replaceChildren(p);
+    for (let k = 0; k < js.length; k++) { p.textContent = `Bloco ${k + 1} de ${js.length}…`; await call(`/api/garmin/backfill?from=${js[k][0]}&to=${js[k][1]}`, (m) => { p.textContent = m; }); await sleep(1200); }
+    await api(`/api/recompute?to=${today}&keep=60`, { method: 'POST' });
+    p.textContent = 'Pronto.';
+  });
+  let undoArmed = false;
+  tool('#zundo', async (b) => {
+    if (!undoArmed) { undoArmed = true; b.textContent = 'Toque de novo para confirmar'; adv.innerHTML = '<p class="progress">Volta todos os treinos às zonas que vieram do Garmin. O Strain antigo volta junto e "Zonas do histórico" fica pendente de novo.</p>'; return; }
+    await api('/api/zones/undo', { method: 'POST' }); undoArmed = false; b.textContent = 'Voltar às zonas originais';
+    adv.innerHTML = '<p class="progress">Zonas originais de volta.</p>'; setTimeout(renderGarmin, 1200);
+  });
+  // registro das buscas só quando abre o avançado
+  screen.querySelector('.dg-adv').addEventListener('toggle', async (ev) => {
+    if (!ev.currentTarget.open || ev.currentTarget.dataset.loaded) return; ev.currentTarget.dataset.loaded = '1';
+    const box = screen.querySelector('#log');
     try {
-      const r = await api('/api/garmin/check?days=14');
-      const LABEL = { hrv: 'HRV', rhr: 'FC de repouso', sleep_h: 'Sono', sleep_score: 'Score do sono', resp: 'Respiração', stress: 'Estresse' };
-      out.innerHTML = `
-        <ul class="acts">${r.fields.map((f) => `<li><span>${LABEL[f.field]}</span><span class="meta">${f.api} de 14 dias${f.ambos ? `, ${f.iguais}/${f.ambos} iguais ao banco` : ''}</span></li>`).join('')}</ul>
-        <details class="raw"><summary>Detalhes técnicos</summary><pre>${esc(JSON.stringify({ campos: r.raw, detalhe: r.detail, amostra: r.sample }, null, 1))}</pre></details>`;
-    } catch (e) { out.innerHTML = `<p class="alert">${esc(errText(e))}</p>`; }
-    btn.disabled = false;
+      const st = await api('/api/garmin/status');
+      box.innerHTML = st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>';
+    } catch (e) { box.innerHTML = `<p class="progress">${esc(errText(e))}</p>`; }
   });
 }
 
