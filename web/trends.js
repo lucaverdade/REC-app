@@ -37,78 +37,108 @@ function periodTitle(d) {
   return `${prefix}${f(a)} – ${f(b)}`;
 }
 
-// Tendências em 3 abas (04/11): cada aba responde uma pergunta; os blocos ficam fechados e abrem ao tocar.
-const TABS = [
-  { k: 'carga', l: 'Carga', q: 'Estou treinando no ritmo certo?', secs: [
-    ['year', 'O ano em quadradinhos', 'Um quadrado por dia: REC, Strain ou sono', (b, a) => yearSec(b, a)],
-    ['sw', 'Strain semanal', 'Quanto treinei por semana, contra a sua faixa', (b, a) => strainWeeks(b, a)],
-    ['evo', 'Estou evoluindo?', 'Fitness, Fadiga e Forma', (b, a) => evolve(b, a)],
-    ['vol', 'Como treinei?', 'Horas, modalidades e intensidade', (b, a) => volume(b, a)],
-    ['focus', 'Foco da carga', 'Leve, forte ou anaeróbico nas últimas 4 semanas', (b, a) => focusSec(b, a)],
-  ] },
-  { k: 'corpo', l: 'Corpo', q: 'Meu corpo está recuperando?', secs: [
-    ['recov', 'Recuperação', 'REC, HRV, FC de repouso e sono contra o seu normal', (b, a) => recovery(b, a)],
-    ['hrvt', 'Tendência do HRV', 'Adaptando bem ou acumulando fadiga', (b, a) => hrvTrendSec(b, a)],
-    ['habs', 'O que mexe no meu REC', 'Hábitos do diário e horário de sono', (b, a) => habits(b, a)],
-    ['stress31', 'Estresse acumulado', 'O último mês contra o seu normal', (b, a) => stressSec(b, a)],
-    ['fage', 'Idade fitness e VO2máx', 'Números da Garmin', (b, a) => fageSec(b, a)],
-    ['calib', 'O REC acerta?', 'REC × "como me sinto"', (b, a) => calibSec(b, a)],
-  ] },
-];
-const SEC_IC = {"year": ["clock", "var(--accent)"], "sw": ["bolt", "var(--strain)"], "evo": ["trend", "var(--fitness)"], "vol": ["stopwatch", "var(--text-2)"], "focus": ["flame", "#ff8a5c"], "recov": ["heart", "var(--rec-green)"], "hrvt": ["heart", "var(--hrv)"], "habs": ["book", "var(--accent)"], "stress31": ["moon", "var(--warn)"], "fage": ["run", "var(--pred)"], "calib": ["smile", "var(--accent)"]};
-let tab = (() => { try { return localStorage.getItem('rec.ttab') || 'carga'; } catch { return 'carga'; } })();
+// Tendências (04/11, v2): uma tela inicial com o resumo e uma lista de métricas agrupadas; cada uma abre na própria tela.
+// Antes eram 2 abas com 11 blocos sanfonados: difícil achar o que se queria.
+const SECS = {
+  recov: ['Prontidão e REC', 'REC, HRV, FC de repouso e sono contra o seu normal', (b, a) => recovery(b, a), 'heart', 'var(--rec-green)'],
+  hrvt: ['Tendência do HRV', 'Adaptando bem ou acumulando fadiga', (b, a) => hrvTrendSec(b, a), 'heart', 'var(--hrv)'],
+  stress31: ['Estresse acumulado', 'O último mês contra o seu normal', (b, a) => stressSec(b, a), 'moon', 'var(--warn)'],
+  habs: ['O que mexe no meu REC', 'Hábitos do diário e horário de sono', (b, a) => habits(b, a), 'book', 'var(--accent)'],
+  calib: ['O REC acerta?', 'REC e Prontidão × "como me sinto"', (b, a) => calibSec(b, a), 'smile', 'var(--accent)'],
+  sw: ['Strain semanal', 'Quanto treinei por semana, contra a sua faixa', (b, a) => strainWeeks(b, a), 'bolt', 'var(--strain)'],
+  evo: ['Fitness, Fadiga e Forma', 'Estou evoluindo?', (b, a) => evolve(b, a), 'trend', 'var(--fitness)'],
+  zones: ['Zonas de treino', 'Tempo em cada zona de FC, por modalidade', (b, a) => zonesSec(b, a), 'flame', '#86c3f2'],
+  vol: ['Volume', 'Horas por modalidade e intensidade', (b, a) => volume(b, a), 'stopwatch', 'var(--text-2)'],
+  focus: ['Foco da carga', 'Leve, forte ou anaeróbico nas últimas 4 semanas', (b, a) => focusSec(b, a), 'flame', '#ff8a5c'],
+  fage: ['VO2máx e idade fitness', 'Números da Garmin', (b, a) => fageSec(b, a), 'run', 'var(--pred)'],
+  year: ['O ano em quadradinhos', 'Um quadrado por dia: REC, Strain ou sono', (b, a) => yearSec(b, a), 'clock', 'var(--accent)'],
+};
+const GROUPS = [['Corpo', ['recov', 'hrvt', 'stress31', 'habs', 'calib']], ['Treino', ['sw', 'evo', 'zones', 'vol', 'focus', 'fage']], ['Histórico', ['year']]];
 
 export async function renderTrends(screen, api) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
-  if (!TABS.some((t) => t.k === tab)) tab = 'carga';
-  const T = TABS.find((t) => t.k === tab);
   screen.innerHTML = `
     <header class="top"><h1>Tendências</h1></header>
-    <div class="seg ttabs" role="tablist">${TABS.map((t) => `<button role="tab" data-tab="${t.k}" aria-selected="${t.k === tab}">${t.l}</button>`).join('')}</div>
-    <section class="t-answer card" aria-live="polite"><span class="t-q">${esc(T.q)}<button type="button" class="info-btn" aria-label="Por quê" aria-expanded="false" hidden>i</button></span><p id="t-ans">…</p><div class="card-info" id="t-more" hidden></div></section>
-    ${T.secs.map(([id, title, sub], i) => `
-      <details class="tsec" data-sec="${id}" ${i === 0 ? 'open' : ''}>
-        <summary><i class="ts-ic" style="--ic:${SEC_IC[id]?.[1] ?? 'var(--text-2)'}">${ICON[SEC_IC[id]?.[0]] ?? ''}</i><span><b>${title}</b><small>${sub}</small></span></summary>
-        <section class="block" id="${id}"></section>
-      </details>`).join('')}
-`;
-  screen.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
-    tab = b.dataset.tab; try { localStorage.setItem('rec.ttab', tab); } catch {} renderTrends(screen, api); window.scrollTo(0, 0);
-  }));
-  // cada bloco carrega quando abre pela primeira vez
-  const done = new Set();
-  const load = (det) => { const id = det.dataset.sec; if (done.has(id)) return; done.add(id); T.secs.find((x) => x[0] === id)[3](screen, api); };
-  screen.querySelectorAll('.tsec').forEach((det) => { if (det.open) load(det); det.addEventListener('toggle', () => det.open && load(det)); });
-  answer(screen, api, tab);
+    <section class="t-answer card" aria-live="polite"><span class="t-q">Resumo<button type="button" class="info-btn" aria-label="Por quê" aria-expanded="false" hidden>i</button></span>
+      <p class="t-line" id="t-corpo"><small>Corpo</small><span>…</span></p><p class="t-line" id="t-carga"><small>Carga</small><span>…</span></p>
+      <div class="card-info" id="t-more" hidden></div></section>
+    ${GROUPS.map(([g, ids]) => `<h2 class="tg-h">${g}</h2><nav class="card tg">${ids.map((id) => { const [t, sub, , ic, col] = SECS[id]; return `
+      <a href="#tend/${id}" class="tt"><i class="ts-ic" style="--ic:${col}">${ICON[ic] ?? ''}</i><span><b>${t}</b><small data-v="${id}">${sub}</small></span><em>›</em></a>`; }).join('')}</nav>`).join('')}`;
+  answers(screen, api);
+  tileValues(screen, api);
 }
 
-// resposta de uma frase no topo de cada aba
-async function answer(screen, api, k) {
-  const el = screen.querySelector('#t-ans'); if (!el) return;
-  try {
-    if (k === 'carga') {
+/** Uma métrica na própria tela (#tend/<id>). */
+export function renderTrendDetail(screen, api, id) {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  const S = SECS[id]; if (!S) { location.hash = '#tendencias'; return; }
+  screen.innerHTML = `<header class="top"><a class="back-link" href="#tendencias">‹ Tendências</a></header>
+    <h1 class="td-title"><i class="ts-ic" style="--ic:${S[4]}">${ICON[S[3]] ?? ''}</i>${S[0]}</h1><p class="td-sub">${S[1]}</p>
+    <section class="block" id="${id}"></section>`;
+  S[2](screen, api);
+}
+
+// valores ao lado de cada métrica (do que já está pronto no servidor; cada um aparece quando chega)
+function tileValues(screen, api) {
+  const set = (id, txt) => { const el = screen.querySelector(`[data-v="${id}"]`); if (el && txt) el.textContent = txt; };
+  api('/api/widget').then((w) => set('recov', `Hoje: Prontidão ${w.ready ?? w.readyPrev ?? '–'}% · REC ${w.rec ?? '–'}`)).catch(() => {});
+  api('/api/hrvtrend').then((h) => set('hrvt', h?.label)).catch(() => {});
+  api('/api/stress31').then((c) => set('stress31', c?.label)).catch(() => {});
+  api('/api/calibration').then((c) => set('calib', `${c.withRec} de ${c.target} notas "como me sinto"`)).catch(() => {});
+  api('/api/strain-weeks?weeks=4').then((r) => { const w = r.weeks[r.weeks.length - 1]; set('sw', `Esta semana: ${nf(w.total)} (faixa ${nf(w.lo)}–${nf(w.hi)})`); }).catch(() => {});
+  api('/api/zones-dist?days=30').then((z) => { const i = z.cur.pct.indexOf(Math.max(...z.cur.pct)); if (z.cur.total) set('zones', `30 dias: ${nf(z.cur.pct[i], 0)}% em ${ZL[i]}`); }).catch(() => {});
+}
+
+// resumo: corpo e carga em uma frase cada; o porquê fica no ⓘ
+async function answers(screen, api) {
+  const more = [];
+  const put = (id, html) => { const el = screen.querySelector(`#${id} span`); if (!el) return; el.innerHTML = html; el.querySelectorAll('.t-why').forEach((w) => { more.push(w.innerHTML); w.remove(); }); };
+  await Promise.all([
+    (async () => { try {
+      const [t, h, c] = await Promise.all([longtrend(api, recWin), api('/api/hrvtrend').catch(() => null), api('/api/stress31').catch(() => null)]);
+      const sig = [h ? `HRV de 7 noites: ${h.label.toLowerCase()}` : null, c ? `estresse do mês: ${c.label.toLowerCase()}` : null].filter(Boolean).join(' · ');
+      put('t-corpo', t.verdict ? `<b>${esc(t.verdict.answer)}</b> ${esc(t.verdict.trendTxt)}${sig ? `<small class="t-why">${esc(sig.charAt(0).toUpperCase() + sig.slice(1))}.</small>` : ''}` : 'Ainda sem dados suficientes.');
+    } catch { put('t-corpo', ''); } })(),
+    (async () => { try {
       const [t, r, li] = await Promise.all([longtrend(api, evoWin), api('/api/strain-weeks?weeks=4'), loadInsights(api).catch(() => null)]);
       const sm = t.summary, z = zoneOfPct(sm.formPct), w = r.weeks[r.weeks.length - 1];
       const st = { abaixo: 'abaixo da sua faixa', dentro: 'dentro da sua faixa', acima: 'acima da sua faixa', bem_acima: 'bem acima da sua faixa' }[w.status];
-      el.innerHTML = `${li?.status ? `<b class="st-${li.status.key}">${esc(li.status.label)}.</b> ${esc(li.status.txt)}${li.status.why ? `<small class="t-why">Por quê: ${esc(li.status.why)}.</small>` : ''}` : ''}<small class="t-why">${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>.` : ''}</small>`;
-    } else if (k === 'corpo') {
-      const [t, h, c] = await Promise.all([longtrend(api, recWin), api('/api/hrvtrend').catch(() => null), api('/api/stress31').catch(() => null)]);
-      const sig = [h ? `HRV de 7 noites: ${h.label.toLowerCase()}` : null, c ? `estresse do mês: ${c.label.toLowerCase()}` : null].filter(Boolean).join(' · ');
-      el.innerHTML = t.verdict ? `<b>${esc(t.verdict.answer)}</b> ${esc(t.verdict.trendTxt)}${sig ? `<small class="t-why">${esc(sig.charAt(0).toUpperCase() + sig.slice(1))}.</small>` : ''}` : 'Ainda sem dados suficientes.';
-    } else {
-      const d = await raceData(api);
-      const pr = d.projection, end = pr?.raceDay ? { ...pr.raceDay, date: d.race.date } : pr?.end;
-      const dd = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' });
-      el.innerHTML = `Aracaju em <b>${d.race.days} dias</b>.${end?.formPct != null ? ` Forma prevista ${pr.raceDay ? 'no dia da prova' : `em ${dd(end.date)}`}: <b class="z-${end.zone?.key}">${signed(end.formPct)}%</b>, ${esc(end.zone?.label.toLowerCase() ?? '')}.` : ''}${d.halfPrediction ? ` Meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b>.` : ''}`;
-    }
-  } catch { el.textContent = ''; }
-  // o detalhe (por quê, faixa da semana, Forma) fica atrás do ⓘ: à vista só a resposta
-  const more = screen.querySelector('#t-more'), why = [...el.querySelectorAll('.t-why')];
-  if (more && why.length) {
-    more.innerHTML = why.map((w) => `<p>${w.innerHTML}</p>`).join(''); why.forEach((w) => w.remove());
-    screen.querySelector('.t-answer .info-btn').hidden = false;
-  }
+      put('t-carga', `${li?.status ? `<b class="st-${li.status.key}">${esc(li.status.label)}.</b> ${esc(li.status.txt)}${li.status.why ? `<small class="t-why">Por quê: ${esc(li.status.why)}.</small>` : ''}` : ''}<small class="t-why">${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>.` : ''}</small>`);
+    } catch { put('t-carga', ''); } })(),
+  ]);
+  const box = screen.querySelector('#t-more');
+  if (box && more.length) { box.innerHTML = more.map((m) => `<p>${m}</p>`).join(''); screen.querySelector('.t-answer .info-btn').hidden = false; }
 }
+
+// zonas de treino (estilo Strava): barras por zona, faixas de FC, período e comparação com o período anterior
+const ZL = ['abaixo da Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+let zSport = 'todas', zDays = 30;
+async function zonesSec(box, api) {
+  const sec = box.querySelector('#zones');
+  const SP = [['todas', 'Todas'], ['corrida', 'Corrida'], ['bike', 'Bike'], ['natacao', 'Natação']];
+  const PER = [[7, '7D'], [30, '1M'], [90, '3M'], [180, '6M'], [365, '1A']];
+  const COL = ['#3a3d47', '#cfe0f5', '#9fc2ee', '#6fa3e6', '#4a7fd6', '#2f5bb8'];
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await api(`/api/zones-dist?sport=${zSport}&days=${zDays}`); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const c = d.cur, p = d.prev, top = c.pct.indexOf(Math.max(...c.pct));
+  const diff = c.total && p.total ? Math.round(c.pct[top] - p.pct[top]) : null;
+  const fmtD = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '');
+  const hh = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')}` : `${Math.round(m)} min`);
+  const maxP = Math.max(...c.pct, 1);
+  sec.innerHTML = `
+    <div class="zs-chips">${SP.map(([k, l]) => `<button type="button" data-zs="${k}" aria-pressed="${k === zSport}">${l}</button>`).join('')}</div>
+    ${c.total ? `<div class="zs-head"><div><b>${nf(c.pct[top], 0)}% em ${ZL[top] === 'abaixo da Z1' ? 'abaixo da Z1' : ZL[top]}</b><small>${fmtD(d.from)} – hoje · ${hh(c.total)} em ${c.n} ${c.n === 1 ? 'treino' : 'treinos'}</small></div>
+      ${diff != null ? `<div class="zs-diff ${diff > 0 ? 'up' : diff < 0 ? 'dn' : ''}"><b>${diff > 0 ? '▲' : diff < 0 ? '▼' : '='} ${Math.abs(diff)} pts</b><small>vs. período anterior</small></div>` : ''}</div>
+    <ul class="zs-bars">${[5, 4, 3, 2, 1, 0].map((i) => `<li><span class="zs-l">${i === 0 ? '&lt;Z1' : 'Z' + i}</span><span class="zs-t"><i style="width:${(c.pct[i] / maxP) * 100}%;background:${COL[i]}"></i><b>${nf(c.pct[i], 0)}%</b></span><span class="zs-r">${d.ranges ? esc(d.ranges[i]) : ''}</span></li>`).join('')}</ul>
+    ${d.ranges ? '<p class="zs-unit">bpm · zonas atuais do seu Garmin' + (zSport === 'todas' ? ' (padrão)' : '') + '</p>' : ''}`
+    : '<p class="empty">Sem treinos com zonas de FC neste período.</p>'}
+    <div class="seg seg-sm zs-per">${PER.map(([k, l]) => `<button role="tab" data-zd="${k}" aria-selected="${k === zDays}">${l}</button>`).join('')}</div>
+    ${c.total && p.total ? `<p class="zs-note">Período anterior (${fmtD(addIsoT(d.from, -zDays))} – ${fmtD(addIsoT(d.from, -1))}): ${[0, 1, 2, 3, 4, 5].filter((i) => p.pct[i] >= 1).map((i) => `${ZL[i]} ${nf(p.pct[i], 0)}%`).join(' · ')}.</p>` : ''}`;
+  sec.querySelectorAll('[data-zs]').forEach((b) => b.addEventListener('click', () => { zSport = b.dataset.zs; zonesSec(box, api); }));
+  sec.querySelectorAll('[data-zd]').forEach((b) => b.addEventListener('click', () => { zDays = Number(b.dataset.zd); zonesSec(box, api); }));
+}
+const addIsoT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+
 let liCache = null;
 const loadInsights = (api) => (liCache ??= api('/api/load-insights').catch((e) => { liCache = null; throw e; }));
 

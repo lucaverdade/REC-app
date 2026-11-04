@@ -332,6 +332,35 @@ async function raceReport(env: Env, req: Request, date: string) {
   };
 }
 
+// --- zonas de treino (04/11, estilo Strava): % do tempo em cada zona de FC no período, por modalidade, × período anterior ---
+async function hrZonesCached(env: Env) {
+  type Z = Record<string, { floors: number[]; max: number | null }>;
+  const c = await getSetting<{ day: string; zones: Z | null }>(env, 'hr_zones');
+  if (c && c.day === brtToday()) return c.zones;
+  let zones: Z | null = c?.zones ?? null;
+  if (hasKey(env)) { try { const z = parseHrZones(await fetchHrZones(env)); if (Object.keys(z).length) zones = z; } catch { /* fica o último conhecido */ } }
+  await setSetting(env, 'hr_zones', { day: brtToday(), zones });
+  return zones;
+}
+async function zonesDist(env: Env, sport: string, days: number) {
+  const today = brtToday(), from = addDays(today, -(days - 1)), pFrom = addDays(from, -days), pTo = addDays(from, -1);
+  const sp = ['corrida', 'bike', 'natacao'].includes(sport) ? sport : null;
+  const q = `SELECT SUM(MAX(0, COALESCE(min,0) - (COALESCE(z1,0)+COALESCE(z2,0)+COALESCE(z3,0)+COALESCE(z4,0)+COALESCE(z5,0)))) b,
+    SUM(COALESCE(z1,0)) z1, SUM(COALESCE(z2,0)) z2, SUM(COALESCE(z3,0)) z3, SUM(COALESCE(z4,0)) z4, SUM(COALESCE(z5,0)) z5, COUNT(*) n
+    FROM activities WHERE date BETWEEN ?1 AND ?2 AND (z1 IS NOT NULL OR z2 IS NOT NULL OR z3 IS NOT NULL OR z4 IS NOT NULL OR z5 IS NOT NULL)
+    AND ${sp ? 'sport = ?3' : "sport IN ('corrida','bike','natacao','hyrox')"}`;
+  const run = async (a: string, b: string) => {
+    const st = env.DB.prepare(q); const r = await (sp ? st.bind(a, b, sp) : st.bind(a, b)).first<Record<string, number | null>>();
+    const mins = ['b', 'z1', 'z2', 'z3', 'z4', 'z5'].map((k) => r?.[k] ?? 0), tot = mins.reduce((x, y) => x + y, 0);
+    return { mins: mins.map((m) => Math.round(m)), total: Math.round(tot), n: r?.n ?? 0, pct: mins.map((m) => (tot ? Math.round((m / tot) * 1000) / 10 : 0)) };
+  };
+  const cur = await run(from, today), prev = await run(pFrom, pTo);
+  const zones = await hrZonesCached(env);
+  const zk = sp ?? 'default', z = zones?.[zk] ?? zones?.default ?? null;
+  const ranges = z ? [`< ${z.floors[0]}`, `${z.floors[0]}–${z.floors[1] - 1}`, `${z.floors[1]}–${z.floors[2] - 1}`, `${z.floors[2]}–${z.floors[3] - 1}`, `${z.floors[3]}–${z.floors[4] - 1}`, `≥ ${z.floors[4]}`] : null;
+  return { sport: sp ?? 'todas', days, from, to: today, cur, prev, ranges };
+}
+
 /** Fitness/Fadiga/Forma e Strain de um dia (aba Hoje). */
 async function loadOn(env: Env, date: string) {
   const loads = await dailyLoads(env, addDays(date, -400), date);
@@ -1323,7 +1352,7 @@ async function syncIssueOf(env: Env, date: string, lastSync: Record<string, unkn
 // Qualquer escrita (sincronização com dado novo, nota, diário, recálculo…) sobe a versão e invalida tudo.
 // Campos que dependem do relógio (última busca, aviso de sincronização) são refeitos a cada abertura.
 const CACHEABLE = new Set(['/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
-  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day', '/api/widget', '/api/race-report']);
+  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day', '/api/widget', '/api/race-report', '/api/zones-dist']);
 const CACHE_TTL = 30 * 60e3; // também expira em 30 min (plano novo publicado, virada de hora)
 async function dataVer(env: Env) {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'data_ver'").first<{ value: string }>();
@@ -1473,6 +1502,10 @@ async function handle(req: Request, env: Env): Promise<Response> {
       const date = url.searchParams.get('date') ?? RACE.date;
       if (!isDate(date)) return json({ error: 'data_invalida' }, 400);
       return json(await raceReport(env, req, date));
+    }
+    if (url.pathname === '/api/zones-dist' && req.method === 'GET') {
+      const days = [7, 30, 90, 180, 365].includes(Number(url.searchParams.get('days'))) ? Number(url.searchParams.get('days')) : 30;
+      return json(await zonesDist(env, url.searchParams.get('sport') ?? 'todas', days));
     }
     if (url.pathname === '/api/calibration' && req.method === 'GET') {
       const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress

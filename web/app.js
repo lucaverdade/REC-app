@@ -1,5 +1,5 @@
 // REC — app. Sem framework.
-import { renderTrends, zoneOfPct, FORM_ZONES } from './trends.js';
+import { renderTrends, renderTrendDetail, zoneOfPct, FORM_ZONES } from './trends.js';
 import { renderTrain } from './train.js';
 import { renderRace, renderReport } from './race.js';
 import { reviewHtml } from './review.js';
@@ -964,7 +964,7 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? '#tendencias' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -982,6 +982,7 @@ function route() {
   else if (h === '#treino') renderTrain(page(), api);
   else if (h === '#prova') renderRace(page(), api);
   else if (h.startsWith('#relatorio/')) renderReport(page(), api, h.slice(11));
+  else if (h.startsWith('#tend/')) renderTrendDetail(page(), api, h.slice(6));
   else load();
 }
 window.addEventListener('hashchange', route);
