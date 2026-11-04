@@ -27,6 +27,7 @@ export function readFit(bytes, { Decoder, Stream }) {
     hr: typeof m.heartRate === 'number' ? m.heartRate : null,
     speed: typeof m.enhancedSpeed === 'number' ? m.enhancedSpeed : typeof m.speed === 'number' ? m.speed : null,
     power: typeof m.power === 'number' ? m.power : null,
+    alt: typeof m.enhancedAltitude === 'number' ? m.enhancedAltitude : typeof m.altitude === 'number' ? m.altitude : null,
   }));
   return { recs, sport: messages.sessionMesgs?.[0]?.sport ?? null, errors: errors?.length ?? 0 };
 }

@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS activity_fit (
   status      TEXT NOT NULL,      -- ok | sem_dados | sem_arquivo | erro
   basis       TEXT,               -- power | speed
   minutes     REAL, ef REAL, ef1 REAL, ef2 REAL, decoupling REAL, hr REAL,
+  version     INTEGER, hr1 REAL, hr2 REAL, reason TEXT,
   computed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

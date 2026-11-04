@@ -662,7 +662,7 @@ async function renderGarmin() {
   // FIT: teste com 1 treino e processamento em lote
   const fitOut = screen.querySelector('#fit-out');
   const fitLine = ({ item, result, error }) => error ? `${item.date}: erro (${error})`
-    : `${item.date} ${item.sport === 'bike' ? 'bike' : 'corrida'} ${Math.round(item.min)} min: ${result.basis ? `eficiência por ${result.basis === 'power' ? 'potência' : 'velocidade'}` : 'sem velocidade/potência'}${result.decoupling != null ? `, desacoplamento ${String(result.decoupling).replace('.', ',')}%` : ''}`;
+    : `${item.date} ${item.sport === 'bike' ? 'bike' : 'corrida'} ${Math.round(item.min)} min: ${result.decoupling != null ? `FC ${result.hr1} → ${result.hr2}, ${result.decoupling < 5 ? 'estável' : 'subiu'} ${String(result.decoupling).replace('.', ',')}%` : `lido, sem comparação (${result.reason ?? 'sem dados'})`}`;
   screen.querySelector('#fit1').addEventListener('click', async (ev) => {
     const btn = ev.currentTarget; btn.disabled = true; fitOut.textContent = 'Baixando e lendo o arquivo…';
     try {

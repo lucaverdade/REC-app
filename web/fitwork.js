@@ -22,8 +22,8 @@ export async function processPending(api, { max = 3, onEach = () => {} } = {}) {
         const fit = fitFromZip(buf, libs.unzipSync);
         if (!fit) throw new Error('arquivo sem .fit');
         const { recs } = readFit(fit, libs);
-        result = aerobic(recs);
-        await api('/api/fit/result', { method: 'POST', body: JSON.stringify({ id: item.id, status: result.ef != null ? 'ok' : 'sem_dados', ...result }) });
+        result = aerobic(recs, { sport: item.sport, indoor: /indoor|virtual|treadmill|trainer/i.test(item.type ?? '') });
+        await api('/api/fit/result', { method: 'POST', body: JSON.stringify({ id: item.id, status: result.basis ? 'ok' : 'sem_dados', ...result }) });
         done++; left--;
       } catch (e) {
         error = e.message;

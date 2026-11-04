@@ -1,7 +1,7 @@
 // Aba Treino (repaginada 03/11): resumo da semana, faixa com os 7 dias e um dia por vez.
 // Cada sessão: nome grande, duração e zona, Strain previsto → feito. Detalhes ficam recolhidos.
 import { nf } from './charts.js';
-import { distBar } from './trends.js';
+import { distBar, decShort } from './trends.js';
 import { reviewHtml } from './review.js';
 
 let offset = 0;
@@ -29,7 +29,7 @@ function sessionCard({ sport, title, sub, status, key, planned, done, detail, ex
   const pct = planned && done != null ? Math.round((done / planned) * 100) : null;
   const cls = pct == null ? '' : pct >= 80 && pct <= 120 ? 'ok' : pct < 80 ? 'low' : 'high';
   const facts = ex ? [ex.km >= 0.5 ? `${nf(ex.km, 1)} km` : null, ex.avghr ? `FC média ${Math.round(ex.avghr)}` : null, ex.rpe != null ? `RPE ${nf(ex.rpe)}` : null,
-    ex.decoupling != null && (ex.min ?? 0) >= 60 ? `desacoplamento ${nf(ex.decoupling, 1)}%` : null].filter(Boolean) : [];
+    ex.decoupling != null && (ex.min ?? 0) >= 60 ? `${decShort(ex.decoupling)} da 1ª para a 2ª metade${ex.hr1 && ex.hr2 ? ` (FC ${ex.hr1} → ${ex.hr2})` : ''}` : null].filter(Boolean) : [];
   return `<li class="ss s-${esc(sport)}-bar">
     <div class="ss-top">
       <div class="ss-name"><b>${esc(title)}</b>${key ? '<span class="key">chave</span>' : ''}<span class="ss-sub">${sub}</span></div>

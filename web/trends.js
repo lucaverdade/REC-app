@@ -58,48 +58,34 @@ export async function renderTrends(screen, api) {
   habits(box, api);
 }
 
-// ---------- Base aeróbica: desacoplamento (B2) e eficiência (B3) ----------
-const SC = { bike: 'var(--bike)', corrida: 'var(--corrida)' };
+// ---------- Base aeróbica (versão simples, 03/11) ----------
+// Pergunta: no treino longo e leve, a FC fica estável até o fim no mesmo ritmo?
 const median = (v) => { const s = [...v].sort((a, b) => a - b), n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
+export const decShort = (d) => (d < 5 ? `FC estável (${nf(d, 1)}%)` : `FC subiu ${nf(d, 1)}%`);
 async function aerobicSec(box, api) {
   const sec = box.querySelector('#aero');
   sec.innerHTML = '<h2>Base aeróbica</h2><p class="empty">Carregando…</p>';
   let d; try { d = await api('/api/aerobic'); } catch (e) { sec.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
-  if (!d.done) { sec.innerHTML = '<h2>Base aeróbica</h2><p class="empty">Os arquivos dos treinos ainda não foram lidos. O app lê aos poucos ao abrir, ou de uma vez em Garmin → Processar todos.</p>'; return; }
   const dec = d.decoupling;
-  const last4 = dec.slice(-4).map((x) => x.decoupling), med = median(last4);
-  const W = 340, H = 110, ymax = Math.max(12, ...dec.map((x) => x.decoupling)), ymin = Math.min(-2, ...dec.map((x) => x.decoupling));
-  const t0 = dec.length ? Date.parse(dec[0].date) : 0, t1 = dec.length ? Date.parse(dec[dec.length - 1].date) : 1;
-  const X = (iso) => (t1 === t0 ? W / 2 : ((Date.parse(iso) - t0) / (t1 - t0)) * (W - 30) + 4), Y = (v) => ((ymax - v) / (ymax - ymin)) * H;
-  const dfmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '');
-  const chart = dec.length ? `<svg viewBox="0 -6 ${W} ${H + 24}" class="chart" role="img" aria-label="Desacoplamento por treino">
-      <rect x="0" y="${Y(5).toFixed(1)}" width="${W - 26}" height="${(Y(ymin) - Y(5)).toFixed(1)}" fill="var(--good)" opacity=".07"/>
-      <line x1="0" x2="${W - 26}" y1="${Y(5).toFixed(1)}" y2="${Y(5).toFixed(1)}" class="zero" stroke-dasharray="3 3"/>
-      <text x="${W - 22}" y="${(Y(5) + 4).toFixed(1)}" class="pj-t">5%</text>
-      ${dec.map((x) => `<circle cx="${X(x.date).toFixed(1)}" cy="${Y(x.decoupling).toFixed(1)}" r="${3 + Math.min(4, x.min / 60)}" fill="${SC[x.sport]}" opacity=".9"/>`).join('')}
-      <text x="4" y="${H + 16}" class="pj-t">${dfmt(dec[0].date)}</text><text x="${W - 30}" y="${H + 16}" text-anchor="end" class="pj-t">${dfmt(dec[dec.length - 1].date)}</text>
-    </svg>` : '';
-  // eficiência por grupo comparável
-  const groups = [['bike', false, 'Bike na rua'], ['bike', true, 'Bike no rolo'], ['corrida', false, 'Corrida na rua'], ['corrida', true, 'Corrida na esteira']]
-    .map(([sp, ind, label]) => {
-      const xs = d.ef.filter((x) => x.sport === sp && x.indoor === ind);
-      if (xs.length < 4) return null;
-      const basis = xs[xs.length - 1].basis, same = xs.filter((x) => x.basis === basis);
-      const a = same.slice(-4).map((x) => x.ef), b = same.slice(-8, -4).map((x) => x.ef);
-      const ch = b.length >= 2 ? Math.round(((median(a) - median(b)) / median(b)) * 100) : null;
-      return { label, n: same.length, basis, ch };
-    }).filter(Boolean);
+  const dfmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' });
+  const hmin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}` : `${m} min`);
+  const now = median(dec.slice(-4).map((x) => x.decoupling)), before = dec.length >= 8 ? median(dec.slice(-8, -4).map((x) => x.decoupling)) : null;
+  let head;
+  if (!d.done) head = 'Os arquivos dos treinos ainda não foram lidos. O app lê aos poucos quando você abre a aba Hoje.';
+  else if (!dec.length) head = 'Ainda não há treino longo e leve que dê para comparar (60 min ou mais, quase todo até a Z2).';
+  else head = `Nos seus treinos longos e leves, a FC subiu em média <b>${nf(now, 1)}%</b> do começo ao fim, no mesmo ritmo. ${now < 5 ? 'Abaixo de 5%: a base aguenta essa duração.' : 'Acima de 5%: essa duração ainda cansa.'}${before != null ? ` Nos 4 anteriores era ${nf(before, 1)}%.` : ''}`;
+  const efs = d.ef, efA = efs.slice(-4).map((x) => x.ef), efB = efs.slice(-8, -4).map((x) => x.ef);
+  const efCh = efB.length >= 4 ? Math.round(((median(efA) - median(efB)) / median(efB)) * 100) : null;
   sec.innerHTML = `
     <h2>Base aeróbica</h2>
-    <p class="headline">${dec.length ? `Desacoplamento nos treinos longos e leves: ${med != null ? `<b>${nf(med, 1)}%</b> (mediana dos últimos ${last4.length})` : '–'}. ${med == null ? '' : med < 5 ? 'Abaixo de 5%: a FC segura o ritmo até o fim.' : med < 10 ? 'Entre 5% e 10%: a FC sobe no fim do treino longo.' : 'Acima de 10%: a FC sobe bastante na segunda metade.'}` : 'Ainda não há treino longo e leve (≥ 60 min, ≥ 70% até a Z2) com arquivo lido.'}</p>
-    ${chart}
-    ${dec.length ? `<ul class="acts">${dec.slice(-5).reverse().map((x) => `<li><span><i class="dot s-${x.sport}"></i>${dfmt(x.date)} · ${x.label} ${x.min} min${x.indoor ? ' (indoor)' : ''}</span><span class="meta"><b>${nf(x.decoupling, 1)}%</b></span></li>`).join('')}</ul>` : ''}
-    ${groups.length ? `<h3 class="sub">Eficiência (ritmo ou potência por batimento)</h3>
-      <ul class="acts">${groups.map((g) => `<li><span>${g.label}</span><span class="meta">${g.ch == null ? `${g.n} treinos, ainda sem comparação` : `<b class="${g.ch > 0 ? 'c-good' : g.ch < 0 ? 'c-bad' : ''}">${g.ch > 0 ? '+' : g.ch < 0 ? '−' : ''}${Math.abs(g.ch)}%</b> nos últimos 4 × 4 anteriores`}</span></li>`).join('')}</ul>` : ''}
-    <details class="explain"><summary>Como é calculado</summary>
-      <p><b>Desacoplamento</b> (método Friel/TrainingPeaks): em treinos de bike e corrida com 60 min ou mais e pelo menos 70% do tempo até a Z2, compara a eficiência (velocidade, ou potência quando o arquivo tem, dividida pela FC) da primeira metade com a da segunda, sem os 10 primeiros minutos. Abaixo de 5% indica base aeróbica boa para aquela duração.</p>
-      <p><b>Eficiência</b>: velocidade ou potência dividida pela FC em treinos leves, comparando só treinos do mesmo tipo (rua com rua, rolo com rolo). Subir = mais ritmo para a mesma FC. Calor, vento e subidas mexem nesse número.</p>
-      <p>Os arquivos segundo a segundo vêm da Garmin; o app lê no próprio celular e guarda só o resultado.</p>
+    <p class="headline">${head}</p>
+    ${dec.length ? `<ul class="acts">${dec.slice(-5).reverse().map((x) => `<li><span><i class="dot s-${x.sport}"></i>${dfmt(x.date)} · ${x.label} ${hmin(x.min)}${x.indoor ? (x.sport === 'bike' ? ' (rolo)' : ' (indoor)') : ''}</span><span class="meta ${x.decoupling < 5 ? 'c-good' : ''}">${decShort(x.decoupling)}</span></li>`).join('')}</ul>` : ''}
+    ${d.skipped?.length ? (() => { const g = new Map(); d.skipped.forEach((x) => g.set(x.reason, [...(g.get(x.reason) ?? []), dfmt(x.date)])); return [...g].map(([r, ds]) => `<p class="note">Não comparados (${esc(r)}): ${ds.join(', ')}.</p>`).join(''); })() : ''}
+    ${efCh != null ? `<p class="note">Bike com potência, treinos leves: ${efCh === 0 ? 'mesma' : `${efCh > 0 ? '+' : '−'}${Math.abs(efCh)}%`} potência por batimento nos últimos 4 contra os 4 anteriores.</p>` : ''}
+    <details class="explain"><summary>Para que serve e o que é comparado</summary>
+      <p>Num treino longo e leve no mesmo ritmo, a FC deveria ficar parecida do começo ao fim. Quando ela sobe sozinha na segunda metade, o corpo está se cansando para manter aquele ritmo. Abaixo de 5% de subida é sinal de que a base aguenta aquela duração; no 70.3 é o que decide se sobra perna para os 21 km.</p>
+      <p>A comparação é <b>dentro do mesmo treino</b> (primeira metade × segunda, sem os 10 primeiros minutos). Bike, pneu, rolo e percurso são os mesmos nas duas metades, então diferenças entre dias não entram.</p>
+      <p>Fica de fora o que atrapalha dentro do treino: bike na rua sem potência (vento e subidas mudam a velocidade), esteira (velocidade do relógio não é confiável) e corridas com subida muito diferente entre as metades. Paradas não contam. O calor subindo ao longo do treino também puxa a FC e não dá para separar: em dia quente o número sai mais alto.</p>
     </details>`;
 }
 

@@ -71,7 +71,7 @@ async function ensureSchema(env: Env) {
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
   // migrações de colunas (ignora "duplicate column" quando já existem)
-  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL']) {
+  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'ALTER TABLE activity_fit ADD COLUMN version INTEGER', 'ALTER TABLE activity_fit ADD COLUMN hr1 REAL', 'ALTER TABLE activity_fit ADD COLUMN hr2 REAL', 'ALTER TABLE activity_fit ADD COLUMN reason TEXT']) {
     try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
   }
   schemaReady = true;
@@ -389,8 +389,8 @@ async function weekPayload(env: Env, req: Request, offset: number) {
   const monday = addDays(mondayOf(today), -7 * offset), sunday = addDays(monday, 6);
   const { results: acts } = await env.DB.prepare(
     `SELECT a.id, a.date, a.time, a.sport, a.min, a.km, a.avghr, a.maxhr, a.rpe, a.z1, a.z2, a.z3, a.z4, a.z5, ${STRAIN_SQL.replace(/\b(min|z[1-5])\b/g, 'a.$1')} strain,
-       f.decoupling, f.ef, f.basis
-     FROM activities a LEFT JOIN activity_fit f ON f.id = a.id AND f.status = 'ok' WHERE a.date BETWEEN ?1 AND ?2 ORDER BY a.date, a.time`,
+       f.decoupling, f.ef, f.basis, f.hr1, f.hr2, f.reason
+     FROM activities a LEFT JOIN activity_fit f ON f.id = a.id AND f.version >= 2 WHERE a.date BETWEEN ?1 AND ?2 ORDER BY a.date, a.time`,
   ).bind(monday, sunday).all<Record<string, any>>();
   const { results: recs } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2')
     .bind(monday, addDays(sunday, 1)).all<{ date: string; rec: number | null }>();
@@ -412,7 +412,7 @@ async function weekPayload(env: Env, req: Request, offset: number) {
       return {
         id: a.id, time: a.time, sport: a.sport as Sport, label: SPORT_LABEL[a.sport as Sport], min: a.min, km: a.km, avghr: a.avghr, maxhr: a.maxhr,
         rpe: a.rpe, strain: a.strain == null ? null : Math.round(a.strain),
-        decoupling: a.decoupling ?? null, ef: a.ef ?? null, efBasis: a.basis ?? null,
+        decoupling: a.decoupling ?? null, ef: a.ef ?? null, efBasis: a.basis ?? null, hr1: a.hr1 ?? null, hr2: a.hr2 ?? null, fitReason: a.reason ?? null,
         zones: hasZ ? [Math.max(0, (a.min ?? 0) - inZ), ...z].map((m) => Math.round(m)) : null,
         matched: false,
       };
@@ -807,28 +807,32 @@ async function fitPending(env: Env, n: number) {
   const { results } = await env.DB.prepare(
     `SELECT id, date, type, sport, min FROM activities
      WHERE sport IN ${FIT_SPORTS} AND min >= 30 AND date >= ?1 AND id NOT GLOB '*[^0-9]*'
-       AND id NOT IN (SELECT id FROM activity_fit) ORDER BY date DESC, time DESC LIMIT ?2`,
+       AND id NOT IN (SELECT id FROM activity_fit WHERE version >= 2 OR status = 'sem_arquivo') ORDER BY date DESC, time DESC LIMIT ?2`,
   ).bind(addDays(brtToday(), -180), n).all<{ id: string; date: string; type: string; sport: Sport; min: number }>();
   const left = await env.DB.prepare(
-    `SELECT COUNT(*) n FROM activities WHERE sport IN ${FIT_SPORTS} AND min >= 30 AND date >= ?1 AND id NOT GLOB '*[^0-9]*' AND id NOT IN (SELECT id FROM activity_fit)`,
+    `SELECT COUNT(*) n FROM activities WHERE sport IN ${FIT_SPORTS} AND min >= 30 AND date >= ?1 AND id NOT GLOB '*[^0-9]*' AND id NOT IN (SELECT id FROM activity_fit WHERE version >= 2 OR status = 'sem_arquivo')`,
   ).bind(addDays(brtToday(), -180)).first<{ n: number }>();
   return { pending: results, left: left?.n ?? 0 };
 }
 
 async function aerobicPayload(env: Env) {
+  await ensureSchema(env);
   const { results } = await env.DB.prepare(
-    `SELECT a.id, a.date, a.type, a.sport, a.min, a.z1, a.z2, a.z3, a.z4, a.z5, f.basis, f.ef, f.decoupling, f.hr
-     FROM activity_fit f JOIN activities a ON a.id = f.id WHERE f.status = 'ok' AND a.date >= ?1 ORDER BY a.date`,
+    `SELECT a.id, a.date, a.type, a.sport, a.min, a.z1, a.z2, a.z3, a.z4, a.z5, f.basis, f.ef, f.decoupling, f.hr1, f.hr2, f.reason
+     FROM activity_fit f JOIN activities a ON a.id = f.id WHERE f.version >= 2 AND a.date >= ?1 ORDER BY a.date`,
   ).bind(addDays(brtToday(), -365)).all<Record<string, any>>();
   const rows = results.map((r) => ({
     id: r.id, date: r.date, sport: r.sport as Sport, label: SPORT_LABEL[r.sport as Sport], min: Math.round(r.min ?? 0), indoor: isIndoor(r.type ?? ''),
-    easy: Math.round(easyShare(r as any) * 100), basis: r.basis, ef: r.ef, decoupling: r.decoupling, hr: r.hr,
+    easy: Math.round(easyShare(r as any) * 100), basis: r.basis, ef: r.ef, decoupling: r.decoupling, hr1: r.hr1, hr2: r.hr2, reason: r.reason,
   }));
+  const longEasy = rows.filter((r) => r.min >= 60 && r.easy >= 70);
   return {
-    // B2: treinos longos e leves (≥ 60 min, ≥ 70% até a Z2)
-    decoupling: rows.filter((r) => r.min >= 60 && r.easy >= 70 && r.decoupling != null),
-    // B3: eficiência em sessões leves comparáveis, separadas por modalidade e rolo/rua
-    ef: rows.filter((r) => r.easy >= 70 && r.ef != null),
+    // treinos longos e leves (≥ 60 min, ≥ 70% até a Z2) com metades comparáveis
+    decoupling: longEasy.filter((r) => r.decoupling != null),
+    // longos e leves que não deu para comparar, com o motivo
+    skipped: longEasy.filter((r) => r.decoupling == null && r.reason).slice(-5),
+    // eficiência entre treinos: só bike com potência, leves, rolo e rua separados
+    ef: rows.filter((r) => r.sport === 'bike' && r.basis === 'power' && r.easy >= 70 && r.ef != null),
     done: rows.length,
   };
 }
@@ -974,8 +978,9 @@ export default {
       if (!/^\d+$/.test(String(b.id ?? ''))) return json({ error: 'id_invalido' }, 400);
       const st = ['ok', 'sem_dados', 'erro'].includes(b.status) ? b.status : 'erro';
       const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-      await env.DB.prepare(`INSERT OR REPLACE INTO activity_fit (id, status, basis, minutes, ef, ef1, ef2, decoupling, hr) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`)
-        .bind(String(b.id), st, b.basis === 'power' || b.basis === 'speed' ? b.basis : null, num(b.minutes), num(b.ef), num(b.ef1), num(b.ef2), num(b.decoupling), num(b.hr)).run();
+      await env.DB.prepare(`INSERT OR REPLACE INTO activity_fit (id, status, basis, minutes, ef, ef1, ef2, decoupling, hr, version, hr1, hr2, reason) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`)
+        .bind(String(b.id), st, b.basis === 'power' || b.basis === 'speed' ? b.basis : null, num(b.minutes), num(b.ef), num(b.ef1), num(b.ef2), num(b.decoupling), num(b.hr),
+          num(b.version), num(b.hr1), num(b.hr2), typeof b.reason === 'string' ? b.reason.slice(0, 120) : null).run();
       return json({ ok: true });
     }
     if (url.pathname === '/api/aerobic' && req.method === 'GET') return json(await aerobicPayload(env));
