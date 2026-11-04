@@ -328,21 +328,45 @@ const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { retur
 function morningHtml(d) {
   if (!d.isToday || new Date().getHours() >= 12 || ls.get('rec.morning') === d.date || d.rec == null) return '';
   const sg = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
-  const n = d.sleep?.night, pn = d.sleep?.personalNeed;
+  const z = zoneOf(d.rec), zc = zoneVar(z);
+  const n = d.sleep?.night, base = d.sleep?.personalNeed, need = d.sleep?.need;
   const pl = d.planned ?? [];
-  const plTxt = pl.length ? pl.map((p) => `${esc(p.label)}${p.minutos ? ` ${p.minutos} min` : ''}${p.zona ? ` ${esc(p.zona)}` : ''}`).join(' · ') : 'Sem treino planejado';
   const prev = pl.reduce((a, p) => a + (p.strain ?? 0), 0);
-  const rows = [
-    ['REC', `<b style="color:${zoneVar(zoneOf(d.rec))}">${d.rec}</b>${d.day?.trend ? ` · ${esc(d.day.trend.txt.replace('REC ', ''))}` : ''}`],
-    ['Noite', n?.hours != null ? `<b>${hmm(n.hours)}</b> de ${hmm(pn)}${d.sleep.debt >= 1 / 6 ? ` · dívida ${hmm(d.sleep.debt)}` : ''}` : '–'],
-    d.hrvTrend ? ['HRV', `<b>${esc(d.hrvTrend.label)}</b> · 7 noites ${d.hrvTrend.mean7} ms (normal ${d.hrvTrend.lo}–${d.hrvTrend.hi})`] : null,
-    d.load?.formPct != null ? ['Forma', `<b>${sg(d.load.formPct)}%</b> · ${esc(d.load.zone?.label ?? '')}`] : null,
-    ['Treino', `${plTxt}${pl.length && d.day?.target ? `<br><span class="meta">Strain previsto ${prev}, meta ${d.day.target.target}</span>` : ''}`],
-    d.alerts?.length ? ['Atenção', esc(d.alerts[0].text)] : null,
+  const HC = { acima: 'var(--good)', estavel: 'var(--text)', fadiga: 'var(--warn)', risco: 'var(--bad)' };
+  const date = new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  // anel pequeno do REC
+  const R = 30, C = 2 * Math.PI * R, fill = Math.max(0.02, Math.min(1, d.rec / 100));
+  const ring = `<svg viewBox="0 0 76 76" class="mr-ring" aria-hidden="true">
+    <circle cx="38" cy="38" r="${R}" class="mr-ring-bg"/>
+    <circle cx="38" cy="38" r="${R}" class="mr-ring-fg" style="stroke:${zc}" stroke-dasharray="${(C * fill).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 38 38)"/>
+  </svg>`;
+  const tiles = [
+    { k: 'Noite', v: n?.hours != null ? hmm(n.hours) : '–', c: n?.hours != null && base && n.hours >= base ? 'var(--sleep)' : 'var(--text)',
+      s: base ? `base ${hmm(base)}${d.sleep.debt >= 1 / 6 ? ` · dívida ${hmm(d.sleep.debt)}` : ''}` : '' },
+    d.hrvTrend ? { k: 'HRV', v: `${d.hrvTrend.mean7}<small> ms</small>`, c: HC[d.hrvTrend.cls], s: d.hrvTrend.label } : null,
+    d.load?.formPct != null ? { k: 'Forma', v: `${sg(d.load.formPct)}<small>%</small>`, c: `var(--z-${d.load.zone?.key ?? 'neutro'})`, s: d.load.zone?.label ?? '' } : null,
   ].filter(Boolean);
-  return `<section class="morning" aria-label="Relatório da manhã">
-    <div class="mr-head"><span>Bom dia · relatório da manhã</span><button type="button" class="mr-close" aria-label="Fechar">×</button></div>
-    <ul class="mr-list">${rows.map(([k, v]) => `<li><span>${k}</span><span>${v}</span></li>`).join('')}</ul>
+  return `<section class="morning" aria-label="Relatório da manhã" style="--rz:${zc}">
+    <div class="mr-top">
+      <div><p class="mr-hi">Bom dia</p><p class="mr-date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}</p></div>
+      <button type="button" class="mr-close" aria-label="Fechar o relatório até amanhã">×</button>
+    </div>
+    <div class="mr-hero">
+      <div class="mr-rec">${ring}<b>${d.rec}</b></div>
+      <div class="mr-hero-txt">
+        <span class="mr-lab">REC${d.day?.trend ? ` · ${esc(d.day.trend.txt.replace('REC ', ''))}` : ''}</span>
+        ${d.day?.summary ? `<p class="mr-phrase">${esc(d.day.summary)}</p>` : ''}
+      </div>
+    </div>
+    <div class="mr-tiles">${tiles.map((t) => `<div class="mr-tile"><span class="mr-lab">${t.k}</span><b style="color:${t.c}">${t.v}</b><small>${esc(t.s)}</small></div>`).join('')}</div>
+    <div class="mr-block">
+      <span class="mr-lab">Treino de hoje</span>
+      ${pl.length ? `<ul class="mr-plan">${pl.map((p) => `<li><i class="dot s-${p.sport}"></i><span>${esc(p.titulo || p.label)}</span><em>${p.minutos ? `${p.minutos} min` : ''}${p.zona ? ` · ${esc(p.zona)}` : ''}</em></li>`).join('')}</ul>
+        ${d.day?.target ? `<p class="mr-meta">Strain previsto <b>${prev}</b> · meta do dia <b>${d.day.target.target}</b></p>` : ''}`
+        : '<p class="mr-meta">Sem treino planejado.</p>'}
+    </div>
+    ${need ? `<div class="mr-block mr-night"><span class="mr-lab">Hoje à noite</span><p>Meta <b>${hmm(need.total)}</b>${d.sleep.bedtime ? ` · deitar até <b>${esc(d.sleep.bedtime.bedtime)}</b>` : ''}</p></div>` : ''}
+    ${d.alerts?.length ? `<p class="mr-alert">${esc(d.alerts[0].text)}</p>` : ''}
   </section>`;
 }
 

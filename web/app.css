@@ -783,8 +783,8 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .hv-chart { margin: 4px 0 8px; }
 
 /* resumo da semana e relatório da manhã */
-.review, .morning { margin: 0 0 16px; padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
-.rv-head, .mr-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); margin: 0 0 10px; }
+.review { margin: 0 0 16px; padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
+.rv-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); margin: 0 0 10px; }
 .rv-close, .mr-close { background: none; border: 0; color: var(--text-2); font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px; }
 .rv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
 .rv-grid b { display: block; font: 300 24px/1.1 var(--font-display); }
@@ -798,3 +798,37 @@ section.block h2 { margin: 0 0 8px; font: 500 14px/1.3 var(--font); color: var(-
 .mr-list b { font-weight: 600; }
 .wk-dist { margin-top: 12px; }
 .c-good { color: var(--good); } .c-bad { color: var(--bad); }
+
+/* relatório da manhã (repaginado 04/11) */
+.morning { position: relative; margin: 0 0 18px; padding: 18px 18px 16px; border-radius: 22px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--rz) 28%, var(--line));
+  background: radial-gradient(130% 80% at 0% 0%, color-mix(in srgb, var(--rz) 16%, var(--card)) 0%, var(--card) 60%);
+  animation: mr-in .45s ease-out both; }
+@keyframes mr-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .morning { animation: none; } }
+.mr-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.mr-hi { margin: 0; font: 600 22px/1.15 var(--font-display); letter-spacing: -.01em; }
+.mr-date { margin: 2px 0 0; font-size: 13px; color: var(--text-2); }
+.mr-close { background: none; border: 0; color: var(--text-2); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 2px; margin: -2px -4px 0 0; }
+.mr-lab { display: block; font-size: 12px; letter-spacing: .02em; color: var(--text-2); }
+.mr-hero { display: flex; align-items: center; gap: 14px; margin: 16px 0 16px; }
+.mr-rec { position: relative; width: 76px; height: 76px; flex: none; }
+.mr-ring { width: 76px; height: 76px; }
+.mr-ring-bg { fill: none; stroke: var(--track); stroke-width: 6; }
+.mr-ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray .8s ease; }
+.mr-rec b { position: absolute; inset: 0; display: grid; place-items: center; font: 300 28px/1 var(--font-display); }
+.mr-phrase { margin: 4px 0 0; font-size: 16px; line-height: 1.35; color: var(--text); }
+.mr-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mr-tile { padding: 10px 10px 9px; border-radius: 14px; background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid var(--line-soft); min-width: 0; }
+.mr-tile b { display: block; margin: 4px 0 2px; font: 300 22px/1.1 var(--font-display); white-space: nowrap; }
+.mr-tile b small { display: inline; font-size: 12px; color: var(--text-2); margin-left: 1px; }
+.mr-tile > small { display: block; font-size: 11.5px; line-height: 1.3; color: var(--text-2); }
+.mr-block { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.mr-plan { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.mr-plan li { display: flex; align-items: baseline; gap: 8px; font-size: 15px; }
+.mr-plan li span { flex: 1; min-width: 0; }
+.mr-plan li em { font-style: normal; font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.mr-plan .dot { flex: none; transform: translateY(-1px); }
+.mr-meta { margin: 8px 0 0; font-size: 13px; color: var(--text-2); }
+.mr-meta b { color: var(--text); font-weight: 500; }
+.mr-night p { margin: 4px 0 0; font-size: 15px; } .mr-night b { color: var(--sleep); font-weight: 500; }
+.mr-alert { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--text); }
