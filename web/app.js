@@ -707,35 +707,35 @@ async function renderGarmin() {
     </ul>
     ${st.hasKey ? '' : `<p class="alert">${esc(ERR.sem_chave)}</p>`}
 
-    <section class="block">
+    <section class="card cardx">
       <h2>Histórico</h2>
       <p class="note">Busca tudo desde ${fmt(HISTORY_FROM)} direto da API, em blocos de 14 dias. Só precisa uma vez; depois o app se atualiza sozinho.</p>
       <button class="btn" id="hist" ${st.hasKey ? '' : 'disabled'}>Puxar histórico</button>
       <p class="progress" id="hist-out" aria-live="polite"></p>
     </section>
 
-    <section class="block">
+    <section class="card cardx">
       <h2>Atualizar os últimos 90 dias</h2>
       <p class="note">Busca de novo os últimos 90 dias, inclusive dados que o app passou a guardar depois (horários de sono, cochilos).</p>
       <button class="btn ghost" id="refill" ${st.hasKey ? '' : 'disabled'}>Buscar 90 dias</button>
       <p class="progress" id="refill-out" aria-live="polite"></p>
     </section>
 
-    <section class="block">
+    <section class="card cardx">
       <h2>Teste da conexão</h2>
       <p class="note">Busca os últimos 14 dias e mostra quais campos a API entrega.</p>
       <button class="btn ghost" id="check" ${st.hasKey ? '' : 'disabled'}>Testar conexão</button>
       <div id="check-out"></div>
     </section>
 
-    <section class="block">
+    <section class="card cardx">
       <h2>Completar treinos (12 meses)</h2>
       <p class="note">Os treinos que vieram do arquivo inicial não têm o identificador da Garmin, então ficam sem calorias, nome, efeito de treino e VO2máx, e o recálculo de zonas não chega neles. Isto busca os treinos do último ano direto da API e troca as linhas antigas pelas completas (sem duplicar). Faça antes de recalcular as zonas.</p>
       <button class="btn" id="acts12" ${st.hasKey ? '' : 'disabled'}>Completar treinos</button>
       <p class="progress" id="acts12-out" aria-live="polite"></p>
     </section>
 
-    <section class="block">
+    <section class="card cardx">
       <h2>Zonas do histórico</h2>
       <p class="note">Os treinos até 02/11 usam as zonas que estavam no Garmin na época (bike e natação mudaram em 03/11). Isto relê o arquivo de cada treino do último ano (bike, corrida, natação e Hyrox) e refaz o tempo em zona com as suas zonas atuais. Strain, Fitness, Fadiga e Forma mudam junto. Dá para desfazer.</p>
       <button class="btn ghost" id="zcur" ${st.hasKey ? '' : 'disabled'}>Ver zonas atuais</button>
@@ -746,14 +746,14 @@ async function renderGarmin() {
       <p class="progress" id="zrun-out" aria-live="polite"></p>
     </section>
 
-    <section class="block">
+    <section class="card cardx">
       <h2>Zonas de FC do Garmin</h2>
       <p class="note">FC máxima, de repouso e limiar configurados no seu Garmin. São a base do cálculo de carga padrão do mercado (hrTSS).</p>
       <button class="btn ghost" id="zones" ${st.hasKey ? '' : 'disabled'}>Ver zonas</button>
       <div id="zones-out"></div>
     </section>
 
-    <section class="block">
+    <section class="card cardx">
       <h2>Últimas sincronizações</h2>
       ${st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>'}
     </section>`;

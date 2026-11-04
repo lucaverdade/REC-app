@@ -1,5 +1,6 @@
 // Detalhe de um treino: números, para que serviu (efeito de treino da Garmin + zonas), carga e efeito no REC.
 import { allStats } from './share.js';
+import { cardHead, countUp } from './ui.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d = 0) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -68,48 +69,47 @@ export async function renderActivity(screen, api, id) {
       <p class="ad-date">${esc(date.charAt(0).toUpperCase() + date.slice(1))} · ${esc(a.time ?? '')}</p>
     </section>
 
-    ${a.insights?.length ? `<section class="ad-card ad-ins"><span class="ad-lab">Destaques</span><ul>${a.insights.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></section>` : ''}
+    ${a.insights?.length ? `<section class="card ad-ins">${cardHead('trend', 'Destaques', { color: 'var(--accent)' })}<ul>${a.insights.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></section>` : ''}
 
-    ${bName ? `<section class="ad-card ad-benefit">
-      <span class="ad-lab">Para que serviu</span>
+    ${bName ? `<section class="card ad-benefit">
+      ${cardHead('heart', 'Para que serviu', { color: 'var(--fatigue)', info: fromGarmin ? 'Benefício principal e efeito de treino calculados pela Garmin (0 a 5: 2 mantém, 3 melhora, 4 melhora muito).' : 'Benefício estimado pelas zonas de FC (a Garmin não mandou o rótulo deste treino).' })}
       <b>${esc(bName)}</b>
       <p>${esc(bTxt)}</p>
       ${teBar('Efeito aeróbico', a.teAer)}${teBar('Efeito anaeróbico', a.teAna)}
       ${z ? `<p class="ad-note">${low}% do tempo até a Z2${high ? `, ${high}% em Z4–Z5` : ''}.</p>` : ''}
-      <p class="ad-src">${fromGarmin ? 'Benefício principal e efeito de treino calculados pela Garmin (0 a 5: 2 mantém, 3 melhora, 4 melhora muito).' : 'Benefício estimado pelas zonas de FC (a Garmin não mandou o rótulo deste treino).'}</p>
     </section>` : ''}
 
-    <section class="ad-card">
-      <span class="ad-lab">Carga</span>
+    <section class="card">
+      ${cardHead('bolt', 'Carga', { color: 'var(--strain)' })}
       <div class="ad-load">
-        ${a.strain != null ? `<div><b class="c-strain">${a.strain}</b><small>Strain${rel ? `, ${rel}` : ''}</small></div>` : ''}
+        ${a.strain != null ? `<div><b class="c-strain" data-count="${a.strain}">${a.strain}</b><small>Strain${rel ? `, ${rel}` : ''}</small></div>` : ''}
         ${a.garminLoad != null ? `<div><b>${a.garminLoad}</b><small>Carga Garmin (EPOC)</small></div>` : ''}
       </div>
       ${sizeTxt ? `<p class="ad-note">${sizeTxt} Seu dia médio (Fitness) era ${a.fitness ?? '–'}.</p>` : ''}
       ${a.plan ? `<p class="ad-note">Plano: ${esc(a.plan.titulo ?? '')}${a.plan.minutos ? `, ${a.plan.minutos} min` : ''}${a.plan.zona ? ` ${esc(a.plan.zona)}` : ''}${a.plan.strain != null && a.strain != null ? ` · Strain previsto ${a.plan.strain}, feito ${a.strain} (${Math.round((a.strain / a.plan.strain) * 100)}%)` : ''}.</p>` : ''}
     </section>
 
-    <section class="ad-card">
-      <span class="ad-lab">Números</span>
+    <section class="card">
+      ${cardHead('stopwatch', 'Números', { color: 'var(--text-2)' })}
       <div class="ad-grid">${stats.map((s) => `<div><span>${esc(s.k)}</span><b>${esc(s.v)}${s.u ? `<small>${esc(s.u)}</small>` : ''}</b></div>`).join('')}</div>
     </section>
 
-    ${z ? `<section class="ad-card">
-      <span class="ad-lab">Tempo em cada zona</span>
+    ${z ? `<section class="card">
+      ${cardHead('heart', 'Tempo em cada zona', { color: 'var(--z-descansado)' })}
       <div class="sh-zbar">${z.map((m, i) => (m ? `<i class="zc-${i}" style="flex:${m}"></i>` : '')).join('')}</div>
       <ul class="ad-zones">${z.map((m, i) => (m ? `<li><i class="zc-${i}"></i><span>${ZN[i]}</span><b>${m} min</b><em>${Math.round((m / zt) * 100)}%</em></li>` : '')).join('')}</ul>
     </section>` : ''}
 
-    ${a.rec != null || a.form != null ? `<section class="ad-card">
-      <span class="ad-lab">Corpo</span>
+    ${a.rec != null || a.form != null ? `<section class="card">
+      ${cardHead('moon', 'Corpo', { color: 'var(--sleep)', info: a.recNext != null ? 'O REC do dia seguinte depende mais do sono e do resto do dia do que do treino.' : '' })}
       <div class="ad-load">
         ${a.rec != null ? `<div><b style="color:var(--rec-${recKey(a.rec)})">${a.rec}</b><small>REC da manhã</small></div>` : ''}
         ${a.recNext != null ? `<div><b style="color:var(--rec-${recKey(a.recNext)})">${a.recNext}</b><small>REC no dia seguinte${dRec != null ? ` (${dRec > 0 ? '+' : dRec < 0 ? '−' : ''}${Math.abs(dRec)})` : ''}</small></div>` : ''}
         ${a.form != null ? `<div><b class="z-${a.formZone?.key ?? 'neutro'}">${a.form > 0 ? '+' : a.form < 0 ? '−' : ''}${Math.abs(a.form)}%</b><small>Forma${a.formZone ? `, ${esc(a.formZone.label.toLowerCase())}` : ''}</small></div>` : ''}
       </div>
-      ${a.recNext != null ? '<p class="ad-src">O REC do dia seguinte depende mais do sono e do resto do dia do que do treino.</p>' : ''}
     </section>` : ''}
 
     <a class="btn ghost ad-share" href="#card/${encodeURIComponent(a.id)}">Cartão para compartilhar</a>`;
+  countUp(screen);
   screen.querySelector('[data-back]').addEventListener('click', (e) => { e.preventDefault(); if (history.length > 1) history.back(); else location.hash = '#hoje'; });
 }

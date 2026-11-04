@@ -1040,3 +1040,21 @@ main > .card:nth-of-type(5) { animation-delay: .16s; } main > .card:nth-of-type(
 .card .st-card { background: var(--card-2); }
 .card .act-cards { margin-bottom: 0; }
 .feel.card .saved:empty { display: none; }
+
+/* padrão visual em Treino, Tendências, detalhe do treino e Garmin */
+.tsec { border-radius: 20px; background: var(--card); border: 1px solid var(--line-soft); animation: card-in .45s cubic-bezier(.2,.7,.2,1) both; }
+.tsec > summary { gap: 12px; }
+.tsec > summary > span { flex: 1; min-width: 0; }
+.ts-ic { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--ic) 14%, transparent); }
+.ts-ic .ic { width: 18px; height: 18px; stroke: var(--ic); }
+.t-answer { border-radius: 20px; }
+.wk-card.card { padding: 16px; }
+.card.td .td-head h2 { font: 600 18px/1.2 var(--font-display); }
+.card.td .ss { background: var(--card-2); }
+.card.ad-benefit > b { display: block; font: 600 22px/1.2 var(--font-display); }
+.card.ad-benefit > p { margin: 6px 0 12px; font-size: 15px; line-height: 1.45; }
+.card.ad-ins ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; line-height: 1.4; }
+.cardx > h2:first-child { margin: 0 0 10px; font: 600 16px/1.2 var(--font); color: var(--text); text-transform: none; letter-spacing: 0; }
+.cardx .btn { margin: 4px 8px 4px 0; }
+.review { border-radius: 20px; border-color: var(--line-soft); }
+.verdict, .rcard, .rbig { border-radius: 16px; }

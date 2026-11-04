@@ -1,6 +1,7 @@
 // Aba Tendências: períodos de calendário (semana seg–dom, mês, 3 e 6 meses, 1 ano) com navegação.
 import { fmtDay, lineChart, nf } from './charts.js';
 import { projHtml, heatHtml } from './race.js';
+import { ICON } from './ui.js';
 
 const UNITS = [['semana', 'Semana'], ['mes', 'Mês'], ['3m', '3 meses'], ['6m', '6 meses'], ['ano', '1 ano']];
 const SPORTS = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
@@ -54,6 +55,7 @@ const TABS = [
     ['calib', 'O REC acerta?', 'REC × "como me sinto"', (b, a) => calibSec(b, a)],
   ] },
 ];
+const SEC_IC = {"year": ["clock", "var(--accent)"], "sw": ["bolt", "var(--strain)"], "evo": ["trend", "var(--fitness)"], "vol": ["stopwatch", "var(--text-2)"], "focus": ["flame", "#ff8a5c"], "recov": ["heart", "var(--rec-green)"], "hrvt": ["heart", "var(--hrv)"], "habs": ["book", "var(--accent)"], "stress31": ["moon", "var(--warn)"], "fage": ["run", "var(--pred)"], "calib": ["smile", "var(--accent)"]};
 let tab = (() => { try { return localStorage.getItem('rec.ttab') || 'carga'; } catch { return 'carga'; } })();
 
 export async function renderTrends(screen, api) {
@@ -66,7 +68,7 @@ export async function renderTrends(screen, api) {
     <section class="t-answer" aria-live="polite"><span>${esc(T.q)}</span><p id="t-ans">…</p></section>
     ${T.secs.map(([id, title, sub], i) => `
       <details class="tsec" data-sec="${id}" ${i === 0 ? 'open' : ''}>
-        <summary><span><b>${title}</b><small>${sub}</small></span></summary>
+        <summary><i class="ts-ic" style="--ic:${SEC_IC[id]?.[1] ?? 'var(--text-2)'}">${ICON[SEC_IC[id]?.[0]] ?? ''}</i><span><b>${title}</b><small>${sub}</small></span></summary>
         <section class="block" id="${id}"></section>
       </details>`).join('')}
 `;

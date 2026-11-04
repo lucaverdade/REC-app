@@ -3,6 +3,7 @@
 import { nf } from './charts.js';
 import { distBar } from './trends.js';
 import { reviewHtml } from './review.js';
+import { cardHead } from './ui.js';
 
 let offset = 0;
 let picked = null; // data escolhida na faixa da semana
@@ -101,7 +102,8 @@ async function body(screen, api) {
   const sm = w.summary;
   const pct = sm.plannedStrain ? Math.min(100, (sm.strain / sm.plannedStrain) * 100) : null;
   box.innerHTML = `
-    <section class="wk-card">
+    <section class="card wk-card">
+      ${cardHead('bolt', offset === 0 ? 'Esta semana' : 'Semana', { color: 'var(--strain)', info: 'Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e zona) dos últimos 120 dias; sem 3 treinos parecidos, vale o do plano ou minutos × peso da zona. Entre 80% e 120% do previsto está no alvo. Na faixa de dias, bolinha cheia: feito; vazada: falta algo.' })}
       <div class="wk-main">
         <div><span class="num c-strain">${nf(sm.strain)}</span>${sm.plannedStrain != null ? `<span class="of">de ${nf(sm.plannedStrain)}</span>` : ''}<span class="lab">Strain da semana</span></div>
         <div class="wk-h"><span class="num">${nf(sm.doneHours, 1)}</span>${sm.plannedHours != null ? `<span class="of">de ${nf(sm.plannedHours, 1)} h</span>` : '<span class="of">h</span>'}<span class="lab">Horas</span></div>
@@ -128,11 +130,8 @@ async function body(screen, api) {
       }).join('')}
     </ol>
 
-    <section class="td" id="td">${dayHtml(w.days.find((d) => d.date === picked))}</section>
-
-    <details class="ss-more how"><summary>Como funciona</summary>
-      <p class="ss-detail">Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e zona) dos últimos 120 dias; sem 3 treinos parecidos, vale o do plano ou minutos × peso da zona. Entre 80% e 120% do previsto está no alvo. Bolinha cheia no dia: tudo feito; vazada: falta algo.</p>
-    </details>`;
+    <section class="card td" id="td">${dayHtml(w.days.find((d) => d.date === picked))}</section>
+`;
 
   // resumo da semana: semanas passadas, e a atual a partir de domingo
   if (offset > 0 || new Date().getDay() === 0) {
