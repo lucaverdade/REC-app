@@ -942,7 +942,7 @@ function renderWidgetHelp() {
       <ol class="wg-steps">
         <li>Instale o app <b>Scriptable</b> (gratuito) na App Store.</li>
         <li>Toque em <b>Copiar código</b> aqui embaixo. Ele já vem com o endereço do seu app.</li>
-        <li>Abra o Scriptable, toque no <b>+</b> (canto de cima), cole o código e toque no título “Untitled Script” para dar o nome <b>REC</b>. Toque em <b>Done</b>. Já tem o script? Abra o REC no Scriptable, apague tudo e cole o novo. Depois desta vez, o desenho do widget se atualiza sozinho.</li>
+        <li>Abra o Scriptable, toque no <b>+</b> (canto de cima), cole o código e toque no título “Untitled Script” para dar o nome <b>REC</b>. Toque em <b>Done</b>. Já tem o script? Abra o REC no Scriptable, apague tudo e cole o novo.</li>
         <li>Toque no script REC uma vez: deve aparecer uma prévia do widget. Se aparecer “sem conexão”, me avise.</li>
         <li>Na tela inicial do iPhone, segure um espaço vazio até os ícones tremerem → <b>Editar</b> → <b>Adicionar widget</b> → procure <b>Scriptable</b> → escolha o tamanho <b>médio</b> (ou pequeno) → <b>Adicionar widget</b>.</li>
         <li>Com os ícones ainda tremendo, toque no widget → em <b>Script</b> escolha <b>REC</b> → em <b>When Interacting</b> escolha <b>Open URL</b> (abre o app ao tocar). Toque fora para fechar.</li>
@@ -951,17 +951,20 @@ function renderWidgetHelp() {
       <p class="progress" id="wg-out" aria-live="polite"></p>
       <p class="note">O widget se atualiza sozinho mais ou menos a cada 30 minutos (o iPhone decide o momento exato). Pequeno: só o anel da Prontidão. Médio: anel + REC, Forma, Strain, treino do dia, horário de deitar e dias até Aracaju.</p>
     </section>`;
+  // código completo (desenho + execução) já com o endereço deste app: é só colar no Scriptable
+  const fullCode = async () => {
+    const core = await (await fetch('/widget-core.js', { cache: 'no-store' })).text();
+    return `// REC — widget do iPhone (Scriptable). Código completo; para atualizar, copie de novo em Ajustes → Widget do iPhone.\nconst APP = '${location.origin}';\n\n`
+      + core.replace('module.exports = async (APP, family) =>', 'const draw = async (APP, family) =>')
+      + `\nconst widget = await draw(APP, config.runsInWidget ? config.widgetFamily : 'medium');\nif (config.runsInWidget) Script.setWidget(widget); else await widget.presentMedium();\nScript.complete();\n`;
+  };
   screen.querySelector('#wg-copy').addEventListener('click', async () => {
     const out = screen.querySelector('#wg-out');
-    try {
-      const code = (await (await fetch('/widget-rec.js', { cache: 'no-store' })).text()).replace("https://SEU-APP.workers.dev", location.origin);
-      await navigator.clipboard.writeText(code);
-      out.textContent = 'Copiado. Agora cole no Scriptable (passo 3).';
-    } catch (e) {
-      out.innerHTML = 'Não deu para copiar sozinho. Segure no texto abaixo → Selecionar tudo → Copiar.';
-      const ta = document.createElement('textarea'); ta.className = 'wg-code'; ta.readOnly = true;
-      ta.value = (await (await fetch('/widget-rec.js')).text()).replace("https://SEU-APP.workers.dev", location.origin);
-      out.after(ta);
+    let code = '';
+    try { code = await fullCode(); await navigator.clipboard.writeText(code); out.textContent = 'Copiado. Agora cole no Scriptable (passo 3).'; }
+    catch (e) {
+      out.textContent = 'Não deu para copiar sozinho. Segure no texto abaixo → Selecionar tudo → Copiar.';
+      const ta = document.createElement('textarea'); ta.className = 'wg-code'; ta.readOnly = true; ta.value = code || await fullCode(); out.after(ta);
     }
   });
 }
