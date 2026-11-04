@@ -65,7 +65,7 @@ export async function renderTrends(screen, api) {
   screen.innerHTML = `
     <header class="top"><h1>Tendências</h1></header>
     <div class="seg ttabs" role="tablist">${TABS.map((t) => `<button role="tab" data-tab="${t.k}" aria-selected="${t.k === tab}">${t.l}</button>`).join('')}</div>
-    <section class="t-answer" aria-live="polite"><span>${esc(T.q)}</span><p id="t-ans">…</p></section>
+    <section class="t-answer card" aria-live="polite"><span class="t-q">${esc(T.q)}<button type="button" class="info-btn" aria-label="Por quê" aria-expanded="false" hidden>i</button></span><p id="t-ans">…</p><div class="card-info" id="t-more" hidden></div></section>
     ${T.secs.map(([id, title, sub], i) => `
       <details class="tsec" data-sec="${id}" ${i === 0 ? 'open' : ''}>
         <summary><i class="ts-ic" style="--ic:${SEC_IC[id]?.[1] ?? 'var(--text-2)'}">${ICON[SEC_IC[id]?.[0]] ?? ''}</i><span><b>${title}</b><small>${sub}</small></span></summary>
@@ -102,6 +102,12 @@ async function answer(screen, api, k) {
       el.innerHTML = `Aracaju em <b>${d.race.days} dias</b>.${end?.formPct != null ? ` Forma prevista ${pr.raceDay ? 'no dia da prova' : `em ${dd(end.date)}`}: <b class="z-${end.zone?.key}">${signed(end.formPct)}%</b>, ${esc(end.zone?.label.toLowerCase() ?? '')}.` : ''}${d.halfPrediction ? ` Meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b>.` : ''}`;
     }
   } catch { el.textContent = ''; }
+  // o detalhe (por quê, faixa da semana, Forma) fica atrás do ⓘ: à vista só a resposta
+  const more = screen.querySelector('#t-more'), why = [...el.querySelectorAll('.t-why')];
+  if (more && why.length) {
+    more.innerHTML = why.map((w) => `<p>${w.innerHTML}</p>`).join(''); why.forEach((w) => w.remove());
+    screen.querySelector('.t-answer .info-btn').hidden = false;
+  }
 }
 let liCache = null;
 const loadInsights = (api) => (liCache ??= api('/api/load-insights').catch((e) => { liCache = null; throw e; }));
@@ -207,9 +213,10 @@ async function yearSec(box, api) {
     sec.innerHTML = `
       <div class="seg seg-sm" role="tablist">${[['rec', 'REC'], ['strain', 'Strain'], ['sleep', 'Sono']].map(([k, l]) => `<button role="tab" data-ym="${k}" aria-selected="${k === yearMetric}">${l}</button>`).join('')}</div>
       <p class="headline">${head}</p>
-      <div class="yr-wrap"><svg viewBox="0 -12 ${w} ${h + 14}" class="yr" role="img" aria-label="Um quadrado por dia nas últimas 53 semanas">${months}${cells}</svg></div>
-      <p class="yr-tip" aria-live="polite">Toque num quadrado para ver o dia.</p>
+      <div class="yr-wrap"><svg viewBox="0 -12 ${w} ${h + 14}" style="width:${(w * 2.3).toFixed(0)}px" class="yr" role="img" aria-label="Um quadrado por dia nas últimas 53 semanas">${months}${cells}</svg></div>
+      <p class="yr-tip" aria-live="polite">Toque num quadrado para ver o dia. Arraste para ver os meses anteriores.</p>
       <div class="yr-leg">${legend}</div>`;
+    const wrap = sec.querySelector('.yr-wrap'); wrap.scrollLeft = wrap.scrollWidth; // abre no mês atual; arrasta para trás
     sec.querySelectorAll('[data-ym]').forEach((b) => b.addEventListener('click', () => { yearMetric = b.dataset.ym; try { localStorage.setItem('rec.year', yearMetric); } catch {} draw(); }));
     sec.querySelector('.yr').addEventListener('click', (e) => {
       const i = e.target.dataset?.i; if (i == null) return; const x = days[Number(i)];

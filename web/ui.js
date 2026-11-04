@@ -21,6 +21,7 @@ export const ICON = {
   bike: P('<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l3 7M14 6h2"/>'),
   run: P('<circle cx="14.5" cy="4.5" r="1.8"/><path d="M8 21l3-6 3 2v5M6.5 12l3.5-4 4 1 2 3 3 1"/>'),
   gel: P('<path d="M9 3h6l-1 3v12a2 2 0 0 1-4 0V6z"/><path d="M10 11h4"/>'),
+  gear: P('<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/><circle cx="12" cy="12" r="6.5"/>'),
   stopwatch: P('<circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 1.5M10 2.5h4"/>'),
 };
 

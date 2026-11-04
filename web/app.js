@@ -144,12 +144,12 @@ function recSegments(rec) {
   const cur = rec == null ? null : RZ.find(([lo, hi]) => rec < hi) ?? RZ[RZ.length - 1];
   const segs = RZ.map(([lo, hi, c]) => {
     const a = pos(lo) + 0.008, b = pos(hi) - 0.008;
-    return `<circle cx="50" cy="50" r="40" class="rt-seg" style="stroke:var(${c});opacity:${cur && cur[2] === c ? 1 : 0.28}"
+    return `<circle cx="50" cy="50" r="40" class="rt-seg${cur && cur[2] === c ? ' rt-seg-on' : ''}" style="stroke:var(${c});opacity:${cur && cur[2] === c ? 1 : 0.28}"
       stroke-dasharray="${(b - a) * RC} ${RC}" stroke-dashoffset="${-a * RC}"/>`;
   }).join('');
   if (rec == null) return segs;
   const ang = pos(rec) * 2 * Math.PI;
-  return `${segs}<circle cx="${50 + 40 * Math.cos(ang)}" cy="${50 + 40 * Math.sin(ang)}" r="6" class="rt-mark" style="fill:var(${cur[2]})"/>`;
+  return `${segs}<g class="rt-markg" style="--a:${(pos(rec) * 360).toFixed(1)}deg"><circle cx="90" cy="50" r="6" class="rt-mark" style="fill:var(${cur[2]})"/></g>`;
 }
 
 // anel de Strain com meta do dia: enche com o feito; tracinho na meta (2/3 da volta)
@@ -198,7 +198,7 @@ function ringTile({ id, value, frac = 0, color, label, sub, aria, segments }) {
         <circle cx="50" cy="50" r="40" class="rt-arc" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f1)}"/>`}
         ${!segments && f2 > 0 ? `<circle cx="50" cy="50" r="40" class="rt-arc rt-lap" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f2)}"/>` : ''}
       </svg>
-      <span class="rt-val"><span>${value}</span></span>
+      <span class="rt-val"><span${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</span></span>
     </span>
     <span class="rt-label">${esc(label)}</span>
     <span class="rt-sub">${esc(sub)}</span>
@@ -319,18 +319,24 @@ function sleepCard(d) {
   if (need.fromStrain >= 1 / 60) extra.push(`treino +${Math.round(need.fromStrain * 60)} min`);
   if (need.nap >= 1 / 60) extra.push(`cochilo −${Math.round(need.nap * 60)} min`);
   const r = s.regularity;
+  // à vista: noite × base, meta de hoje e horário de deitar. Dívida, regularidade e contas ficam no ⓘ.
+  const debtTxt = s.debt == null ? null : s.debt < 1 / 6 ? 'nenhuma' : `${hmm(s.debt)}${s.level && s.level.key !== 'nenhuma' ? `, ${s.level.label}` : ''}`;
+  const facts = [
+    debtTxt ? `<b>Dívida (14 dias):</b> ${debtTxt}.` : null,
+    `<b>Meta ${d.isToday ? 'de hoje' : 'da noite seguinte'}:</b> ${hmm(need.total)} = base ${hmm(pn)}${extra.length ? ` + ${extra.join(', ')}` : ''}.`,
+    s.bedtime && d.isToday ? `<b>Acordar:</b> por volta de ${esc(s.bedtime.wake)}.` : null,
+    r ? `<b>Últimas ${r.nights} noites:</b> deita por volta de ${r.bedtime} (±${r.bedSd} min), acorda por volta de ${r.wake} (±${r.wakeSd} min).${s.regularityScore != null ? ` Regularidade ${s.regularityScore}/100.` : ''}` : null,
+    s.napYesterday ? `<b>Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}:</b> ${Math.round(s.napYesterday * 60)} min (conta na dívida).` : null,
+  ].filter(Boolean).map((x) => `<p>${x}</p>`).join('');
   return `
     <section class="card sleep-card" aria-label="Sono">
-      ${cardHead('moon', 'Sono', { color: 'var(--sleep)', right: n?.start && n?.end ? `${esc(n.start)} → ${esc(n.end)}` : '', info: sleepInfo(s) })}
+      ${cardHead('moon', 'Sono', { color: 'var(--sleep)', right: n?.start && n?.end ? `${esc(n.start)} → ${esc(n.end)}` : '', info: `<div class="sl-facts">${facts}</div>${sleepInfo(s)}` })}
       <div class="sl-main"><b>${hmm(n?.hours)}</b><span>de ${hmm(pn)} (sua base)</span></div>
       <div class="sl-bar"><i style="width:${(pct / 1.25) * 100}%"></i><em style="left:${(1 / 1.25) * 100}%"></em></div>
-      <div class="sl-stats">
-        <div><span class="debt-${s.level?.key ?? 'nenhuma'}">${s.debt == null ? '–' : s.debt < 1 / 6 ? 'nenhuma' : hmm(s.debt)}</span><small>Dívida (14 dias)${s.level && s.level.key !== 'nenhuma' ? `, ${s.level.label}` : ''}</small></div>
-        <div><span>${hmm(need.total)}</span><small>${d.isToday ? 'Meta para hoje à noite' : 'Meta para a noite seguinte'}${extra.length ? ` (${extra.join(', ')})` : ''}</small></div>
+      <div class="sl-two">
+        <div><small>${d.isToday ? 'Meta hoje à noite' : 'Meta da noite seguinte'}</small><b>${hmm(need.total)}</b></div>
+        ${s.bedtime && d.isToday ? `<div><small>Deitar até</small><b class="sl-bedt">${esc(s.bedtime.bedtime)}</b></div>` : ''}
       </div>
-      ${s.bedtime && d.isToday ? `<p class="sl-bed">Deitar até <b>${esc(s.bedtime.bedtime)}</b><span>para acordar por volta de ${esc(s.bedtime.wake)} com a meta de ${hmm(need.total)}</span></p>` : ''}
-      ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).${s.regularityScore != null ? ` Regularidade <b>${s.regularityScore}</b>/100.` : ''}</p>` : ''}
-      ${s.napYesterday ? `<p class="sl-reg">Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}: <b>${Math.round(s.napYesterday * 60)} min</b> (conta na dívida).</p>` : ''}
     </section>`;
 }
 
@@ -393,19 +399,19 @@ function timelineHtml(t, isToday) {
   const sleep = t.sleep.map((b) => `<rect x="${X(b.start).toFixed(1)}" y="0" width="${(X(b.end) - X(b.start)).toFixed(1)}" height="${H - 16}" class="tl-sleep"/>`).join('');
   const work = t.workouts.map((w) => `<rect x="${X(w.start).toFixed(1)}" y="0" width="${Math.max(2, X(w.dur)).toFixed(1)}" height="${H - 16}" class="tl-w" style="fill:var(--${w.sport})"/>`).join('');
   const now = isToday ? (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })() : null;
-  const ticks = [0, 6, 12, 18, 24].map((h) => `<text x="${X(h * 60).toFixed(1)}" y="${H - 3}" class="tl-t" text-anchor="${h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}">${h}h</text>`).join('');
   const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
   const dayHr = t.hr.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1]);
   const stressDay = t.stress ? avg(t.stress.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1])) : null;
   return `${head}
-    <svg viewBox="0 0 ${W} ${H}" class="tl-svg" role="img" aria-label="Linha do tempo do dia">
+    <svg viewBox="0 0 ${W} ${H - 14}" class="tl-svg" role="img" aria-label="Linha do tempo do dia">
       ${sleep}${work}${stressArea}
       ${t.hr.length ? `<path d="${path(t.hr, yHr)}" class="tl-hr"/>` : ''}
       ${now != null ? `<line x1="${X(now).toFixed(1)}" x2="${X(now).toFixed(1)}" y1="0" y2="${H - 16}" class="tl-now"/>` : ''}
-      <line x1="0" x2="${W}" y1="${H - 16}" y2="${H - 16}" class="tl-base"/>${ticks}
+      <line x1="0" x2="${W}" y1="${H - 16}" y2="${H - 16}" class="tl-base"/>
       <line class="tl-cur" x1="-10" x2="-10" y1="0" y2="${H - 16}"/>
     </svg>
-    <p class="tl-tip" aria-live="polite">${[dayHr.length ? `FC média acordado ${avg(dayHr)}` : null, stressDay != null ? `estresse médio acordado ${stressDay}` : null].filter(Boolean).join(' · ') || 'Toque no gráfico para ver a hora.'}</p>
+    <div class="tl-ticks" aria-hidden="true">${[0, 6, 12, 18, 24].map((h) => `<span>${h}h</span>`).join('')}</div>
+    <p class="tl-tip" aria-live="polite">${[dayHr.length ? `FC média acordado <b>${avg(dayHr)}</b>` : null, stressDay != null ? `estresse médio acordado <b>${stressDay}</b>` : null].filter(Boolean).join(' · ') || 'Toque no gráfico para ver a hora.'}</p>
     <div class="yr-leg"><span><i style="background:color-mix(in srgb, var(--sleep) 30%, transparent)"></i>Sono</span>${t.workouts.length ? '<span><i style="background:var(--accent)"></i>Treino</span>' : ''}<span><i style="background:var(--fatigue);height:2px;border-radius:0"></i>FC</span>${t.stress ? '<span><i style="background:color-mix(in srgb, var(--warn) 55%, transparent)"></i>Estresse</span>' : ''}</div>`;
 }
 function bindTimeline(screen, t) {
@@ -487,7 +493,7 @@ function render(d) {
         <h1>${d.isToday ? 'Hoje, ' : ''}${esc(fmtDate(todayIso, { weekday: d.isToday ? undefined : 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''))}</h1>
         <button type="button" data-day="-1" aria-label="Próximo dia" ${dayOffset === 0 ? 'disabled' : ''}>›</button>
       </div>
-      ${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir a aba Prova.">${esc(raceTxt)} ›</a>` : ''}
+      <span class="top-r">${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir a aba Prova.">${esc(raceTxt)} ›</a>` : ''}<a class="gear" href="#ajustes" aria-label="Ajustes">${ICON.gear}</a></span>
     </header>
 
     ${d.phase && d.isToday ? `<p class="phase-line">${esc(d.phase)}</p>` : ''}
@@ -551,12 +557,11 @@ function render(d) {
 
     ${d.habits ? `<section class="card habits">
       ${cardHead('book', d.isToday ? 'Diário de hoje' : 'Diário do dia', { color: 'var(--accent)', info: 'Marque à noite o que aconteceu no dia. Conta para o REC de amanhã; o efeito de cada hábito aparece em Tendências → Corpo → O que mexe no meu REC.' })}
-      <div class="hb-list">${d.habits.defs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>
+      <div class="hb-list">${[...d.habits.defs].sort((a, b) => d.habits.on.includes(b.key) - d.habits.on.includes(a.key)).map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>
     </section>` : ''}
 
     <div class="foot">
       <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
-      <span class="foot-links"><a class="foot-link" href="#garmin">Garmin</a><a class="foot-link" href="#tema">Tema</a></span>
     </div>
   `;
 
@@ -866,6 +871,21 @@ async function renderGarmin() {
   });
 }
 
+// --- ajustes: Garmin e tema (04/11, saíram do rodapé) ---
+function renderSettings() {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  screen.innerHTML = `
+    <header class="top"><h1>Ajustes</h1><a class="foot-link" href="#hoje">Voltar</a></header>
+    <nav class="card set-list">
+      <a href="#garmin">${ICON.heart}<span><b>Garmin</b><small id="set-garmin">Dados, conexão e o que falta completar</small></span><em>›</em></a>
+      <a href="#tema">${ICON.sun}<span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
+    </nav>`;
+  api('/api/diag').then((d) => {
+    const miss = [d.dias.falta, d.horarios.falta, d.treinos.falta, d.zonas.states.pendente, d.zonas.states.erro, d.rec.falta].filter((x) => x > 0).length;
+    const el = screen.querySelector('#set-garmin'); if (el && miss) el.textContent = `${miss} ${miss === 1 ? 'parte' : 'partes'} para completar`;
+  }).catch(() => {});
+}
+
 // --- tema (guardado só neste aparelho) ---
 const THEMES = [
   { key: 'preto', name: 'Preto', bg: '#000', card: '#0e0f12' },
@@ -883,7 +903,7 @@ function renderTheme() {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   let cur = 'preto'; try { cur = localStorage.getItem('rec.theme') || 'preto'; } catch {}
   screen.innerHTML = `
-    <header class="top"><h1>Tema</h1><a class="foot-link" href="#hoje">Voltar</a></header>
+    <header class="top"><h1>Tema</h1><a class="foot-link" href="#ajustes">Voltar</a></header>
     <div class="themes">${THEMES.map((t) => `
       <button type="button" class="theme-opt" data-theme-key="${t.key}" aria-pressed="${t.key === cur}">
         <span class="sw" style="background:${t.bg}"><i style="background:${t.card}"></i></span>${t.name}</button>`).join('')}
@@ -898,7 +918,7 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h === '#garmin' || h === '#tema' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h === '#garmin' || h === '#tema' || h === '#ajustes' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -908,6 +928,7 @@ function route() {
   else if (h.startsWith('#atv/')) renderActivity(screen, api, decodeURIComponent(h.slice(5)));
   else if (h === '#garmin') renderGarmin();
   else if (h === '#tema') renderTheme();
+  else if (h === '#ajustes') renderSettings();
   else if (h === '#tendencias') renderTrends(screen, api);
   else if (h === '#treino') renderTrain(screen, api);
   else if (h === '#prova') renderRace(screen, api);
