@@ -36,7 +36,9 @@ export interface Readiness { score: number | null; parts: ReadyPart[]; cap: stri
  * @param loads Strain diário contínuo até ONTEM (o último item é ontem), de preferência 220+ dias
  * @param debtH dívida de sono de 14 dias, em horas
  */
-export function readiness(rec: number | null, loads: number[], debtH: number | null, debtHist: number[] = [], K = SPREAD): Readiness {
+const PRE = new WeakMap<number[], number[]>();
+/** `end`: índice do último dia a usar (ontem); padrão = fim do vetor. Permite calcular muitos dias sem copiar o vetor. */
+export function readiness(rec: number | null, loads: number[], debtH: number | null, debtHist: number[] = [], K = SPREAD, end = loads.length - 1): Readiness {
   const parts: ReadyPart[] = [];
   const dir = (z: number | null) => (z == null ? null : z > 0.25 ? 'up' : z < -0.25 ? 'down' : 'flat');
 
@@ -46,14 +48,15 @@ export function readiness(rec: number | null, loads: number[], debtH: number | n
 
   // carga de 7 dias × sua média de 4 semanas, contra o seu histórico dessa razão
   // somas acumuladas: cada razão sai em O(1) (o backtest de 12 meses roda no Worker gratuito)
-  const pre = [0]; for (const v of loads) pre.push(pre[pre.length - 1] + v);
+  let pre = PRE.get(loads);
+  if (!pre) { pre = [0]; for (const v of loads) pre.push(pre[pre.length - 1] + v); PRE.set(loads, pre); }
   const ratioAt = (end: number) => {
     if (end < 27) return null;
     const acute = pre[end + 1] - pre[end - 6];
     const chronic = (pre[end + 1] - pre[end - 27]) / 4;
     return chronic > 1 ? acute / chronic : null;
   };
-  const last = loads.length - 1;
+  const last = end;
   const ratio = ratioAt(last);
   const hist: number[] = [];
   for (let i = Math.max(27, last - 180); i < last; i++) { const r = ratioAt(i); if (r != null) hist.push(r); }

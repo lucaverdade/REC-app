@@ -1,7 +1,7 @@
 // Aba Tendências: períodos de calendário (semana seg–dom, mês, 3 e 6 meses, 1 ano) com navegação.
 import { fmtDay, lineChart, nf } from './charts.js';
 import { projHtml, heatHtml } from './race.js';
-import { ICON } from './ui.js';
+import { ICON, cardHead, readyColor } from './ui.js';
 
 const UNITS = [['semana', 'Semana'], ['mes', 'Mês'], ['3m', '3 meses'], ['6m', '6 meses'], ['ano', '1 ano']];
 const SPORTS = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
@@ -53,61 +53,118 @@ const SECS = {
   fage: ['VO2máx e idade fitness', 'Números da Garmin', (b, a) => fageSec(b, a), 'run', 'var(--pred)'],
   year: ['O ano em quadradinhos', 'Um quadrado por dia: REC, Strain ou sono', (b, a) => yearSec(b, a), 'clock', 'var(--accent)'],
 };
-const GROUPS = [['Corpo', ['recov', 'hrvt', 'stress31', 'habs', 'calib']], ['Treino', ['sw', 'evo', 'zones', 'vol', 'focus', 'fage']], ['Histórico', ['year']]];
 
+// ---------- aba Corpo (04/11, v3): painel rolável, gráficos à vista, um seletor de período para todos ----------
+const BODY_PER = [[7, '7D'], [30, '1M'], [91, '3M'], [182, '6M'], [365, '1A']];
+let bodyDays = (() => { try { return Number(localStorage.getItem('rec.bodyDays')) || 30; } catch { return 30; } })();
 export async function renderTrends(screen, api) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   screen.innerHTML = `
-    <header class="top"><h1>Tendências</h1></header>
-    <section class="t-answer card" aria-live="polite"><span class="t-q">Resumo<button type="button" class="info-btn" aria-label="Por quê" aria-expanded="false" hidden>i</button></span>
-      <p class="t-line" id="t-corpo"><small>Corpo</small><span>…</span></p><p class="t-line" id="t-carga"><small>Carga</small><span>…</span></p>
-      <div class="card-info" id="t-more" hidden></div></section>
-    ${GROUPS.map(([g, ids]) => `<h2 class="tg-h">${g}</h2><nav class="card tg">${ids.map((id) => { const [t, sub, , ic, col] = SECS[id]; return `
-      <a href="#tend/${id}" class="tt"><i class="ts-ic" style="--ic:${col}">${ICON[ic] ?? ''}</i><span><b>${t}</b><small data-v="${id}">${sub}</small></span><em>›</em></a>`; }).join('')}</nav>`).join('')}`;
-  answers(screen, api);
-  tileValues(screen, api);
+    <header class="top"><h1>Corpo</h1></header>
+    <div class="seg body-per" role="tablist">${BODY_PER.map(([d, l]) => `<button role="tab" data-bd="${d}" aria-selected="${d === bodyDays}">${l}</button>`).join('')}</div>
+    <section class="card" id="b-sum"><p class="empty">Carregando…</p></section>
+    <section class="card" id="b-ready"></section>
+    <section class="card" id="b-hrv"></section>
+    <section class="card" id="b-rhr"></section>
+    <section class="card" id="b-sleep"></section>
+    <section class="card">${cardHead('moon', 'Estresse acumulado', { color: 'var(--warn)' })}<div class="block" id="stress31"></div></section>
+    <section class="card">${cardHead('book', 'O que mexe no meu REC', { color: 'var(--accent)' })}<div class="block" id="habs"></div></section>
+    <section class="card">${cardHead('clock', 'O ano em quadradinhos', { color: 'var(--accent)' })}<div class="block" id="year"></div></section>`;
+  screen.querySelectorAll('[data-bd]').forEach((b) => b.addEventListener('click', () => {
+    bodyDays = Number(b.dataset.bd); try { localStorage.setItem('rec.bodyDays', String(bodyDays)); } catch {}
+    screen.querySelectorAll('[data-bd]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    bodyCharts(screen, api);
+  }));
+  bodyCharts(screen, api);
+  stressSec(screen, api); habits(screen, api); yearSec(screen, api);
+}
+
+async function bodyCharts(screen, api) {
+  const n = bodyDays, per = BODY_PER.find((x) => x[0] === n)?.[1] ?? '';
+  let t, rs, h;
+  try { [t, rs, h] = await Promise.all([longtrend(api, Math.max(28, n)), api(`/api/ready-series?days=${n}`), api('/api/hrvtrend').catch(() => null)]); }
+  catch (e) { screen.querySelector('#b-sum').innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const days = t.days.slice(-n), dates = days.map((x) => x.date), sm = t.summary, need = t.sleepNeed;
+  const avg = (v) => { const x = v.filter((y) => y != null); return x.length ? x.reduce((a, b) => a + b, 0) / x.length : null; };
+  const rd = rs.days, rDates = rd.map((x) => x.date);
+  const aR = avg(rd.map((x) => x.ready)), aRec = avg(rd.map((x) => x.rec));
+  const v = t.verdict;
+  screen.querySelector('#b-sum').innerHTML = v ? `${cardHead('heart', 'Meu corpo está recuperando?', { color: 'var(--rec-green)' })}
+    <p class="b-ans">${esc(v.answer)}</p><p class="b-trend">${v.trend === 'melhorando' ? '↑' : v.trend === 'piorando' ? '↓' : '→'} ${esc(v.trendTxt)}</p>
+    ${v.reasons.length ? `<ul class="v-sig">${v.reasons.slice(0, 3).map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.txt)}</li>`).join('')}</ul>` : ''}`
+    : `${cardHead('heart', 'Meu corpo está recuperando?')}<p class="empty">Ainda sem dados suficientes.</p>`;
+
+  const head = (sel, icon, title, color, big, sub) => `${cardHead(icon, title, { color })}<div class="b-big"><b>${big}</b><small>${sub}</small></div><div class="b-chart"></div>`;
+  const box = (id) => screen.querySelector(id);
+  box('#b-ready').innerHTML = head('#b-ready', 'bolt', 'Prontidão e REC', aR == null ? 'var(--text-2)' : readyColor(aR), aR == null ? '–' : `${Math.round(aR)}<i>%</i>`, `Prontidão média · ${per}${aRec != null ? ` · REC médio ${Math.round(aRec)}` : ''}`);
+  bandLine(box('#b-ready .b-chart'), { dates: rDates, values: rd.map((x) => x.ready), color: 'rgba(179,167,230,.9)', min: 0, max: 100, height: 120, axes: true, yTicks: [33, 66],
+    dots: (val) => readyColor(val), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.35)', width: 1.2 }], label: 'Prontidão',
+    tip: (i) => row('Prontidão', rd[i].ready == null ? '–' : `${rd[i].ready}%`) + row('REC', rd[i].rec ?? '–') + row('Strain', rd[i].strain) });
+  box('#b-ready').insertAdjacentHTML('beforeend', '<p class="b-leg"><span><i style="background:#b3a7e6"></i>Prontidão</span><span><i style="background:rgba(255,255,255,.35)"></i>REC</span></p>');
+
+  const hv = avg(days.map((x) => x.hrv)), hb = avg(days.map((x) => x.hrvBase));
+  box('#b-hrv').innerHTML = head('#b-hrv', 'heart', 'HRV', 'var(--hrv)', hv == null ? '–' : `${Math.round(hv)}<i> ms</i>`, `média · ${per}${hb ? ` · base ${Math.round(hb)} ms` : ''}${h?.label ? ` · ${h.label.toLowerCase()}` : ''}`);
+  bandLine(box('#b-hrv .b-chart'), { dates, values: days.map((x) => x.hrv), lo: days.map((x) => x.hrvLo), hi: days.map((x) => x.hrvHi), base: days.map((x) => x.hrvBase), color: 'var(--hrv)', height: 120, axes: true, label: 'HRV',
+    tip: (i) => row('HRV', `${nf(days[i].hrv)} ms`) + row('Faixa normal', `${nf(days[i].hrvLo)}–${nf(days[i].hrvHi)}`) });
+
+  const rv = avg(days.map((x) => x.rhr)), rb = avg(days.map((x) => x.rhrBase));
+  box('#b-rhr').innerHTML = head('#b-rhr', 'heart', 'FC de repouso', 'var(--rhr)', rv == null ? '–' : `${nf(rv, 1)}<i> bpm</i>`, `média · ${per}${rb ? ` · base ${nf(rb, 1)} bpm` : ''}`);
+  bandLine(box('#b-rhr .b-chart'), { dates, values: days.map((x) => x.rhr), lo: days.map((x) => x.rhrLo), hi: days.map((x) => x.rhrHi), base: days.map((x) => x.rhrBase), color: 'var(--rhr)', height: 110, axes: true, label: 'FC de repouso',
+    tip: (i) => row('FC', `${nf(days[i].rhr)} bpm`) + row('Faixa normal', `${nf(days[i].rhrLo)}–${nf(days[i].rhrHi)}`) });
+
+  const sv = avg(days.map((x) => x.sleep)), short = days.filter((x) => x.sleep != null && x.sleep < need - 0.5).length, nights = days.filter((x) => x.sleep != null).length;
+  box('#b-sleep').innerHTML = head('#b-sleep', 'moon', 'Sono', 'var(--sleep)', hm(sv), `média · ${per} · base ${hm(need)} · ${short} de ${nights} noites com mais de 30 min a menos`);
+  bandLine(box('#b-sleep .b-chart'), { dates, values: days.map((x) => x.sleep), bars: true, color: 'var(--sleep)', min: 0, ref: need, refLabel: hm(need), height: 110, axes: true, label: 'Sono', yTicks: [4, 8], yFmt: (val) => `${nf(val)} h`,
+    barColor: (val) => (val < need - 0.5 ? 'color-mix(in srgb, var(--sleep) 45%, #000)' : 'var(--sleep)'), tip: (i) => row('Sono', hm(days[i].sleep)) });
+  box('#b-sleep').insertAdjacentHTML('beforeend', `<a class="b-link" href="#sono/${new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)}">Ver a última noite em detalhe ›</a>`);
+}
+
+// ---------- Treino → Evolução (04/11): tudo de treino em cartões abertos ----------
+export async function renderEvolution(box, api) {
+  const C = (id, icon, title, color) => `<section class="card">${cardHead(icon, title, { color })}<div class="block" id="${id}"></div></section>`;
+  box.innerHTML = `
+    ${C('sw', 'bolt', 'Strain semanal', 'var(--strain)')}
+    ${C('evo', 'trend', 'Fitness, Fadiga e Forma', 'var(--fitness)')}
+    ${C('scat', 'bolt', 'Strain × Prontidão', '#b3a7e6')}
+    ${C('zones', 'flame', 'Zonas de treino', '#86c3f2')}
+    ${C('vol', 'stopwatch', 'Volume', 'var(--text-2)')}
+    ${C('focus', 'flame', 'Foco da carga', '#ff8a5c')}
+    ${C('fage', 'run', 'VO2máx e idade fitness', 'var(--pred)')}`;
+  strainWeeks(box, api); evolve(box, api); scatterSec(box, api); zonesSec(box, api); volume(box, api); focusSec(box, api); fageSec(box, api);
+}
+
+// Strain × Prontidão (estilo Whoop): cada ponto é um dia dos últimos 6 meses
+async function scatterSec(box, api) {
+  const sec = box.querySelector('#scat'); if (!sec) return;
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await api('/api/ready-series?days=182'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const pts = d.days.filter((x) => x.ready != null);
+  if (pts.length < 10) { sec.innerHTML = '<p class="empty">Poucos dias com Prontidão ainda.</p>'; return; }
+  const W = 340, H = 190, maxS = Math.max(50, ...pts.map((p) => p.strain)) * 1.05;
+  const X = (v) => 30 + (v / 100) * (W - 40), Y = (s) => H - 18 - (s / maxS) * (H - 30);
+  const grp = (lo, hi) => { const g = pts.filter((p) => p.ready >= lo && p.ready <= hi && p.strain > 0); return g.length ? { n: g.length, s: Math.round(g.reduce((a, p) => a + p.strain, 0) / g.length) } : null; };
+  const G = [['Baixa (0–33)', grp(0, 33)], ['Média (34–66)', grp(34, 66)], ['Alta (67–100)', grp(67, 100)]];
+  const last = pts[pts.length - 1];
+  sec.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="chart sc" role="img" aria-label="Strain por Prontidão">
+      ${[33, 66].map((v) => `<line x1="${X(v)}" x2="${X(v)}" y1="6" y2="${H - 18}" class="bl-ref"/>`).join('')}
+      <line x1="30" x2="${W - 10}" y1="${H - 18}" y2="${H - 18}" class="tl-base"/>
+      ${pts.map((p) => `<circle cx="${X(p.ready).toFixed(1)}" cy="${Y(p.strain).toFixed(1)}" r="${p === last ? 5 : 3}" style="fill:${readyColor(p.ready)};opacity:${p === last ? 1 : 0.7}"${p === last ? ' stroke="#fff" stroke-width="1.5"' : ''}/>`).join('')}
+      <text x="30" y="${H - 4}" class="ax">0</text><text x="${X(50)}" y="${H - 4}" class="ax" text-anchor="middle">Prontidão (%)</text><text x="${W - 10}" y="${H - 4}" class="ax" text-anchor="end">100</text>
+      <text x="26" y="${Y(maxS / 1.05) + 4}" class="ax" text-anchor="end">${Math.round(maxS / 1.05)}</text><text x="26" y="${H - 18}" class="ax" text-anchor="end">0</text>
+    </svg>
+    <ul class="acts sc-g">${G.map(([l, g]) => `<li><span>Prontidão ${l.toLowerCase()}</span><span class="meta">${g ? `Strain médio <b>${g.s}</b> · ${g.n} dias de treino` : 'sem dias'}</span></li>`).join('')}</ul>
+    <p class="note">Últimos 6 meses, um ponto por dia (contorno branco = o dia mais recente). Prontidão da manhã × Strain feito no dia.</p>`;
 }
 
 /** Uma métrica na própria tela (#tend/<id>). */
 export function renderTrendDetail(screen, api, id) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   const S = SECS[id]; if (!S) { location.hash = '#tendencias'; return; }
-  screen.innerHTML = `<header class="top"><a class="back-link" href="#tendencias">‹ Tendências</a></header>
+  const back = id === 'calib' ? ['#ajustes', 'Ajustes'] : ['#tendencias', 'Corpo'];
+  screen.innerHTML = `<header class="top"><a class="back-link" href="${back[0]}">‹ ${back[1]}</a></header>
     <h1 class="td-title"><i class="ts-ic" style="--ic:${S[4]}">${ICON[S[3]] ?? ''}</i>${S[0]}</h1><p class="td-sub">${S[1]}</p>
     <section class="block" id="${id}"></section>`;
   S[2](screen, api);
-}
-
-// valores ao lado de cada métrica (do que já está pronto no servidor; cada um aparece quando chega)
-function tileValues(screen, api) {
-  const set = (id, txt) => { const el = screen.querySelector(`[data-v="${id}"]`); if (el && txt) el.textContent = txt; };
-  api('/api/widget').then((w) => set('recov', `Hoje: Prontidão ${w.ready ?? w.readyPrev ?? '–'}% · REC ${w.rec ?? '–'}`)).catch(() => {});
-  api('/api/hrvtrend').then((h) => set('hrvt', h?.label)).catch(() => {});
-  api('/api/stress31').then((c) => set('stress31', c?.label)).catch(() => {});
-  api('/api/calibration').then((c) => set('calib', `${c.withRec} de ${c.target} notas "como me sinto"`)).catch(() => {});
-  api('/api/strain-weeks?weeks=4').then((r) => { const w = r.weeks[r.weeks.length - 1]; set('sw', `Esta semana: ${nf(w.total)} (faixa ${nf(w.lo)}–${nf(w.hi)})`); }).catch(() => {});
-  api('/api/zones-dist?days=30').then((z) => { const i = z.cur.pct.indexOf(Math.max(...z.cur.pct)); if (z.cur.total) set('zones', `30 dias: ${nf(z.cur.pct[i], 0)}% em ${ZL[i]}`); }).catch(() => {});
-}
-
-// resumo: corpo e carga em uma frase cada; o porquê fica no ⓘ
-async function answers(screen, api) {
-  const more = [];
-  const put = (id, html) => { const el = screen.querySelector(`#${id} span`); if (!el) return; el.innerHTML = html; el.querySelectorAll('.t-why').forEach((w) => { more.push(w.innerHTML); w.remove(); }); };
-  await Promise.all([
-    (async () => { try {
-      const [t, h, c] = await Promise.all([longtrend(api, recWin), api('/api/hrvtrend').catch(() => null), api('/api/stress31').catch(() => null)]);
-      const sig = [h ? `HRV de 7 noites: ${h.label.toLowerCase()}` : null, c ? `estresse do mês: ${c.label.toLowerCase()}` : null].filter(Boolean).join(' · ');
-      put('t-corpo', t.verdict ? `<b>${esc(t.verdict.answer)}</b> ${esc(t.verdict.trendTxt)}${sig ? `<small class="t-why">${esc(sig.charAt(0).toUpperCase() + sig.slice(1))}.</small>` : ''}` : 'Ainda sem dados suficientes.');
-    } catch { put('t-corpo', ''); } })(),
-    (async () => { try {
-      const [t, r, li] = await Promise.all([longtrend(api, evoWin), api('/api/strain-weeks?weeks=4'), loadInsights(api).catch(() => null)]);
-      const sm = t.summary, z = zoneOfPct(sm.formPct), w = r.weeks[r.weeks.length - 1];
-      const st = { abaixo: 'abaixo da sua faixa', dentro: 'dentro da sua faixa', acima: 'acima da sua faixa', bem_acima: 'bem acima da sua faixa' }[w.status];
-      put('t-carga', `${li?.status ? `<b class="st-${li.status.key}">${esc(li.status.label)}.</b> ${esc(li.status.txt)}${li.status.why ? `<small class="t-why">Por quê: ${esc(li.status.why)}.</small>` : ''}` : ''}<small class="t-why">${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>.` : ''}</small>`);
-    } catch { put('t-carga', ''); } })(),
-  ]);
-  const box = screen.querySelector('#t-more');
-  if (box && more.length) { box.innerHTML = more.map((m) => `<p>${m}</p>`).join(''); screen.querySelector('.t-answer .info-btn').hidden = false; }
 }
 
 // zonas de treino (estilo Strava): barras por zona, faixas de FC, período e comparação com o período anterior

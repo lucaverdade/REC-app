@@ -19,6 +19,40 @@ export interface GarminDay {
   nap_h: number | null; // cochilos do dia (h)
   spo2_avg?: number | null; spo2_low?: number | null; // SpO2 da noite (%), se o relógio mede no sono
   bb_wake?: number | null; bb_high?: number | null;   // Body Battery ao acordar e máximo do dia
+  stages?: SleepStages | null; // fases da noite (04/11), quando a Garmin manda
+}
+
+/** Fases da noite: minutos por fase + trechos (min desde 00:00 do dia de dormir, horário local) + FC da noite. */
+export interface SleepStages {
+  deep: number | null; light: number | null; rem: number | null; awake: number | null;
+  levels: [number, number, number][]; // [início, fim, fase 0 profundo · 1 leve · 2 REM · 3 acordado]
+  hr: [number, number][];             // [minuto, bpm]
+  start: string | null;               // "AAAA-MM-DDTHH:MM" local
+}
+
+/** Fases do sono do JSON do dailySleep (campos do Garmin Connect: sleepLevels, sleepHeartRate, *SleepSeconds). */
+export function parseStages(j: any): SleepStages | null {
+  const dto = j?.dailySleepDTO ?? {};
+  const m = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v / 60) : null);
+  const deep = m(dto.deepSleepSeconds), light = m(dto.lightSleepSeconds), rem = m(dto.remSleepSeconds), awake = m(dto.awakeSleepSeconds);
+  const off = typeof dto.sleepStartTimestampLocal === 'number' && typeof dto.sleepStartTimestampGMT === 'number' ? dto.sleepStartTimestampLocal - dto.sleepStartTimestampGMT : -3 * 3600e3;
+  const startLocal = typeof dto.sleepStartTimestampLocal === 'number' ? dto.sleepStartTimestampLocal : null;
+  if (startLocal == null) return deep == null && light == null && rem == null ? null : { deep, light, rem, awake, levels: [], hr: [], start: null };
+  const day0 = Math.floor(startLocal / 864e5) * 864e5; // 00:00 local do dia em que deitou
+  const toMin = (gmt: unknown) => { const t = typeof gmt === 'number' ? gmt : typeof gmt === 'string' ? Date.parse(gmt.replace(/\.0$/, '') + 'Z') : NaN; return Number.isFinite(t) ? Math.round((t + off - day0) / 60000) : null; };
+  const levels: [number, number, number][] = [];
+  for (const l of Array.isArray(j?.sleepLevels) ? j.sleepLevels : []) {
+    const a = toMin(l?.startGMT), b = toMin(l?.endGMT), lv = Number(l?.activityLevel);
+    if (a != null && b != null && b > a && lv >= 0 && lv <= 3) levels.push([a, b, Math.round(lv)]);
+  }
+  const hr: [number, number][] = [];
+  for (const h of Array.isArray(j?.sleepHeartRate) ? j.sleepHeartRate : []) {
+    const t = toMin(h?.startGMT), v = Number(h?.value);
+    if (t != null && Number.isFinite(v) && v > 20) hr.push([t, Math.round(v)]);
+  }
+  if (deep == null && light == null && rem == null && !levels.length) return null;
+  const iso = new Date(startLocal).toISOString().slice(0, 16);
+  return { deep, light, rem, awake, levels, hr: hr.filter((_, i) => i % 2 === 0), start: iso };
 }
 
 export interface GarminActivity {
@@ -212,11 +246,12 @@ export async function fetchDays(env: GarminEnv, from: string, to: string): Promi
 
   const dates = eachDay(from, to);
   const sleeps = new Map<string, ReturnType<typeof parseSleep>>();
+  const stages = new Map<string, SleepStages | null>();
   // sono: um dia por chamada, em lotes de 5
   for (let i = 0; i < dates.length; i += 5) {
     const batch = dates.slice(i, i + 5);
     const res = await Promise.all(batch.map((d) => safe(i === 0 && d === batch[0] ? 'sono' : '_', get(env, '/sleep-service/sleep/dailySleep', { date: d }))));
-    batch.forEach((d, k) => { if (res[k]) sleeps.set(d, parseSleep(res[k])); });
+    batch.forEach((d, k) => { if (res[k]) { sleeps.set(d, parseSleep(res[k])); stages.set(d, parseStages(res[k])); } });
   }
   delete raw._;
 
@@ -237,6 +272,7 @@ export async function fetchDays(env: GarminEnv, from: string, to: string): Promi
       spo2_low: s?.spo2_low ?? sum.get(d)?.spo2_low ?? null,
       bb_wake: sum.get(d)?.bb_wake ?? null,
       bb_high: sum.get(d)?.bb_high ?? null,
+      stages: stages.get(d) ?? null,
     };
   });
   return { days, raw, detail };

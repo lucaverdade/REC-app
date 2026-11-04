@@ -6,6 +6,7 @@ import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
 import { ICON, cardHead, countUp, readyColor } from './ui.js';
 import { renderActivity } from './activity.js';
+import { renderSleep, renderWeekReview } from './views.js';
 import { recalcHistory, testOne } from './zones.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
@@ -347,6 +348,7 @@ function sleepCard(d) {
         <div><small>${d.isToday ? 'Meta hoje à noite' : 'Meta da noite seguinte'}</small><b>${hmm(need.total)}</b></div>
         ${s.bedtime && d.isToday ? `<div><small>Deitar até</small><b class="sl-bedt">${esc(s.bedtime.bedtime)}</b></div>` : ''}
       </div>
+      ${n?.hours != null ? `<a class="b-link" href="#sono/${d.date}">Ver a noite em detalhe ›</a>` : ''}
     </section>`;
 }
 
@@ -925,6 +927,7 @@ function renderSettings() {
     <nav class="card set-list">
       <a href="#garmin">${ICON.heart}<span><b>Garmin</b><small id="set-garmin">Dados, conexão e o que falta completar</small></span><em>›</em></a>
       <a href="#tema">${ICON.sun}<span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
+      <a href="#tend/calib">${ICON.smile}<span><b>O REC acerta?</b><small>Calibração: REC e Prontidão × como me sinto</small></span><em>›</em></a>
       <a href="#widget">${ICON.check}<span><b>Widget do iPhone</b><small>Prontidão na tela inicial</small></span><em>›</em></a>
     </nav>`;
   api('/api/diag').then((d) => {
@@ -1001,7 +1004,7 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? '#tendencias' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') ? '#treino' : h.startsWith('#sono/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -1021,6 +1024,8 @@ function route() {
   else if (h === '#prova') renderRace(page(), api);
   else if (h.startsWith('#relatorio/')) renderReport(page(), api, h.slice(11));
   else if (h.startsWith('#tend/')) renderTrendDetail(page(), api, h.slice(6));
+  else if (h.startsWith('#sono/')) renderSleep(page(), api, h.slice(6));
+  else if (h.startsWith('#semana/')) renderWeekReview(page(), api, h.slice(8));
   else load();
 }
 window.addEventListener('hashchange', route);

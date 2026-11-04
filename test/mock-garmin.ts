@@ -63,14 +63,16 @@ createServer((req, res) => {
   if (u.pathname === '/sleep-service/sleep/dailySleep') {
     const d = u.searchParams.get('date')!, r = daily.get(d);
     if (!r || num(r.sleep_h) === null) return send(200, { dailySleepDTO: { calendarDate: d } });
+    const ms = mockStages(d, num(r.sleep_h)!, num(r.rhr));
     return send(200, {
-      dailySleepDTO: {
+      dailySleepDTO: { ...ms._stages,
         calendarDate: d, sleepTimeSeconds: Math.round(num(r.sleep_h)! * 3600), napTimeSeconds: d.endsWith('1') ? 1500 : 0, averageRespirationValue: num(r.resp), sleepScores: { overall: { value: num(r.sleep_score) } },
         // horários simulados: acorda ~05:40–06:20, dorme o necessário antes
         sleepEndTimestampLocal: Date.parse(d + 'T06:00:00Z') + ((d.charCodeAt(9) % 5) - 2) * 10 * 60000,
         sleepStartTimestampLocal: Date.parse(d + 'T06:00:00Z') + ((d.charCodeAt(9) % 5) - 2) * 10 * 60000 - Math.round(num(r.sleep_h)! * 3600000) - 20 * 60000,
       },
       restingHeartRate: num(r.rhr), avgOvernightHrv: num(r.hrv),
+      sleepLevels: ms.sleepLevels, sleepHeartRate: ms.sleepHeartRate,
     });
   }
   if (u.pathname === '/activitylist-service/activities/search/activities') {
@@ -89,3 +91,20 @@ createServer((req, res) => {
 }).listen(9999, '127.0.0.1', () => console.log('mock garmin em :9999'));
 
 process.on('SIGTERM', () => { console.log('chamadas:', calls); process.exit(0); });
+
+// fases simuladas: ciclos de ~90 min (profundo mais no começo, REM mais no fim), FC da noite a cada 2 min
+function mockStages(d: string, h: number, rhr: number | null) {
+  const endL = Date.parse(d + 'T06:00:00Z') + ((d.charCodeAt(9) % 5) - 2) * 10 * 60000;
+  const startL = endL - Math.round(h * 3600000) - 20 * 60000, startG = startL + 3 * 3600e3;
+  const iso = (t: number) => new Date(t).toISOString().slice(0, 19) + '.0';
+  const levels: { startGMT: string; endGMT: string; activityLevel: number }[] = [];
+  const secs = [0, 0, 0, 0];
+  let t = startG; const end = endL + 3 * 3600e3; let cyc = 0;
+  const push = (lv: number, min: number) => { const e = Math.min(end, t + min * 60000); if (e <= t) return; levels.push({ startGMT: iso(t), endGMT: iso(e), activityLevel: lv }); secs[lv] += (e - t) / 1000; t = e; };
+  push(3, 12);
+  while (t < end) { push(1, 25); push(0, Math.max(5, 40 - cyc * 9)); push(1, 15); push(2, 12 + cyc * 6); if (cyc % 2) push(3, 3); cyc++; }
+  const hr: { startGMT: string; value: number }[] = [];
+  for (let x = startG; x < end; x += 120000) { const k = (x - startG) / (end - startG); hr.push({ startGMT: iso(x), value: Math.round((rhr ?? 45) + 8 * Math.abs(Math.sin(k * 9)) + (k < 0.15 ? 6 : 0)) }); }
+  return { sleepLevels: levels, sleepHeartRate: hr, dailySleepDTOExtra: null,
+    _stages: { deepSleepSeconds: secs[0], lightSleepSeconds: secs[1], remSleepSeconds: secs[2], awakeSleepSeconds: secs[3], sleepStartTimestampGMT: startG } };
+}

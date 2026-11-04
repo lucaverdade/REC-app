@@ -94,6 +94,13 @@ async function writeDays(env: Env, days: GarminDay[]) {
   );
   const useful = days.filter((d) => [d.hrv, d.rhr, d.sleep_h, d.resp, d.stress].some((v) => v !== null));
   if (useful.length) await env.DB.batch(useful.map((d) => st.bind(d.date, d.hrv, d.rhr, d.sleep_h, d.sleep_score, d.resp, d.stress, d.sleep_start, d.sleep_end, d.nap_h, d.spo2_avg ?? null, d.spo2_low ?? null, d.bb_wake ?? null, d.bb_high ?? null)));
+  // fases do sono (tabela própria: o JSON da noite)
+  const withStages = days.filter((d) => d.stages);
+  if (withStages.length) {
+    await env.DB.prepare('CREATE TABLE IF NOT EXISTS sleep_stages (date TEXT PRIMARY KEY, body TEXT NOT NULL)').run();
+    const ss = env.DB.prepare('INSERT OR REPLACE INTO sleep_stages (date, body) VALUES (?1, ?2)');
+    await env.DB.batch(withStages.map((d) => ss.bind(d.date, JSON.stringify(d.stages))));
+  }
   return useful.length;
 }
 
@@ -228,6 +235,7 @@ async function backtest(env: Env): Promise<CalibSnap> {
   const today = brtToday(), from = addDays(today, -365);
   const loads = await dailyLoads(env, addDays(from, -400), today);
   const li = new Map(loads.map((x, i) => [x.date, i]));
+  const L = loads.map((x) => x.load);
   const { results: recs } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2 AND rec IS NOT NULL ORDER BY date').bind(from, today).all<{ date: string; rec: number }>();
   const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(from, -140), today).all<SleepNight>();
   const need = (await sleepBase(env, today)).hours;
@@ -239,7 +247,7 @@ async function backtest(env: Env): Promise<CalibSnap> {
   for (const { date, rec } of recs) {
     const i = li.get(date); if (i == null) continue;
     const dh: number[] = []; for (let x = addDays(date, -120); x < date; x = addDays(x, 1)) { const v = debt.get(x); if (v != null) dh.push(v); }
-    const r = readiness(rec, loads.slice(0, i).map((x) => x.load), debt.get(date) ?? null, dh);
+    const r = readiness(rec, L, debt.get(date) ?? null, dh, undefined, i - 1);
     if (r.score == null) continue;
     R.push(rec); P.push(r.score); if (r.cap) caps++;
     const f = feelBy.get(date); if (f != null) fr.push([rec, r.score, f]);
@@ -359,6 +367,68 @@ async function zonesDist(env: Env, sport: string, days: number) {
   const zk = sp ?? 'default', z = zones?.[zk] ?? zones?.default ?? null;
   const ranges = z ? [`< ${z.floors[0]}`, `${z.floors[0]}–${z.floors[1] - 1}`, `${z.floors[1]}–${z.floors[2] - 1}`, `${z.floors[2]}–${z.floors[3] - 1}`, `${z.floors[3]}–${z.floors[4] - 1}`, `≥ ${z.floors[4]}`] : null;
   return { sport: sp ?? 'todas', days, from, to: today, cur, prev, ranges };
+}
+
+// --- séries para Corpo e Treino → Evolução (04/11) ---
+/** Prontidão de cada dia num intervalo, numa passada só (mesma conta da aba Hoje). */
+async function readinessSeries(env: Env, from: string, to: string) {
+  const loads = await dailyLoads(env, addDays(from, -400), to);
+  const li = new Map(loads.map((x, i) => [x.date, i]));
+  const { results: recs } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(from, to).all<{ date: string; rec: number | null }>();
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(from, -140), to).all<SleepNight>();
+  const need = (await sleepBase(env, brtToday())).hours;
+  const debt = new Map<string, number | null>();
+  for (let x = addDays(from, -120); x <= to; x = addDays(x, 1)) debt.set(x, sleepDebt(nights, need, x));
+  const recBy = new Map(recs.map((r) => [r.date, r.rec]));
+  const L = loads.map((x) => x.load); // um vetor só: a Prontidão de cada dia usa até a véspera (sem copiar)
+  const out: { date: string; rec: number | null; ready: number | null; strain: number }[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const i = li.get(d) ?? -1, rec = recBy.get(d) ?? null;
+    let ready: number | null = null;
+    if (rec != null && i >= 0) {
+      const dh: number[] = []; for (let x = addDays(d, -120); x < d; x = addDays(x, 1)) { const v = debt.get(x); if (v != null) dh.push(v); }
+      ready = readiness(rec, L, debt.get(d) ?? null, dh, undefined, i - 1).score;
+    }
+    out.push({ date: d, rec: rec == null ? null : Math.round(rec), ready: ready == null ? null : Math.round(ready), strain: i >= 0 ? Math.round(loads[i].load) : 0 });
+  }
+  return out;
+}
+
+/** Calendário do mês: Strain e modalidades por dia, Prontidão e REC. */
+async function monthPayload(env: Env, ym: string) {
+  const from = `${ym}-01`, last = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0)).toISOString().slice(0, 10);
+  const today = brtToday(), to = last > today ? today : last;
+  const { results: acts } = await env.DB.prepare(`SELECT date, sport, min, ${STRAIN_SQL} strain FROM activities WHERE date BETWEEN ?1 AND ?2 ORDER BY time`).bind(from, last).all<{ date: string; sport: Sport; min: number | null; strain: number | null }>();
+  const series = to >= from ? await readinessSeries(env, from, to) : [];
+  const sb = new Map(series.map((x) => [x.date, x]));
+  const days = [];
+  for (let d = from; d <= last; d = addDays(d, 1)) {
+    const a = acts.filter((x) => x.date === d);
+    const s = sb.get(d);
+    days.push({ date: d, future: d > today, strain: Math.round(a.reduce((x, y) => x + (y.strain ?? 0), 0)), min: Math.round(a.reduce((x, y) => x + (y.min ?? 0), 0)),
+      sports: [...new Set(a.map((x) => x.sport))], rec: s?.rec ?? null, ready: s?.ready ?? null });
+  }
+  const done = days.filter((x) => !x.future);
+  return { ym, days, total: { strain: done.reduce((a, x) => a + x.strain, 0), hours: Math.round(done.reduce((a, x) => a + x.min, 0) / 6) / 10, days: done.filter((x) => x.strain > 0).length } };
+}
+
+/** Noite em detalhe: fases, FC, horários e comparação com as 14 noites anteriores. */
+async function sleepPayload(env: Env, date: string) {
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS sleep_stages (date TEXT PRIMARY KEY, body TEXT NOT NULL)').run();
+  const st = await env.DB.prepare('SELECT body FROM sleep_stages WHERE date = ?1').bind(date).first<{ body: string }>();
+  const m = await env.DB.prepare('SELECT sleep_h, sleep_score, sleep_start, sleep_end, nap_h, resp FROM daily_metrics WHERE date = ?1').bind(date).first<Record<string, any>>();
+  const r = await env.DB.prepare('SELECT v_hrv, b_hrv, v_rhr, b_rhr FROM rec_daily WHERE date = ?1').bind(date).first<Record<string, number | null>>();
+  const { results: prev } = await env.DB.prepare('SELECT d.date, d.sleep_h, s.body FROM daily_metrics d LEFT JOIN sleep_stages s ON s.date = d.date WHERE d.date BETWEEN ?1 AND ?2 AND d.sleep_h IS NOT NULL').bind(addDays(date, -14), addDays(date, -1)).all<{ date: string; sleep_h: number; body: string | null }>();
+  const mean = (x: number[]) => (x.length ? x.reduce((a, b) => a + b, 0) / x.length : null);
+  const stg = prev.map((p) => (p.body ? JSON.parse(p.body) : null)).filter(Boolean);
+  const avgStage = (k: string) => { const v = stg.map((x: any) => x[k]).filter((y: any) => typeof y === 'number'); return v.length >= 3 ? Math.round(mean(v)!) : null; };
+  return {
+    date, need: (await sleepBase(env, brtToday())).hours,
+    night: m ? { h: m.sleep_h, score: m.sleep_score, start: m.sleep_start, end: m.sleep_end, nap: m.nap_h, resp: m.resp } : null,
+    stages: st ? JSON.parse(st.body) : null,
+    hrv: r ? { v: r.v_hrv, base: r.b_hrv } : null, rhr: r ? { v: r.v_rhr, base: r.b_rhr } : null,
+    avg14: { h: mean(prev.map((p) => p.sleep_h)), deep: avgStage('deep'), light: avgStage('light'), rem: avgStage('rem'), awake: avgStage('awake'), n: prev.length },
+  };
 }
 
 /** Fitness/Fadiga/Forma e Strain de um dia (aba Hoje). */
@@ -1292,6 +1362,22 @@ async function reviewPayload(env: Env, req: Request, monday: string) {
     rhr: r1(mean(rd.map((x) => x.v_rhr))), rhrBase: r1(mean(rd.map((x) => x.b_rhr))),
     sleep: r1(mean(wk.map((n) => n.sleep_h))), sleepNeed: r1(need),
     text,
+    highlights: await (async () => {
+      // destaques da semana (04/11): melhor dia, pior noite, treino mais pesado, Prontidão × semana anterior
+      const ser = await readinessSeries(env, addDays(monday, -7), end);
+      const cur = ser.filter((x) => x.date >= monday && x.ready != null), prv = ser.filter((x) => x.date < monday && x.ready != null);
+      const best = cur.length ? cur.reduce((a, b) => ((b.ready as number) > (a.ready as number) ? b : a)) : null;
+      const nn = wk.filter((n) => n.sleep_h != null);
+      const worst = nn.length ? nn.reduce((a, b) => ((b.sleep_h as number) < (a.sleep_h as number) ? b : a)) : null;
+      const top = await env.DB.prepare(`SELECT id, date, sport, name, min, ${STRAIN_SQL} strain FROM activities WHERE date BETWEEN ?1 AND ?2 ORDER BY strain DESC LIMIT 1`).bind(monday, end).first<{ id: string; date: string; sport: Sport; name: string | null; min: number; strain: number | null }>();
+      return {
+        best: best && { date: best.date, ready: best.ready },
+        worstNight: worst && { date: worst.date, h: r1(worst.sleep_h) },
+        heaviest: top && top.strain != null ? { id: top.id, date: top.date, sport: top.sport, label: top.name || SPORT_LABEL[top.sport], min: Math.round(top.min ?? 0), strain: Math.round(top.strain) } : null,
+        ready: cur.length ? Math.round(mean(cur.map((x) => x.ready))!) : null, readyPrev: prv.length ? Math.round(mean(prv.map((x) => x.ready))!) : null,
+        days: ser.filter((x) => x.date >= monday).map((x) => ({ date: x.date, ready: x.ready, strain: x.strain })),
+      };
+    })(),
   };
 }
 
@@ -1352,7 +1438,7 @@ async function syncIssueOf(env: Env, date: string, lastSync: Record<string, unkn
 // Qualquer escrita (sincronização com dado novo, nota, diário, recálculo…) sobe a versão e invalida tudo.
 // Campos que dependem do relógio (última busca, aviso de sincronização) são refeitos a cada abertura.
 const CACHEABLE = new Set(['/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
-  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day', '/api/widget', '/api/race-report', '/api/zones-dist']);
+  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day', '/api/widget', '/api/race-report', '/api/zones-dist', '/api/ready-series', '/api/month', '/api/sleep']);
 const CACHE_TTL = 30 * 60e3; // também expira em 30 min (plano novo publicado, virada de hora)
 async function dataVer(env: Env) {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'data_ver'").first<{ value: string }>();
@@ -1506,6 +1592,20 @@ async function handle(req: Request, env: Env): Promise<Response> {
     if (url.pathname === '/api/zones-dist' && req.method === 'GET') {
       const days = [7, 30, 90, 180, 365].includes(Number(url.searchParams.get('days'))) ? Number(url.searchParams.get('days')) : 30;
       return json(await zonesDist(env, url.searchParams.get('sport') ?? 'todas', days));
+    }
+    if (url.pathname === '/api/ready-series' && req.method === 'GET') {
+      const days = Math.min(400, Math.max(7, Number(url.searchParams.get('days')) || 30)), to = brtToday();
+      return json({ days: await readinessSeries(env, addDays(to, -(days - 1)), to) });
+    }
+    if (url.pathname === '/api/month' && req.method === 'GET') {
+      const ym = url.searchParams.get('ym') ?? brtToday().slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(ym)) return json({ error: 'mes_invalido' }, 400);
+      return json(await monthPayload(env, ym));
+    }
+    if (url.pathname === '/api/sleep' && req.method === 'GET') {
+      const date = url.searchParams.get('date') ?? brtToday();
+      if (!isDate(date)) return json({ error: 'data_invalida' }, 400);
+      return json(await sleepPayload(env, date));
     }
     if (url.pathname === '/api/calibration' && req.method === 'GET') {
       const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress
