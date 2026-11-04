@@ -380,6 +380,46 @@ function morningHtml(d) {
   </section>`;
 }
 
+// ---------- linha do tempo do dia: sono, treinos, FC e estresse em 24 h ----------
+function timelineHtml(t, isToday) {
+  const W = 340, H = 92, X = (m) => (m / 1440) * W;
+  if (!t.hr.length && !t.stress && !t.workouts.length && !t.sleep.length) return `<h2>${isToday ? 'Seu dia' : 'O dia'}</h2><p class="empty">${t.error ? `Sem curva da Garmin (${esc(t.error)}).` : 'Sem dados do dia ainda.'}</p>`;
+  const hrMax = Math.max(120, ...t.hr.map((p) => p[1])), hrMin = Math.min(40, ...t.hr.map((p) => p[1]));
+  const yHr = (v) => 14 + (1 - (v - hrMin) / (hrMax - hrMin)) * (H - 30);
+  const path = (pts, y) => { let d = '', last = -99; for (const [m, v] of pts) { d += `${m - last > 15 ? 'M' : 'L'}${X(m).toFixed(1)},${y(v).toFixed(1)}`; last = m; } return d; };
+  const stressArea = t.stress ? t.stress.map(([m, v]) => `<rect x="${X(m).toFixed(1)}" y="${(H - 16 - (v / 100) * 26).toFixed(1)}" width="${(X(5) + 0.2).toFixed(2)}" height="${((v / 100) * 26).toFixed(1)}" class="tl-st"/>`).join('') : '';
+  const sleep = t.sleep.map((b) => `<rect x="${X(b.start).toFixed(1)}" y="0" width="${(X(b.end) - X(b.start)).toFixed(1)}" height="${H - 16}" class="tl-sleep"/>`).join('');
+  const work = t.workouts.map((w) => `<rect x="${X(w.start).toFixed(1)}" y="0" width="${Math.max(2, X(w.dur)).toFixed(1)}" height="${H - 16}" class="tl-w" style="fill:var(--${w.sport})"/>`).join('');
+  const now = isToday ? (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })() : null;
+  const ticks = [0, 6, 12, 18, 24].map((h) => `<text x="${X(h * 60).toFixed(1)}" y="${H - 3}" class="tl-t" text-anchor="${h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}">${h}h</text>`).join('');
+  const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+  const dayHr = t.hr.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1]);
+  const stressDay = t.stress ? avg(t.stress.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1])) : null;
+  return `<h2>${isToday ? 'Seu dia' : 'O dia'}</h2>
+    <svg viewBox="0 0 ${W} ${H}" class="tl-svg" role="img" aria-label="Linha do tempo do dia">
+      ${sleep}${work}${stressArea}
+      ${t.hr.length ? `<path d="${path(t.hr, yHr)}" class="tl-hr"/>` : ''}
+      ${now != null ? `<line x1="${X(now).toFixed(1)}" x2="${X(now).toFixed(1)}" y1="0" y2="${H - 16}" class="tl-now"/>` : ''}
+      <line x1="0" x2="${W}" y1="${H - 16}" y2="${H - 16}" class="tl-base"/>${ticks}
+      <line class="tl-cur" x1="-10" x2="-10" y1="0" y2="${H - 16}"/>
+    </svg>
+    <p class="tl-tip" aria-live="polite">${[dayHr.length ? `FC média acordado ${avg(dayHr)}` : null, stressDay != null ? `estresse médio acordado ${stressDay}` : null].filter(Boolean).join(' · ') || 'Toque no gráfico para ver a hora.'}</p>
+    <div class="yr-leg"><span><i style="background:color-mix(in srgb, var(--sleep) 30%, transparent)"></i>Sono</span>${t.workouts.length ? '<span><i style="background:var(--accent)"></i>Treino</span>' : ''}<span><i style="background:var(--fatigue);height:2px;border-radius:0"></i>FC</span>${t.stress ? '<span><i style="background:color-mix(in srgb, var(--warn) 55%, transparent)"></i>Estresse</span>' : ''}</div>`;
+}
+function bindTimeline(screen, t) {
+  const svg = screen.querySelector('.tl-svg'); if (!svg) return;
+  const tip = screen.querySelector('.tl-tip'), cur = svg.querySelector('.tl-cur');
+  const show = (ev) => {
+    const r = svg.getBoundingClientRect(), x = ((ev.touches?.[0] ?? ev).clientX - r.left) / r.width;
+    const m = Math.max(0, Math.min(1439, Math.round(x * 1440))), near = (arr) => arr?.reduce((b, p) => (Math.abs(p[0] - m) < Math.abs(b[0] - m) ? p : b), arr[0]);
+    const hr = t.hr.length ? near(t.hr) : null, st = t.stress?.length ? near(t.stress) : null;
+    const w = t.workouts.find((w) => m >= w.start && m <= w.start + w.dur), sl = t.sleep.find((b) => m >= b.start && m < b.end);
+    cur.setAttribute('x1', (x * 340).toFixed(1)); cur.setAttribute('x2', (x * 340).toFixed(1));
+    tip.textContent = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}${sl ? ' · dormindo' : ''}${w ? ` · ${w.label}` : ''}${hr && Math.abs(hr[0] - m) <= 10 ? ` · FC ${hr[1]}` : ''}${st && Math.abs(st[0] - m) <= 10 ? ` · estresse ${st[1]}` : ''}`;
+  };
+  svg.addEventListener('click', show); svg.addEventListener('touchmove', show, { passive: true });
+}
+
 // ---------- aviso da véspera (I4): a partir das 17 h, o que vem amanhã e a meta de sono ----------
 function tomorrowHtml(d) {
   if (!d.isToday || new Date().getHours() < 17 || !d.tomorrow) return '';
@@ -445,7 +485,7 @@ function render(d) {
         <h1>${d.isToday ? 'Hoje, ' : ''}${esc(fmtDate(todayIso, { weekday: d.isToday ? undefined : 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''))}</h1>
         <button type="button" data-day="-1" aria-label="Próximo dia" ${dayOffset === 0 ? 'disabled' : ''}>›</button>
       </div>
-      ${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir o modo prova.">${esc(raceTxt)} ›</a>` : ''}
+      ${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir a aba Prova.">${esc(raceTxt)} ›</a>` : ''}
     </header>
 
     ${d.phase && d.isToday ? `<p class="phase-line">${esc(d.phase)}</p>` : ''}
@@ -455,7 +495,7 @@ function render(d) {
     ${tomorrowHtml(d)}
     <div id="hoje-review"></div>
 
-    ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}
+    ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Prova ›</em></a>` : ''}
 
     <section class="rings rings-2" aria-label="Estou pronto hoje?">
       ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, segments: recSegments(d.rec),
@@ -496,6 +536,8 @@ function render(d) {
 
 
 
+    <section class="block tl" id="tl"><h2>${d.isToday ? 'Seu dia' : 'O dia'}</h2><p class="empty">Carregando…</p></section>
+
     <section class="block feel ${d.feel == null ? 'unset' : ''}">
       <h2 id="feel-label">Como me sinto</h2>
       <div class="feel-row">
@@ -513,7 +555,7 @@ function render(d) {
 
     <div class="foot">
       <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
-      <span class="foot-links"><a class="foot-link" href="#prova">Modo prova</a><a class="foot-link" href="#garmin">Garmin</a><a class="foot-link" href="#tema">Tema</a></span>
+      <span class="foot-links"><a class="foot-link" href="#garmin">Garmin</a><a class="foot-link" href="#tema">Tema</a></span>
     </div>
   `;
 
@@ -542,6 +584,9 @@ function render(d) {
       saved.textContent = 'Nota salva.';
     } catch { saved.textContent = 'Não salvou. Tente de novo.'; }
   });
+
+  // linha do tempo do dia (carrega depois da tela)
+  api(`/api/timeline?date=${todayIso}`).then((t) => { const el = screen.querySelector('#tl'); if (el) el.innerHTML = timelineHtml(t, d.isToday); bindTimeline(screen, t); }).catch(() => { const el = screen.querySelector('#tl'); if (el) el.remove(); });
 
   // relatório da manhã: fechar até amanhã
   screen.querySelector('.mr-close')?.addEventListener('click', () => { ls.set('rec.morning', todayIso); screen.querySelector('.morning')?.remove(); });
@@ -886,7 +931,7 @@ function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
     const on = t.getAttribute('href') === (h === '#garmin' || h === '#tema' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
-    t.classList.toggle('is-active', on || (h === '#prova' && t.getAttribute('href') === '#hoje'));
+    t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
   window.scrollTo(0, 0);

@@ -39,6 +39,7 @@ function periodTitle(d) {
 // Tendências em 3 abas (04/11): cada aba responde uma pergunta; os blocos ficam fechados e abrem ao tocar.
 const TABS = [
   { k: 'carga', l: 'Carga', q: 'Estou treinando no ritmo certo?', secs: [
+    ['year', 'O ano em quadradinhos', 'Um quadrado por dia: REC, Strain ou sono', (b, a) => yearSec(b, a)],
     ['sw', 'Strain semanal', 'Quanto treinei por semana, contra a sua faixa', (b, a) => strainWeeks(b, a)],
     ['evo', 'Estou evoluindo?', 'Fitness, Fadiga e Forma', (b, a) => evolve(b, a)],
     ['vol', 'Como treinei?', 'Horas, modalidades e intensidade', (b, a) => volume(b, a)],
@@ -51,11 +52,6 @@ const TABS = [
     ['stress31', 'Estresse acumulado', 'O último mês contra o seu normal', (b, a) => stressSec(b, a)],
     ['fage', 'Idade fitness e VO2máx', 'Números da Garmin', (b, a) => fageSec(b, a)],
     ['calib', 'O REC acerta?', 'REC × "como me sinto"', (b, a) => calibSec(b, a)],
-  ] },
-  { k: 'prova', l: 'Prova', q: 'Como estou para Aracaju?', secs: [
-    ['pred', 'Previsões de corrida', '5 km, 10 km, meia e maratona', (b, a) => predictions(b, a)],
-    ['proj', 'Forma até a prova', 'Projeção com o plano publicado', (b, a) => projSec(b, a)],
-    ['heat', 'Aclimatação ao calor', 'Sessões no calor nos últimos 14 dias', (b, a) => heatSec(b, a)],
   ] },
 ];
 let tab = (() => { try { return localStorage.getItem('rec.ttab') || 'carga'; } catch { return 'carga'; } })();
@@ -73,7 +69,7 @@ export async function renderTrends(screen, api) {
         <summary><span><b>${title}</b><small>${sub}</small></span></summary>
         <section class="block" id="${id}"></section>
       </details>`).join('')}
-    ${tab === 'prova' ? '<a class="btn ghost t-race" href="#prova">Abrir o modo prova</a>' : ''}`;
+`;
   screen.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
     tab = b.dataset.tab; try { localStorage.setItem('rec.ttab', tab); } catch {} renderTrends(screen, api); window.scrollTo(0, 0);
   }));
@@ -174,6 +170,53 @@ async function calibSec(box, api) {
     ${d.withRec >= 15 ? `<ul class="acts">${d.groups.filter((g) => g.n).map((g) => `<li><span>Dias em que se sentiu ${esc(g.label.toLowerCase())}</span><span class="meta">REC médio <b>${g.rec}</b> · ${g.n} dias</span></li>`).join('')}</ul>
       <p class="note">Sinal que mais acompanha a sua nota: ${d.signals.filter((x) => x.rho != null).sort((a, b) => b.rho - a.rho).slice(0, 2).map((x) => `${SN[x.k]} (${nf(x.rho, 2)})`).join(', ') || '–'}.</p>` : ''}
     <p class="note">${d.ready ? 'Já dá para calibrar: ajustar os pesos do REC para seguir melhor como você se sente.' : 'Marque a nota "como me sinto" na aba Hoje todo dia. Com 40 notas dá para ajustar os pesos e limites do REC (planejado para depois de Aracaju).'}</p>`;
+}
+
+// O ano em quadradinhos: 53 colunas (semanas) × 7 linhas (seg a dom)
+let yearMetric = (() => { try { return localStorage.getItem('rec.year') || 'rec'; } catch { return 'rec'; } })();
+async function yearSec(box, api) {
+  const sec = box.querySelector('#year');
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await api('/api/year'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const draw = () => {
+    const days = d.days, q = (xs, p) => { const s = xs.filter((x) => x > 0).sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) * p)] : 1; };
+    const sMax = q(days.map((x) => x.strain), 0.95);
+    const color = (x) => {
+      if (yearMetric === 'rec') return x.rec == null ? null : `var(--rb${x.rec <= 20 ? 1 : x.rec <= 40 ? 2 : x.rec <= 60 ? 3 : x.rec <= 80 ? 4 : 5})`;
+      if (yearMetric === 'strain') { if (!x.strain) return 'var(--track)'; const f = Math.min(1, x.strain / sMax); return `color-mix(in srgb, var(--strain) ${Math.round(20 + 80 * f)}%, var(--card))`; }
+      if (x.sleep == null) return null; const g = x.sleep - d.sleepNeed;
+      return g >= 0 ? 'var(--sleep)' : g >= -0.75 ? 'color-mix(in srgb, var(--sleep) 55%, var(--card))' : 'color-mix(in srgb, var(--sleep) 22%, var(--card))';
+    };
+    const W = 53, C = 6, G = 1.5, w = W * (C + G), h = 7 * (C + G);
+    let cells = '', months = '', lastM = '';
+    days.forEach((x, i) => {
+      const col = Math.floor(i / 7), row = i % 7, c = color(x);
+      cells += `<rect x="${(col * (C + G)).toFixed(1)}" y="${(row * (C + G)).toFixed(1)}" width="${C}" height="${C}" rx="1.4" data-i="${i}" style="fill:${c ?? 'transparent'};${c ? '' : 'stroke:var(--line-soft);stroke-width:.6'}"/>`;
+      const m = x.d.slice(5, 7);
+      if (row === 0 && m !== lastM) { lastM = m; months += `<text x="${(col * (C + G)).toFixed(1)}" y="-3" class="yr-m">${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][Number(m) - 1]}</text>`; }
+    });
+    const legend = yearMetric === 'rec' ? '<span><i style="background:var(--rb1)"></i>0–20</span><span><i style="background:var(--rb3)"></i>41–60</span><span><i style="background:var(--rb5)"></i>81–100</span><span><i class="yr-none"></i>sem REC</span>'
+      : yearMetric === 'strain' ? '<span><i style="background:var(--track)"></i>sem treino</span><span><i style="background:color-mix(in srgb, var(--strain) 45%, var(--card))"></i>leve</span><span><i style="background:var(--strain)"></i>pesado</span>'
+      : `<span><i style="background:color-mix(in srgb, var(--sleep) 22%, var(--card))"></i>> 45 min abaixo</span><span><i style="background:var(--sleep)"></i>≥ base (${hm(d.sleepNeed)})</span>`;
+    const avail = days.filter((x) => (yearMetric === 'rec' ? x.rec != null : yearMetric === 'sleep' ? x.sleep != null : true));
+    const head = yearMetric === 'rec' ? (() => { const v = avail.map((x) => x.rec); return v.length ? `REC médio ${Math.round(v.reduce((a, b) => a + b, 0) / v.length)} em ${v.length} dias; ${v.filter((x) => x >= 67).length} verdes e ${v.filter((x) => x <= 33).length} vermelhos.` : 'Sem REC no período.'; })()
+      : yearMetric === 'strain' ? `${days.filter((x) => x.strain > 0).length} dias com treino em 53 semanas.`
+      : `${avail.filter((x) => x.sleep >= d.sleepNeed).length} de ${avail.length} noites com a sua base de sono ou mais.`;
+    sec.innerHTML = `
+      <div class="seg seg-sm" role="tablist">${[['rec', 'REC'], ['strain', 'Strain'], ['sleep', 'Sono']].map(([k, l]) => `<button role="tab" data-ym="${k}" aria-selected="${k === yearMetric}">${l}</button>`).join('')}</div>
+      <p class="headline">${head}</p>
+      <div class="yr-wrap"><svg viewBox="0 -12 ${w} ${h + 14}" class="yr" role="img" aria-label="Um quadrado por dia nas últimas 53 semanas">${months}${cells}</svg></div>
+      <p class="yr-tip" aria-live="polite">Toque num quadrado para ver o dia.</p>
+      <div class="yr-leg">${legend}</div>`;
+    sec.querySelectorAll('[data-ym]').forEach((b) => b.addEventListener('click', () => { yearMetric = b.dataset.ym; try { localStorage.setItem('rec.year', yearMetric); } catch {} draw(); }));
+    sec.querySelector('.yr').addEventListener('click', (e) => {
+      const i = e.target.dataset?.i; if (i == null) return; const x = days[Number(i)];
+      sec.querySelectorAll('.yr rect.sel').forEach((r) => r.classList.remove('sel')); e.target.classList.add('sel');
+      const dt = new Date(x.d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+      sec.querySelector('.yr-tip').innerHTML = `<b>${esc(dt)}</b> · REC ${x.rec ?? '–'} · Strain ${x.strain || 0} · sono ${x.sleep != null ? hm(x.sleep) : '–'}`;
+    });
+  };
+  draw();
 }
 
 let raceCache = null;
@@ -483,7 +526,7 @@ const parseT = (txt) => {
   return p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p[0] + p[1] / 60;
 };
 
-async function predictions(box, api) {
+export async function predictions(box, api) {
   const sec = box.querySelector('#pred');
   if (!sec) return;
   let p;

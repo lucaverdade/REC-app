@@ -1,3 +1,4 @@
+import { predictions } from './trends.js';
 // Modo prova: Ironman 70.3 Aracaju. Ativa sozinho na semana da prova; antes disso abre como prévia.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const tfmt = (m) => {
@@ -10,15 +11,14 @@ const dayTxt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', 
 
 export async function renderRace(screen, api) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
-  screen.innerHTML = '<header class="top"><h1>Modo prova</h1><a class="foot-link" href="#hoje">Voltar</a></header><p class="empty">Carregando…</p>';
+  screen.innerHTML = '<header class="top"><h1>Prova</h1></header><p class="empty">Carregando…</p>';
   let d;
   try { d = await api('/api/race'); } catch (e) { if (e.message !== '401') screen.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
   const r = d.race, n = r.days;
   const count = n > 1 ? `<b>${n}</b><span>dias</span>` : n === 1 ? '<b>Amanhã</b>' : n === 0 ? '<b>Hoje</b>' : '<b>Prova feita</b>';
 
   screen.innerHTML = `
-    <header class="top"><h1>Modo prova</h1><a class="foot-link" href="#hoje">Voltar</a></header>
-    ${r.raceWeek ? '' : '<p class="note">Prévia. O modo prova aparece sozinho na aba Hoje a partir de 23/11.</p>'}
+    <header class="top"><h1>Prova</h1></header>
 
     <section class="race-hero">
       <p class="rh-name">${esc(r.name)}</p>
@@ -36,6 +36,8 @@ export async function renderRace(screen, api) {
     </section>
 
     ${projHtml(d.projection, r.date)}
+
+    <section class="block" id="pred"></section>
 
     ${heatHtml(d.heat)}
 
@@ -60,6 +62,7 @@ export async function renderRace(screen, api) {
 
   renderChecklist(screen.querySelector('#chk'), d.items, api);
   renderWeather(screen.querySelector('#wx'), api);
+  predictions(screen, api);
 }
 
 // Clima do dia da prova: previsão hora a hora (a partir de 16 dias antes) ou o que costuma fazer

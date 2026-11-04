@@ -957,3 +957,26 @@ body.is-share main { padding-bottom: 0; }
 .tmr-key { font-style: normal; font-size: 11px; padding: 1px 6px; margin-left: 4px; border-radius: 6px; border: 1px solid var(--accent); color: var(--accent); }
 .tmr-sleep { margin: 10px 0 0; font-size: 14px; color: var(--text-2); } .tmr-sleep b { color: var(--sleep); font-weight: 500; }
 .t-why { display: block; margin-top: 6px; font-size: 13px; line-height: 1.4; color: var(--text-2); }
+
+/* o ano em quadradinhos */
+.yr-wrap { margin: 6px 0 4px; }
+.yr { width: 100%; height: auto; display: block; }
+.yr rect { cursor: pointer; }
+.yr rect.sel { stroke: var(--text) !important; stroke-width: 1 !important; }
+.yr-m { fill: var(--text-3); font-size: 5px; }
+.yr-tip { margin: 6px 0 4px; font-size: 13px; color: var(--text-2); min-height: 1.3em; }
+.yr-leg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-2); }
+.yr-leg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.yr-leg .yr-none { border: 1px solid var(--line); }
+
+/* linha do tempo do dia */
+.tl-svg { width: 100%; height: auto; display: block; margin: 4px 0 6px; touch-action: pan-y; }
+.tl-sleep { fill: color-mix(in srgb, var(--sleep) 22%, transparent); }
+.tl-w { opacity: .55; }
+.tl-st { fill: color-mix(in srgb, var(--warn) 45%, transparent); }
+.tl-hr { fill: none; stroke: var(--fatigue); stroke-width: 1.2; stroke-linejoin: round; }
+.tl-now { stroke: var(--text); stroke-width: 1; stroke-dasharray: 2 2; opacity: .7; }
+.tl-cur { stroke: var(--text); stroke-width: 1; }
+.tl-base { stroke: var(--line); stroke-width: 1; }
+.tl-t { fill: var(--text-3); font-size: 8px; }
+.tl-tip { margin: 0 0 6px; font-size: 13px; color: var(--text-2); min-height: 1.3em; }

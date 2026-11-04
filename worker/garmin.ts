@@ -297,6 +297,18 @@ export async function fetchFitnessAge(env: GarminEnv, date: string) {
   };
 }
 
+/**
+ * Curvas do dia: FC (cliente oficial: /wellness-service/wellness/dailyHeartRate?date=) e, se a chave tiver acesso,
+ * estresse (/wellness-service/wellness/dailyStress/{data}). Devolve pares [timestamp ms (GMT), valor].
+ */
+export async function fetchIntraday(env: GarminEnv, date: string) {
+  const pairs = (v: unknown) => (Array.isArray(v) ? v.filter((p) => Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number') as [number, number][] : []);
+  let hr: [number, number][] = [], stress: [number, number][] | null = null;
+  try { const j = await get(env, '/wellness-service/wellness/dailyHeartRate', { date }); hr = pairs(j?.heartRateValues); } catch (e) { if (e instanceof GarminError && e.status === 429) throw e; }
+  try { const j = await get(env, `/wellness-service/wellness/dailyStress/${date}`); const v = pairs(j?.stressValuesArray).filter((p) => p[1] >= 0); stress = v.length ? v : null; } catch (e) { if (e instanceof GarminError && e.status === 429) throw e; }
+  return { hr, stress };
+}
+
 /** Zonas de FC configuradas no Garmin (bruto). */
 export async function fetchHrZones(env: GarminEnv): Promise<unknown> {
   return get(env, '/biometric-service/heartRateZones/v2');

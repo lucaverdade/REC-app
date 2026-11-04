@@ -80,3 +80,10 @@ CREATE TABLE IF NOT EXISTS api_cache (
   at   INTEGER NOT NULL,
   body TEXT NOT NULL
 );
+
+-- curvas do dia (FC e estresse da Garmin, médias de 5 min) para a linha do tempo
+CREATE TABLE IF NOT EXISTS intraday (
+  date TEXT PRIMARY KEY,
+  at   INTEGER NOT NULL,
+  body TEXT NOT NULL
+);

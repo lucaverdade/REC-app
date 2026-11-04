@@ -52,6 +52,21 @@ Lista viva do que o Luca pediu para depois.
 - [x] **Completar treinos (12 meses)** (04/11): Garmin → Completar treinos troca as linhas do CSV pelas da API (sem duplicar), em janelas de 31 dias. **Pendente: o Luca rodar (antes de recalcular zonas).**
 - [x] **Calibração do REC preparada** (04/11): Tendências → Corpo → "O REC acerta?": REC × "como me sinto", progresso até 40 notas, REC médio por faixa de nota e o sinal que mais acompanha. **Calibrar de fato depois de Aracaju.**
 
+- [x] **Aba Prova** (04/11) no lugar de Nutrição (que volta depois): contagem, Forma até a prova, previsões, calor, clima, checklist, carbo e plano de prova. Tendências ficou com Carga e Corpo.
+- [x] **O ano em quadradinhos** (04/11): Tendências → Carga; REC, Strain ou sono por dia em 53 semanas; toque mostra o dia.
+- [x] **Linha do tempo do dia** (04/11): aba Hoje → "Seu dia": sono, treinos, FC (`/wellness-service/wellness/dailyHeartRate`) e estresse (`/wellness-service/wellness/dailyStress/{data}`, se a chave tiver acesso) em médias de 5 min, guardadas por dia (`intraday`).
+
+## Ideias para depois (04/11, "fora da cartola")
+- [ ] Widget no iPhone pelo app Scriptable lendo o REC (precisa fechar o acesso antes).
+- [ ] Atalhos da Siri: "nota 7", "álcool hoje" (precisa fechar o acesso antes).
+- [ ] Resumo diário publicado no repositório para o chat de treino ler (chave do GitHub só para esse arquivo, em segredo no servidor).
+- [ ] Experimentos: testar um hábito por 2 semanas e comparar REC/HRV/sono antes × durante.
+- [ ] Dia da prova ao vivo: linha do tempo da manhã, plano por etapa e carbo por hora.
+- [ ] Relatório da prova (multiesporte da Garmin: etapas e transições × plano) e dias até o REC/HRV voltarem à base.
+- [ ] Planejador da temporada (provas, fases e Fitness-alvo por data) — 2027.
+- [ ] Retrospectiva da temporada em story (horas, km, recordes, evolução) — dezembro.
+- [ ] Segurança: Cloudflare Access (login por e-mail) antes de widget/atalhos.
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 

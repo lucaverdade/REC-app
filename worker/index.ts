@@ -15,7 +15,7 @@ import { longTrend } from '../src/longtrend.ts';
 import { dailySummary, recTrend } from '../src/daily.ts';
 import { strainTargetV2 } from '../src/target.ts';
 import { recoveryVerdict } from '../src/verdict.ts';
-import { fetchActivities, fetchActivityFile, fetchFitnessAge, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
+import { fetchActivities, fetchActivityFile, fetchFitnessAge, fetchIntraday, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
 export interface Env {
@@ -970,6 +970,35 @@ async function fitnessAgePayload(env: Env) {
   return { fitnessAge: fa, vo2: { corrida: series('corrida'), bike: series('bike') } };
 }
 
+// --- linha do tempo do dia: sono, treinos e curvas de FC/estresse (Garmin, guardadas por dia) ---
+async function timelinePayload(env: Env, date: string) {
+  const today = brtToday();
+  type C = { at: number; hr: [number, number][]; stress: [number, number][] | null };
+  const row = await env.DB.prepare('SELECT at, body FROM intraday WHERE date = ?1').bind(date).first<{ at: number; body: string }>();
+  let c: C | null = row ? { at: row.at, ...JSON.parse(row.body) } : null;
+  const stale = !c || (date >= addDays(today, -1) && Date.now() - c.at > 30 * 60e3);
+  let error: string | null = null;
+  if (stale && hasKey(env)) {
+    try {
+      const f = await fetchIntraday(env, date);
+      // reduz para médias de 5 min, em minutos do dia (horário de Brasília)
+      const bin = (v: [number, number][]) => {
+        const m = new Map<number, number[]>();
+        for (const [ts, val] of v) { const min = Math.floor((ts / 60000 - 180) - Date.parse(date + 'T00:00:00Z') / 60000); if (min < 0 || min >= 1440) continue; const k = Math.floor(min / 5) * 5; (m.get(k) ?? m.set(k, []).get(k)!).push(val); }
+        return [...m].sort((a, b) => a[0] - b[0]).map(([k, xs]) => [k, Math.round(xs.reduce((a, b) => a + b, 0) / xs.length)] as [number, number]);
+      };
+      c = { at: Date.now(), hr: bin(f.hr), stress: f.stress ? bin(f.stress) : null };
+      if (c.hr.length || c.stress) await env.DB.prepare('INSERT OR REPLACE INTO intraday (date, at, body) VALUES (?1, ?2, ?3)').bind(date, c.at, JSON.stringify({ hr: c.hr, stress: c.stress })).run();
+    } catch (e) { error = garminMsg(e); }
+  }
+  const mins = (stamp: string | null | undefined, day: string) => { if (!stamp) return null; const t = Date.parse(stamp.replace(' ', 'T') + 'Z'), d0 = Date.parse(day + 'T00:00:00Z'); return Math.round((t - d0) / 60000); };
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_start, sleep_end FROM daily_metrics WHERE date IN (?1, ?2)').bind(date, addDays(date, 1)).all<{ date: string; sleep_start: string | null; sleep_end: string | null }>();
+  const sleep = nights.map((n) => ({ start: Math.max(0, mins(n.sleep_start, date) ?? -1), end: Math.min(1440, mins(n.sleep_end, date) ?? -1) })).filter((b) => b.end > 0 && b.start < 1440 && b.end > b.start);
+  const { results: acts } = await env.DB.prepare('SELECT id, time, sport, min FROM activities WHERE date = ?1 ORDER BY time').bind(date).all<{ id: string; time: string | null; sport: Sport; min: number | null }>();
+  const workouts = acts.filter((a) => a.time).map((a) => ({ id: a.id, start: Number(a.time!.slice(0, 2)) * 60 + Number(a.time!.slice(3, 5)), dur: Math.round(a.min ?? 0), sport: a.sport, label: SPORT_LABEL[a.sport] }));
+  return { date, hr: c?.hr ?? [], stress: c?.stress ?? null, sleep, workouts, error, isToday: date === today };
+}
+
 // --- tendência do HRV (A2) ---
 async function hrvTrendOn(env: Env, date: string) {
   const from = addDays(date, -140);
@@ -1080,7 +1109,7 @@ async function syncIssueOf(env: Env, date: string, lastSync: Record<string, unkn
 // Qualquer escrita (sincronização com dado novo, nota, diário, recálculo…) sobe a versão e invalida tudo.
 // Campos que dependem do relógio (última busca, aviso de sincronização) são refeitos a cada abertura.
 const CACHEABLE = new Set(['/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
-  '/api/habits', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration']);
+  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration']);
 const CACHE_TTL = 30 * 60e3; // também expira em 30 min (plano novo publicado, virada de hora)
 async function dataVer(env: Env) {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'data_ver'").first<{ value: string }>();
@@ -1169,6 +1198,20 @@ async function handle(req: Request, env: Env): Promise<Response> {
     if (url.pathname === '/api/activity' && req.method === 'GET') {
       const a = await activityPayload(env, url.searchParams.get('id') ?? '', req);
       return a ? json(a) : json({ error: 'nao_encontrado' }, 404);
+    }
+    if (url.pathname === '/api/timeline' && req.method === 'GET') {
+      const d = url.searchParams.get('date');
+      return json(await timelinePayload(env, isDate(d) ? d : brtToday()));
+    }
+    // o ano em quadradinhos: 53 semanas (segunda a domingo), um valor por dia
+    if (url.pathname === '/api/year' && req.method === 'GET') {
+      const today = brtToday(), from = addDays(mondayOf(today), -52 * 7);
+      const loads = await dailyLoads(env, from, today);
+      const { results: rd } = await env.DB.prepare('SELECT date, rec FROM rec_daily WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string; rec: number | null }>();
+      const { results: dm } = await env.DB.prepare('SELECT date, sleep_h FROM daily_metrics WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string; sleep_h: number | null }>();
+      const rec = new Map(rd.map((r) => [r.date, r.rec])), sl = new Map(dm.map((r) => [r.date, r.sleep_h]));
+      const need = (await sleepBase(env, today)).hours;
+      return json({ from, today, sleepNeed: need, days: loads.map((l) => ({ d: l.date, rec: rec.get(l.date) == null ? null : Math.round(rec.get(l.date) as number), strain: Math.round(l.load), sleep: sl.get(l.date) == null ? null : Math.round((sl.get(l.date) as number) * 10) / 10 })) });
     }
     if (url.pathname === '/api/calibration' && req.method === 'GET') {
       const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress
