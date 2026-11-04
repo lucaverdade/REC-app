@@ -54,16 +54,6 @@ CREATE TABLE IF NOT EXISTS habit_tags (
   PRIMARY KEY (date, tag)
 );
 
--- base aeróbica por treino, calculada no navegador a partir do arquivo FIT (fase 3)
-CREATE TABLE IF NOT EXISTS activity_fit (
-  id          TEXT PRIMARY KEY,
-  status      TEXT NOT NULL,      -- ok | sem_dados | sem_arquivo | erro
-  basis       TEXT,               -- power | speed
-  minutes     REAL, ef REAL, ef1 REAL, ef2 REAL, decoupling REAL, hr REAL,
-  version     INTEGER, hr1 REAL, hr2 REAL, reason TEXT,
-  computed_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 -- registro de execução da rotina diária
 CREATE TABLE IF NOT EXISTS sync_log (
   id      INTEGER PRIMARY KEY AUTOINCREMENT,

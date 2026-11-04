@@ -45,7 +45,6 @@ export async function renderTrends(screen, api) {
     <section class="block" id="vol"></section>
     <section class="block" id="recov"></section>
     <section class="block" id="hrvt"></section>
-    <section class="block" id="aero"></section>
     <section class="block" id="habs"></section>`;
   const box = screen;
   strainWeeks(box, api);
@@ -54,39 +53,7 @@ export async function renderTrends(screen, api) {
   volume(box, api);
   recovery(box, api);
   hrvTrendSec(box, api);
-  aerobicSec(box, api);
   habits(box, api);
-}
-
-// ---------- Base aeróbica (versão simples, 03/11) ----------
-// Pergunta: no treino longo e leve, a FC fica estável até o fim no mesmo ritmo?
-const median = (v) => { const s = [...v].sort((a, b) => a - b), n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
-export const decShort = (d) => (d < 5 ? `FC estável (${nf(d, 1)}%)` : `FC subiu ${nf(d, 1)}%`);
-async function aerobicSec(box, api) {
-  const sec = box.querySelector('#aero');
-  sec.innerHTML = '<h2>Base aeróbica</h2><p class="empty">Carregando…</p>';
-  let d; try { d = await api('/api/aerobic'); } catch (e) { sec.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
-  const dec = d.decoupling;
-  const dfmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' });
-  const hmin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}` : `${m} min`);
-  const now = median(dec.slice(-4).map((x) => x.decoupling)), before = dec.length >= 8 ? median(dec.slice(-8, -4).map((x) => x.decoupling)) : null;
-  let head;
-  if (!d.done) head = 'Os arquivos dos treinos ainda não foram lidos. O app lê aos poucos quando você abre a aba Hoje.';
-  else if (!dec.length) head = 'Ainda não há treino longo e leve que dê para comparar (60 min ou mais, quase todo até a Z2).';
-  else head = `Nos seus treinos longos e leves, a FC subiu em média <b>${nf(now, 1)}%</b> do começo ao fim, no mesmo ritmo. ${now < 5 ? 'Abaixo de 5%: a base aguenta essa duração.' : 'Acima de 5%: essa duração ainda cansa.'}${before != null ? ` Nos 4 anteriores era ${nf(before, 1)}%.` : ''}`;
-  const efs = d.ef, efA = efs.slice(-4).map((x) => x.ef), efB = efs.slice(-8, -4).map((x) => x.ef);
-  const efCh = efB.length >= 4 ? Math.round(((median(efA) - median(efB)) / median(efB)) * 100) : null;
-  sec.innerHTML = `
-    <h2>Base aeróbica</h2>
-    <p class="headline">${head}</p>
-    ${dec.length ? `<ul class="acts">${dec.slice(-5).reverse().map((x) => `<li><span><i class="dot s-${x.sport}"></i>${dfmt(x.date)} · ${x.label} ${hmin(x.min)}${x.indoor ? (x.sport === 'bike' ? ' (rolo)' : ' (indoor)') : ''}</span><span class="meta ${x.decoupling < 5 ? 'c-good' : ''}">${decShort(x.decoupling)}</span></li>`).join('')}</ul>` : ''}
-    ${d.skipped?.length ? (() => { const g = new Map(); d.skipped.forEach((x) => g.set(x.reason, [...(g.get(x.reason) ?? []), dfmt(x.date)])); return [...g].map(([r, ds]) => `<p class="note">Não comparados (${esc(r)}): ${ds.join(', ')}.</p>`).join(''); })() : ''}
-    ${efCh != null ? `<p class="note">Bike com potência, treinos leves: ${efCh === 0 ? 'mesma' : `${efCh > 0 ? '+' : '−'}${Math.abs(efCh)}%`} potência por batimento nos últimos 4 contra os 4 anteriores.</p>` : ''}
-    <details class="explain"><summary>Para que serve e o que é comparado</summary>
-      <p>Num treino longo e leve no mesmo ritmo, a FC deveria ficar parecida do começo ao fim. Quando ela sobe sozinha na segunda metade, o corpo está se cansando para manter aquele ritmo. Abaixo de 5% de subida é sinal de que a base aguenta aquela duração; no 70.3 é o que decide se sobra perna para os 21 km.</p>
-      <p>A comparação é <b>dentro do mesmo treino</b> (primeira metade × segunda, sem os 10 primeiros minutos). Bike, pneu, rolo e percurso são os mesmos nas duas metades, então diferenças entre dias não entram.</p>
-      <p>Fica de fora o que atrapalha dentro do treino: bike na rua sem potência (vento e subidas mudam a velocidade), esteira (velocidade do relógio não é confiável) e corridas com subida muito diferente entre as metades. Paradas não contam. O calor subindo ao longo do treino também puxa a FC e não dá para separar: em dia quente o número sai mais alto.</p>
-    </details>`;
 }
 
 // ---------- Tendência do HRV (HRV4Training) ----------

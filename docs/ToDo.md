@@ -15,7 +15,7 @@ Lista viva do que o Luca pediu para depois.
 - [ ] ~~Indicadores de forma~~ — descartado (03/11): pace e velocidade dependem de elevação, calor, vento e indoor × outdoor. A previsão de prova já mede adaptação na corrida.
 
 - [x] **Zonas de FC por modalidade** (03/11): o Luca criou zonas de ciclismo no Garmin (%HRR; usar FC máx. da bike, ~185–186). Treinos novos já chegam com o tempo em zonas certo.
-- [ ] Opcional: recalcular o histórico de zonas com o arquivo FIT (a leitura do FIT já existe desde 03/11; falta aplicar as zonas de cada esporte).
+- [ ] Opcional: recalcular o histórico de zonas com o arquivo FIT (a Personal API entrega o arquivo original em `/download-service/files/activity/{id}`, ZIP com .fit).
 
 - [x] Strain semanal com faixa (03/11), estilo Relative Effort do Strava: faixa = 0,8–1,3 × média das 3 semanas anteriores; 16 semanas em Tendências.
 
@@ -33,7 +33,7 @@ Lista viva do que o Luca pediu para depois.
 - [x] **Aviso de sincronização** (03/11): no topo da aba Hoje quando a última busca falhou, a noite não chegou até 11:00 ou a busca automática parou há mais de 90 min.
 - [x] **Forma até a prova** (03/11): no Modo prova, Forma real de 14 dias + projetada com o Strain previsto do plano publicado; mostra a Forma prevista em 29/11 quando o plano das últimas semanas existir.
 
-- [x] **Fase 1 das ideias** (03/11): diário de hábitos, "O que mexe no meu REC" (com horário irregular automático), deitar até, nota de regularidade, clima de Aracaju. Fase 2 feita em 03/11 (tendência do HRV, alerta de doença, 80/20, relatório da manhã, resumo da semana). Fase 3 feita em 03/11 (arquivos FIT lidos no navegador; desacoplamento e eficiência). **Pendente: o Luca rodar Garmin → Testar com o treino mais recente / Processar todos e confirmar.**
+- [x] **Fase 1 das ideias** (03/11): diário de hábitos, "O que mexe no meu REC" (com horário irregular automático), deitar até, nota de regularidade, clima de Aracaju. Fase 2 feita em 03/11 (tendência do HRV, alerta de doença, 80/20, relatório da manhã, resumo da semana). Fase 3 (desacoplamento e eficiência) feita e **removida** em 03/11: métrica volátil demais fora de treino controlado.
 
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.

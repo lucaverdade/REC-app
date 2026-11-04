@@ -114,14 +114,6 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - **Diário de hábitos e impacto** (`src/habits.ts`): REC da manhã seguinte com × sem cada marcação, desde o primeiro uso; precisa de 5 dias de cada lado. Horário irregular = deitar ou acordar > 60 min da mediana das 14 noites anteriores.
 - **Deitar até** (`src/sleep.ts`): acordar típico (mediana, mesmo tipo de dia) − meta da noite − tempo acordado na cama (mediana) − 15 min. **Regularidade** = 100 − 1,2 × média dos desvios de deitar e acordar (min).
 
-## 8e. Base aeróbica (arquivo FIT) — versão 2
-(`web/aerobic.js`, `web/fit.js`)
-- **Pergunta**: no treino longo e leve (≥ 60 min, ≥ 70% até a Z2), a FC fica estável até o fim no mesmo ritmo?
-- **Desacoplamento** = (ritmo÷FC da 1ª metade − da 2ª) ÷ 1ª × 100, sem os 10 primeiros min, só em movimento. < 5% = base aguenta a duração (Friel).
-- Compara **dentro do mesmo treino**, então bike, pneu, rolo e percurso do dia não entram.
-- Fica de fora: bike na rua sem potência (vento/subida), esteira (velocidade do relógio), corrida com subida diferente entre as metades (> 20 m e > 25%). Calor ao longo do treino não é separado.
-- Eficiência entre treinos diferentes só para bike com potência, em treinos leves (últimos 4 × 4 anteriores).
-
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)
 - Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.

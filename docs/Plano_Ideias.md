@@ -26,7 +26,10 @@ Alerta de doença no histórico (backtest 368 dias): 15 dias de alerta em ~6 epi
 | 8 | **A1 · Relatório da manhã** | Hoje, primeira abertura do dia até 12 h | Cartão único: REC + direção, noite e dívida, Forma, treino planejado com Strain previsto, a frase do dia e alertas. Toca para fechar; volta no dia seguinte. |
 | 9 | **G1 · Resumo da semana** | Hoje (domingo à noite e segunda) e Treino | Números da semana (horas, Strain × faixa, REC médio, HRV × base, sono médio, distribuição 80/20) + texto do chat de treino se existir `web/plan/resumo-<segunda>.md`. |
 
-## Fase 3 — FEITA em 03/11 (B2, B3)
+## Fase 3 — REMOVIDA em 03/11 (decisão do Luca)
+Desacoplamento e eficiência saíram do app: dependem de treinos muito controlados (subida, vento, calor, rolo) e ficavam voláteis. O código foi retirado; o banco apaga a tabela `activity_fit`. Se voltar, o caminho técnico está abaixo.
+
+### Como tinha sido feito
 - A Personal API não tem "detalhes da atividade" em JSON; tem o **arquivo original** (`/download-service/files/activity/{id}`, ZIP com o .fit), como no cliente oficial em Python.
 - O Worker gratuito tem pouco tempo de CPU, então o servidor só **repassa** o arquivo; o **navegador lê o FIT** (SDK oficial da Garmin + fflate, via jsDelivr, carregados só quando há arquivo) e devolve só o resultado (`activity_fit`).
 - Sozinho: ao abrir a aba Hoje, lê até 3 treinos pendentes em segundo plano. Em lote: Garmin → Processar todos (bike e corrida ≥ 30 min, últimos 6 meses).
