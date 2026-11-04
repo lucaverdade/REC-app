@@ -942,7 +942,7 @@ function renderWidgetHelp() {
       <ol class="wg-steps">
         <li>Instale o app <b>Scriptable</b> (gratuito) na App Store.</li>
         <li>Toque em <b>Copiar código</b> aqui embaixo. Ele já vem com o endereço do seu app.</li>
-        <li>Abra o Scriptable, toque no <b>+</b> (canto de cima), cole o código e toque no título “Untitled Script” para dar o nome <b>REC</b>. Toque em <b>Done</b>.</li>
+        <li>Abra o Scriptable, toque no <b>+</b> (canto de cima), cole o código e toque no título “Untitled Script” para dar o nome <b>REC</b>. Toque em <b>Done</b>. Já tem o script? Abra o REC no Scriptable, apague tudo e cole o novo. Depois desta vez, o desenho do widget se atualiza sozinho.</li>
         <li>Toque no script REC uma vez: deve aparecer uma prévia do widget. Se aparecer “sem conexão”, me avise.</li>
         <li>Na tela inicial do iPhone, segure um espaço vazio até os ícones tremerem → <b>Editar</b> → <b>Adicionar widget</b> → procure <b>Scriptable</b> → escolha o tamanho <b>médio</b> (ou pequeno) → <b>Adicionar widget</b>.</li>
         <li>Com os ícones ainda tremendo, toque no widget → em <b>Script</b> escolha <b>REC</b> → em <b>When Interacting</b> escolha <b>Open URL</b> (abre o app ao tocar). Toque fora para fechar.</li>
