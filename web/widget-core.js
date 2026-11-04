@@ -60,8 +60,7 @@ module.exports = async (APP, family) => {
   if (family === 'small') {
     w.setPadding(12, 12, 12, 12);
     const top = w.addStack(); top.centerAlignContent();
-    label(top, 'PRONTIDÃO', 11, col(c, 0.95), 'bold'); top.addSpacer();
-    if (d.race != null && d.race > 0) label(top, `${d.race}d`, 11, grey);
+    top.addSpacer(); label(top, 'PRONTIDÃO', 11, col(c, 0.95), 'bold'); top.addSpacer();
     w.addSpacer(4);
     centered(w, (s) => { const im = s.addImage(ring(v, c, wait, 200)); im.imageSize = new Size(92, 92); });
     w.addSpacer(4);
@@ -84,11 +83,12 @@ module.exports = async (APP, family) => {
   cell('REC', d.rec == null ? '–' : String(d.rec), null);
   cell('Forma', d.form == null ? '–' : `${d.form > 0 ? '+' : d.form < 0 ? '−' : ''}${Math.abs(d.form)}%`, null);
   cell('Strain', String(d.strain ?? 0), d.target ? `meta ${d.target}` : null);
-  right.addSpacer(10);
-  const line = (t, color) => { const s = right.addStack(); label(s, t, 12, color, 'regular'); };
-  const plan = (d.planned ?? []).map((p) => `${p.label}${p.min ? ` ${p.min}′` : ''}`).join(' · ');
-  line(plan ? `Hoje: ${plan}` : 'Hoje: sem treino planejado', white);
-  right.addSpacer(3);
-  line([d.bedtime ? `Deitar até ${d.bedtime}` : null, d.race != null && d.race > 0 ? `Aracaju em ${d.race} dias` : null].filter(Boolean).join(' · '), grey);
+  right.addSpacer(12);
+  // treino do dia: uma linha por sessão (até 2), com espaço
+  const pl = d.planned ?? [];
+  label(right, 'Treino de hoje', 11, grey, 'regular');
+  right.addSpacer(2);
+  if (!pl.length) label(right, 'Sem treino planejado', 13, white);
+  for (const p of pl.slice(0, 2)) { const s = right.addStack(); label(s, `${p.label}${p.min ? ` · ${p.min} min` : ''}`, 13, white); right.addSpacer(1); }
   return w;
 };
