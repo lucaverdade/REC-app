@@ -216,6 +216,7 @@ async function yearSec(box, api) {
       <p class="headline">${head}</p>
       <div class="yr-wrap"><svg viewBox="0 -12 ${w} ${h + 14}" style="width:${(w * 2.3).toFixed(0)}px" class="yr" role="img" aria-label="Um quadrado por dia nas últimas 53 semanas">${months}${cells}</svg></div>
       <p class="yr-tip" aria-live="polite">Toque num quadrado para ver o dia. Arraste para ver os meses anteriores.</p>
+      <div class="yr-day" aria-live="polite"></div>
       <div class="yr-leg">${legend}</div>`;
     const wrap = sec.querySelector('.yr-wrap'); wrap.scrollLeft = wrap.scrollWidth; // abre no mês atual; arrasta para trás
     sec.querySelectorAll('[data-ym]').forEach((b) => b.addEventListener('click', () => { yearMetric = b.dataset.ym; try { localStorage.setItem('rec.year', yearMetric); } catch {} draw(); }));
@@ -223,10 +224,44 @@ async function yearSec(box, api) {
       const i = e.target.dataset?.i; if (i == null) return; const x = days[Number(i)];
       sec.querySelectorAll('.yr rect.sel').forEach((r) => r.classList.remove('sel')); e.target.classList.add('sel');
       const dt = new Date(x.d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
-      sec.querySelector('.yr-tip').innerHTML = `<b>${esc(dt)}</b> · REC ${x.rec ?? '–'} · Strain ${x.strain || 0} · sono ${x.sleep != null ? hm(x.sleep) : '–'}`;
+      sec.querySelector('.yr-tip').hidden = true;
+      yrDay(sec.querySelector('.yr-day'), api, x.d, dt);
     });
   };
   draw();
+}
+
+// dia do ano em quadradinhos: as 3 métricas, o que puxou o REC, treinos e diário (04/11)
+const recVar = (v) => `var(--rb${v <= 20 ? 1 : v <= 40 ? 2 : v <= 60 ? 3 : v <= 80 ? 4 : 5})`;
+async function yrDay(box, api, date, dt) {
+  box.innerHTML = `<div class="yd"><p class="empty">${esc(dt)}…</p></div>`;
+  let d; try { d = await api(`/api/day?date=${date}`); } catch (e) { box.innerHTML = `<div class="yd"><p class="empty">Não carregou: ${esc(e.message)}</p></div>`; return; }
+  const FMT = { hrv: (v) => `${Math.round(v)} ms`, rhr: (v) => `${Math.round(v)} bpm`, sleep: (v) => hm(v), resp: (v) => `${nf(v, 1)} rpm`, stress: (v) => `${Math.round(v)}` };
+  const sig = d.signals.filter((s) => s.z != null && Math.abs(s.z) >= 0.5).sort((a, b) => a.z - b.z);
+  const line = (s) => `${esc(s.label)} ${s.v != null ? FMT[s.k](s.v) : ''}${s.b != null ? ` <small>(base ${FMT[s.k](s.b)})</small>` : ''}`;
+  const down = sig.filter((s) => s.z < 0).slice(0, 3), up = sig.filter((s) => s.z > 0).reverse().slice(0, 2);
+  const ctx = [
+    d.strainPrev > 0 ? `Treino na véspera: Strain <b>${d.strainPrev}</b>` : 'Véspera sem treino',
+    d.tagsPrev.length ? `Diário da véspera: ${esc(d.tagsPrev.join(', '))}` : null,
+    d.feel != null ? `Como me sinto: <b>${d.feel}</b>` : null,
+    d.tags.length ? `Diário do dia: ${esc(d.tags.join(', '))}` : null,
+  ].filter(Boolean);
+  const sl = d.sleep?.h;
+  box.innerHTML = `<div class="yd">
+    <header><b>${esc(dt.charAt(0).toUpperCase() + dt.slice(1))}</b><button type="button" class="yd-x" aria-label="Fechar">×</button></header>
+    <div class="yd-3">
+      <div><small>REC</small><b style="color:${d.rec == null ? 'var(--text-3)' : recVar(d.rec)}">${d.rec ?? '–'}</b></div>
+      <div><small>Strain</small><b style="color:var(--strain)">${d.strain || 0}</b></div>
+      <div><small>Sono</small><b style="color:var(--sleep)">${sl != null ? hm(sl) : '–'}</b>${sl != null ? `<em>${sl >= d.sleepBase ? 'na base ou acima' : `${hm(d.sleepBase - sl)} abaixo da base`}</em>` : ''}</div>
+    </div>
+    ${down.length || up.length ? `<div class="yd-why">
+      ${down.length ? `<p><span class="yd-dn">↓ puxou para baixo</span>${down.map(line).join(' · ')}</p>` : ''}
+      ${up.length ? `<p><span class="yd-up">↑ ajudou</span>${up.map(line).join(' · ')}</p>` : ''}
+    </div>` : d.rec != null ? '<p class="yd-ctx">Tudo perto da base: nenhum sinal fora do normal.</p>' : ''}
+    ${ctx.length ? `<p class="yd-ctx">${ctx.join(' · ')}</p>` : ''}
+    ${d.acts.length ? `<ul class="yd-acts">${d.acts.map((a) => `<li><a href="#atv/${encodeURIComponent(a.id)}"><i style="background:var(--${a.sport})"></i><span>${esc(a.label)}</span><em>${a.min} min${a.km ? ` · ${nf(a.km, 1)} km` : ''}${a.strain != null ? ` · Strain ${a.strain}` : ''}</em>›</a></li>`).join('')}</ul>` : '<p class="yd-ctx">Sem treino neste dia.</p>'}
+  </div>`;
+  box.querySelector('.yd-x').addEventListener('click', () => { box.innerHTML = ''; const t = box.parentElement.querySelector('.yr-tip'); if (t) t.hidden = false; box.parentElement.querySelectorAll('.yr rect.sel').forEach((r) => r.classList.remove('sel')); });
 }
 
 let raceCache = null;

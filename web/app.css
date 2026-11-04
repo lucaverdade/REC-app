@@ -1156,3 +1156,25 @@ main > .card:nth-of-type(5) { animation-delay: .16s; } main > .card:nth-of-type(
 #ready-parts li { grid-template-areas: "label value" "bar bar" "base base"; }
 #ready-parts .value { color: var(--text-3); font-size: 13px; }
 .hero .rt-track, .hero .rt-arc { stroke-width: 7; }
+/* dia escolhido no ano em quadradinhos (04/11) */
+.yd { margin: 10px 0 8px; padding: 14px; border-radius: 16px; background: var(--card-2); border: 1px solid var(--line-soft); animation: card-in .3s ease both; }
+.yd header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.yd header b { font-size: 15px; }
+.yd-x { background: none; border: 0; color: var(--text-2); font-size: 22px; line-height: 1; padding: 0 2px; cursor: pointer; }
+.yd-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.yd-3 > div { display: grid; gap: 1px; }
+.yd-3 small { font-size: 12px; color: var(--text-2); }
+.yd-3 b { font: 300 28px/1.1 var(--font-display); }
+.yd-3 em { font-style: normal; font-size: 12px; color: var(--text-2); }
+.yd-why { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.yd-why p { margin: 0 0 6px; font-size: 14px; line-height: 1.45; }
+.yd-why small { color: var(--text-2); }
+.yd-why span { display: block; font-size: 12px; margin-bottom: 1px; }
+.yd-dn { color: var(--rb1); } .yd-up { color: var(--rb5); }
+.yd-ctx { margin: 8px 0 0; font-size: 13px; color: var(--text-2); line-height: 1.45; }
+.yd-ctx b { color: var(--text); font-weight: 600; }
+.yd-acts { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.yd-acts a { display: grid; grid-template-columns: 8px 1fr auto auto; align-items: center; gap: 8px; padding: 10px 0; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.yd-acts i { width: 8px; height: 8px; border-radius: 50%; }
+.yd-acts em { font-style: normal; font-size: 12px; color: var(--text-2); }
+.yr rect.sel { stroke: var(--text) !important; stroke-width: 1.2 !important; }

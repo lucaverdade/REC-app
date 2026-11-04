@@ -1200,7 +1200,7 @@ async function syncIssueOf(env: Env, date: string, lastSync: Record<string, unkn
 // Qualquer escrita (sincronização com dado novo, nota, diário, recálculo…) sobe a versão e invalida tudo.
 // Campos que dependem do relógio (última busca, aviso de sincronização) são refeitos a cada abertura.
 const CACHEABLE = new Set(['/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
-  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration']);
+  '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day']);
 const CACHE_TTL = 30 * 60e3; // também expira em 30 min (plano novo publicado, virada de hora)
 async function dataVer(env: Env) {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'data_ver'").first<{ value: string }>();
@@ -1303,6 +1303,31 @@ async function handle(req: Request, env: Env): Promise<Response> {
       const rec = new Map(rd.map((r) => [r.date, r.rec])), sl = new Map(dm.map((r) => [r.date, r.sleep_h]));
       const need = (await sleepBase(env, today)).hours;
       return json({ from, today, sleepNeed: need, days: loads.map((l) => ({ d: l.date, rec: rec.get(l.date) == null ? null : Math.round(rec.get(l.date) as number), strain: Math.round(l.load), sleep: sl.get(l.date) == null ? null : Math.round((sl.get(l.date) as number) * 10) / 10 })) });
+    }
+    if (url.pathname === '/api/day' && req.method === 'GET') {
+      // um dia qualquer (ano em quadradinhos): as 3 métricas, os treinos e o que pode explicar o REC
+      const date = url.searchParams.get('date');
+      if (!isDate(date)) return json({ error: 'data_invalida' }, 400);
+      const prev = addDays(date, -1);
+      const r = await env.DB.prepare('SELECT * FROM rec_daily WHERE date = ?1').bind(date).first<Record<string, number | null>>();
+      const m = await env.DB.prepare('SELECT sleep_h, sleep_start, sleep_end, nap_h FROM daily_metrics WHERE date = ?1').bind(date).first<{ sleep_h: number | null; sleep_start: string | null; sleep_end: string | null; nap_h: number | null }>();
+      const { results: acts } = await env.DB.prepare(`SELECT id, sport, type, name, min, km, ${STRAIN_SQL} strain FROM activities WHERE date = ?1 ORDER BY time`).bind(date).all<{ id: string; sport: Sport; type: string; name: string | null; min: number; km: number | null; strain: number | null }>();
+      const py = await env.DB.prepare(`SELECT SUM(COALESCE(${STRAIN_SQL}, 0)) s FROM activities WHERE date = ?1`).bind(prev).first<{ s: number | null }>();
+      const { results: tags } = await env.DB.prepare('SELECT date, tag FROM habit_tags WHERE date IN (?1, ?2)').bind(date, prev).all<{ date: string; tag: string }>();
+      const feel = await env.DB.prepare('SELECT value FROM feel_notes WHERE date = ?1').bind(date).first<{ value: number }>();
+      const sb = await sleepBase(env, brtToday()); // base do mês atual (o cache guarda um mês só)
+      const lbl = new Map<string, string>(HABITS.map((h) => [h.key, h.label]));
+      const SIG: [string, string][] = [['hrv', 'HRV'], ['rhr', 'FC de repouso'], ['sleep', 'Sono'], ['resp', 'Respiração'], ['stress', 'Estresse do dia anterior']];
+      const signals = r ? SIG.map(([k, l]) => ({ k, label: l, z: r[`z_${k}`] == null ? null : Math.round((r[`z_${k}`] as number) * 100) / 100, v: r[`v_${k}`], b: r[`b_${k}`] })) : [];
+      return json({
+        date, rec: r?.rec == null ? null : Math.round(r.rec), signals,
+        strain: Math.round(acts.reduce((a, x) => a + (x.strain ?? 0), 0)), strainPrev: Math.round(py?.s ?? 0),
+        sleep: m ? { h: m.sleep_h, start: m.sleep_start?.slice(11) ?? null, end: m.sleep_end?.slice(11) ?? null, nap: m.nap_h } : null, sleepBase: sb.hours,
+        acts: acts.map((a) => ({ id: a.id, sport: a.sport, label: a.name || SPORT_LABEL[a.sport], min: Math.round(a.min ?? 0), km: a.km, strain: a.strain == null ? null : Math.round(a.strain) })),
+        tags: tags.filter((t) => t.date === date).map((t) => lbl.get(t.tag) ?? t.tag),
+        tagsPrev: tags.filter((t) => t.date === prev).map((t) => lbl.get(t.tag) ?? t.tag),
+        feel: feel?.value ?? null,
+      });
     }
     if (url.pathname === '/api/calibration' && req.method === 'GET') {
       const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress
