@@ -18,9 +18,16 @@ let running = false;
 /** Lê um treino e devolve os minutos por zona (ou lança erro com a etapa que falhou). */
 async function readOne(api, libs, item, floors) {
   if (!floors) throw new Error('sem zonas para essa modalidade');
-  let res;
-  try { res = await api(`/api/fit/file?id=${item.id}`, { raw: true }); } catch (e) { throw new Error(`download: ${e.message}`); }
-  const buf = new Uint8Array(await res.arrayBuffer());
+  // download com até 3 tentativas: no iPhone a conexão cai no meio do arquivo e o Safari só diz "Load failed"
+  let buf;
+  for (let t = 1; ; t++) {
+    try { const res = await api(`/api/fit/file?id=${item.id}`, { raw: true }); buf = new Uint8Array(await res.arrayBuffer()); break; }
+    catch (e) {
+      const net = /load failed|failed to fetch|network/i.test(e.message);
+      if (net && t < 3) { await new Promise((ok) => setTimeout(ok, 2000 * t)); continue; }
+      throw new Error(net ? `conexão caiu ao baixar o arquivo (${t} tentativas)` : `download: ${e.message}`);
+    }
+  }
   let fit;
   try { fit = fitFromZip(buf, libs.unzipSync); } catch (e) { throw new Error(`zip: ${e.message}`); }
   if (!fit) throw new Error(`arquivo sem .fit (${buf.length} bytes)`);
