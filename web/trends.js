@@ -1,6 +1,6 @@
 // Aba Tendências: períodos de calendário (semana seg–dom, mês, 3 e 6 meses, 1 ano) com navegação.
 import { fmtDay, lineChart, nf } from './charts.js';
-import { projHtml } from './race.js';
+import { projHtml, heatHtml } from './race.js';
 
 const UNITS = [['semana', 'Semana'], ['mes', 'Mês'], ['3m', '3 meses'], ['6m', '6 meses'], ['ano', '1 ano']];
 const SPORTS = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
@@ -51,6 +51,7 @@ const TABS = [
   { k: 'prova', l: 'Prova', q: 'Como estou para Aracaju?', secs: [
     ['pred', 'Previsões de corrida', '5 km, 10 km, meia e maratona', (b, a) => predictions(b, a)],
     ['proj', 'Forma até a prova', 'Projeção com o plano publicado', (b, a) => projSec(b, a)],
+    ['heat', 'Aclimatação ao calor', 'Sessões no calor nos últimos 14 dias', (b, a) => heatSec(b, a)],
   ] },
 ];
 let tab = (() => { try { return localStorage.getItem('rec.ttab') || 'carga'; } catch { return 'carga'; } })();
@@ -101,6 +102,12 @@ async function answer(screen, api, k) {
 }
 let raceCache = null;
 const raceData = (api) => (raceCache ??= api('/api/race').catch((e) => { raceCache = null; throw e; }));
+
+async function heatSec(box, api) {
+  const sec = box.querySelector('#heat');
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  try { const d = await raceData(api); sec.innerHTML = heatHtml(d.heat, false); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; }
+}
 
 async function projSec(box, api) {
   const sec = box.querySelector('#proj');

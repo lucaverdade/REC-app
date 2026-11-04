@@ -72,3 +72,9 @@ Publicado pelo chat de treino quando quiser (o app mostra "ainda não publicado"
 
 ## Resumo da semana (opcional)
 Arquivo `web/plan/resumo-<segunda>.md` (ex.: `resumo-2026-11-02.md`), texto curto escrito pelo chat de treino. O app mostra junto com os números da semana: na aba Hoje no domingo a partir das 18 h e na segunda, e na aba Treino ao abrir a semana. Formato aceito: parágrafos, `**negrito**`, listas com `- ` e uma linha de título com `#`. Sem HTML.
+
+## Sessões de calor (aclimatação)
+Marque a sessão com `"calor": true` (ou título começando com "Calor", ex.: "Calor 1 (sem casaco)"). O app conta como sessão no calor quando ela é feita, e mostra no modo prova e em Tendências → Prova. Treinos na rua com ≥ 28 °C em Brasília também contam sozinhos.
+
+## Fase
+O campo `fase` da semana aparece na aba Hoje, logo abaixo da data.

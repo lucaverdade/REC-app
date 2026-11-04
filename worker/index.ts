@@ -70,7 +70,7 @@ async function ensureSchema(env: Env) {
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
   // migrações de colunas (ignora "duplicate column" quando já existem)
-  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
+  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
     try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
   }
   schemaReady = true;
@@ -78,17 +78,19 @@ async function ensureSchema(env: Env) {
 
 async function writeDays(env: Env, days: GarminDay[]) {
   const st = env.DB.prepare(
-    `INSERT INTO daily_metrics (date, hrv, rhr, sleep_h, sleep_score, resp, stress, sleep_start, sleep_end, nap_h, source, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'garmin_api', datetime('now'))
+    `INSERT INTO daily_metrics (date, hrv, rhr, sleep_h, sleep_score, resp, stress, sleep_start, sleep_end, nap_h, spo2_avg, spo2_low, bb_wake, bb_high, source, updated_at)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 'garmin_api', datetime('now'))
      ON CONFLICT(date) DO UPDATE SET
        hrv = COALESCE(excluded.hrv, hrv), rhr = COALESCE(excluded.rhr, rhr), sleep_h = COALESCE(excluded.sleep_h, sleep_h),
        sleep_score = COALESCE(excluded.sleep_score, sleep_score), resp = COALESCE(excluded.resp, resp),
        stress = COALESCE(excluded.stress, stress), sleep_start = COALESCE(excluded.sleep_start, sleep_start),
        sleep_end = COALESCE(excluded.sleep_end, sleep_end), nap_h = COALESCE(excluded.nap_h, nap_h),
+       spo2_avg = COALESCE(excluded.spo2_avg, spo2_avg), spo2_low = COALESCE(excluded.spo2_low, spo2_low),
+       bb_wake = COALESCE(excluded.bb_wake, bb_wake), bb_high = COALESCE(excluded.bb_high, bb_high),
        source = 'garmin_api', updated_at = datetime('now')`,
   );
   const useful = days.filter((d) => [d.hrv, d.rhr, d.sleep_h, d.resp, d.stress].some((v) => v !== null));
-  if (useful.length) await env.DB.batch(useful.map((d) => st.bind(d.date, d.hrv, d.rhr, d.sleep_h, d.sleep_score, d.resp, d.stress, d.sleep_start, d.sleep_end, d.nap_h)));
+  if (useful.length) await env.DB.batch(useful.map((d) => st.bind(d.date, d.hrv, d.rhr, d.sleep_h, d.sleep_score, d.resp, d.stress, d.sleep_start, d.sleep_end, d.nap_h, d.spo2_avg ?? null, d.spo2_low ?? null, d.bb_wake ?? null, d.bb_high ?? null)));
   return useful.length;
 }
 
@@ -581,8 +583,9 @@ async function racePayload(env: Env, req: Request) {
     return predictAll(v.vdot, f).d21;
   })();
   const projection = await formProjection(env, req, today);
+  const heat = await heatPayload(env, req);
   return {
-    projection,
+    projection, heat,
     race: { ...RACE, days: daysBetween(today, RACE.date), raceWeek: daysBetween(today, RACE.date) <= 6 && daysBetween(today, RACE.date) >= -1 },
     today: { rec: rec?.rec == null ? null : Math.round(rec.rec), formPct: ln.formPct, zone: ln.zone },
     halfPrediction: pred,
@@ -669,6 +672,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const { results: tagRows } = await env.DB.prepare('SELECT tag FROM habit_tags WHERE date = ?1').bind(date).all<{ tag: string }>();
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
+  const phase = req ? (await readPlan(env, req, mondayOf(date)))?.fase ?? null : null;
   const planned = await (async () => {
     if (!req) return [] as { label: string; sport: Sport; titulo: string | null; minutos: number | null; zona: string | null; strain: number | null; strainSrc: string | null }[];
     const plan = await readPlan(env, req, mondayOf(date));
@@ -681,7 +685,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     return recoveryVerdict(zr.map((r) => ({ date: r.date as unknown as string, z: { hrv: r.z_hrv, rhr: r.z_rhr, sleep: r.z_sleep, resp: r.z_resp, stress: r.z_stress }, raw: {} })),
       { zoneKey: ln.zone?.key ?? null, fatigueAboveDays: 0, hrvBase: null, rhrBase: null, sleepNeed: 7.5 });
   })();
-  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end, spo2_avg, spo2_low FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
     .bind(addDays(date, -95), date).all<SleepNight>();
   const sb = await sleepBase(env, date);
   const need = sb.hours;
@@ -722,6 +726,11 @@ async function todayPayload(env: Env, date: string, req?: Request) {
         return a ? [a] : [];
       })()),
       ...alerts(t, yesterday), ...(await loadAlerts(env, date)),
+      ...(await (async () => {
+        const { results: sp } = await env.DB.prepare('SELECT date, spo2_avg, spo2_low FROM daily_metrics WHERE date BETWEEN ?1 AND ?2').bind(addDays(date, -31), date).all<{ date: string; spo2_avg: number | null; spo2_low: number | null }>();
+        const o = spo2Of(sp, date);
+        return o?.twoNights ? [{ kind: 'spo2', text: `SpO2 da noite abaixo do seu normal há 2 noites (${o.avg}% × ${o.base}% de costume). Comum com altitude, nariz entupido ou início de doença.` }] : [];
+      })()),
     ],
     hrvTrend: await (async () => { const h = await hrvTrendOn(env, date); return h && { cls: h.cls, label: h.label, days: h.days, mean7: h.mean7, lo: h.lo, hi: h.hi }; })(),
     week: [...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec === null ? null : Math.round(r.rec) })),
@@ -749,6 +758,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       };
     })(),
     planned,
+    phase,
     sleep: {
       night: lastNight && { hours: lastNight.sleep_h, start: lastNight.sleep_start?.slice(11) ?? null, end: lastNight.sleep_end?.slice(11) ?? null },
       napYesterday: yesterdayNap,
@@ -759,6 +769,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       need: sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null, heavy),
       regularity: regularity(nights),
       regularityScore: regularityScore(regularity(nights)),
+      spo2: spo2Of(nights as any, date),
       bedtime: bedtimeTarget(nights, sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null, heavy).total, addDays(date, 1)),
     },
     isToday: date === brtToday(),
@@ -845,6 +856,66 @@ async function activityPayload(env: Env, id: string) {
     zones: has ? [Math.max(0, (a.min ?? 0) - inZ), ...z.map((v) => v ?? 0)].map((m) => Math.round(m)) : null,
     rec: rec?.rec == null ? null : Math.round(rec.rec),
     form: ln.formPct, formZone: ln.zone && { key: ln.zone.key, label: ln.zone.label },
+  };
+}
+
+// --- SpO2 da noite (H): só aviso, não entra no REC ---
+function spo2Of(nights: { date: string; spo2_avg: number | null; spo2_low: number | null }[], date: string) {
+  const n = nights.find((x) => x.date === date);
+  if (n?.spo2_avg == null) return null;
+  const prev = nights.filter((x) => x.date < date && x.date >= addDays(date, -30) && x.spo2_avg != null).map((x) => x.spo2_avg as number).sort((a, b) => a - b);
+  const base = prev.length >= 7 ? prev[Math.floor(prev.length / 2)] : null;
+  const y = nights.find((x) => x.date === addDays(date, -1));
+  const low = (v: number | null | undefined) => base != null && v != null && v <= base - 2;
+  return {
+    avg: Math.round(n.spo2_avg), low: n.spo2_low == null ? null : Math.round(n.spo2_low), base: base == null ? null : Math.round(base),
+    below: low(n.spo2_avg), twoNights: low(n.spo2_avg) && low(y?.spo2_avg),
+  };
+}
+
+// --- aclimatação ao calor (F3) ---
+// Sessão no calor = treino feito que (a) o plano marcou como calor ("calor": true, título "Calor …" ou "cobre o calor"),
+// ou (b) foi na rua com temperatura média ≥ 28 °C em Brasília durante o treino (Open-Meteo, cache de 6 h).
+const BSB = { lat: -15.79, lon: -47.88 };
+async function bsbTemps(env: Env): Promise<Record<string, number> | null> {
+  type C = { at: number; t: Record<string, number> };
+  const c = await getSetting<C>(env, 'bsb_temp');
+  if (c && Date.now() - c.at < 6 * 3600e3) return c.t;
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${BSB.lat}&longitude=${BSB.lon}&hourly=temperature_2m&past_days=31&forecast_days=1&timezone=America%2FSao_Paulo`);
+    if (!r.ok) return c?.t ?? null;
+    const j = await r.json<any>();
+    const t: Record<string, number> = {};
+    (j?.hourly?.time ?? []).forEach((k: string, i: number) => { const v = j.hourly.temperature_2m?.[i]; if (typeof v === 'number') t[k.slice(0, 13)] = v; });
+    await setSetting(env, 'bsb_temp', { at: Date.now(), t });
+    return t;
+  } catch { return c?.t ?? null; }
+}
+async function heatPayload(env: Env, req: Request) {
+  const today = brtToday(), from = addDays(today, -20);
+  const { results: acts } = await env.DB.prepare(`SELECT id, date, time, type, sport, min FROM activities WHERE date BETWEEN ?1 AND ?2 AND min >= 20 ORDER BY date, time`)
+    .bind(from, today).all<{ id: string; date: string; time: string | null; type: string; sport: Sport; min: number }>();
+  const plans = new Map<string, Plan | null>();
+  const planFor = async (d: string) => { const m = mondayOf(d); if (!plans.has(m)) plans.set(m, await readPlan(env, req, m)); return plans.get(m); };
+  const temps = await bsbTemps(env);
+  const out: { date: string; sport: Sport; label: string; min: number; why: string; temp: number | null }[] = [];
+  for (const a of acts) {
+    const pl = (await planFor(a.date))?.dias?.[a.date] ?? [];
+    const heatPlan = pl.find((p) => normSport(p.modalidade) === a.sport && ((p as any).calor === true || /^calor\b/i.test(p.titulo ?? '') || /cobre o calor/i.test(p.detalhe ?? '')));
+    let temp: number | null = null;
+    if (temps && a.time && !/indoor|virtual|treadmill|trainer|pool|lap_swim/i.test(a.type)) {
+      const h0 = Number(a.time.slice(0, 2)), h1 = Math.min(23, Math.floor(h0 + (Number(a.time.slice(3, 5)) + a.min) / 60));
+      const vs: number[] = []; for (let h = h0; h <= h1; h++) { const v = temps[`${a.date}T${String(h).padStart(2, '0')}`]; if (v != null) vs.push(v); }
+      if (vs.length) temp = Math.round((vs.reduce((x, y) => x + y, 0) / vs.length) * 10) / 10;
+    }
+    const hot = temp != null && temp >= 28;
+    if (heatPlan || hot) out.push({ date: a.date, sport: a.sport, label: SPORT_LABEL[a.sport], min: Math.round(a.min), why: heatPlan ? (heatPlan.titulo ?? 'sessão de calor do plano') : `rua a ${String(temp).replace('.', ',')} °C`, temp });
+  }
+  const last14 = out.filter((x) => x.date >= addDays(today, -13));
+  const last = out[out.length - 1];
+  return {
+    sessions: last14.reverse(), count14: last14.length, minutes14: last14.reduce((a, x) => a + x.min, 0),
+    daysSince: last ? daysBetween(last.date, today) : null, weather: !!temps,
   };
 }
 

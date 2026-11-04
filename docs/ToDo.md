@@ -40,6 +40,10 @@ Lista viva do que o Luca pediu para depois.
 - [x] Cartão de compartilhar v2 (04/11): "Salvar imagem" (PNG 1080×1920 em canvas; no iPhone abre a folha de compartilhar) e escolha de até 6 números + blocos, guardada no aparelho.
 - [x] **Strain do dia sem %** (04/11): anel mostra o número; meta = tracinho; excesso em outra cor.
 
+- [x] **F1 fase do plano** (04/11) na aba Hoje.
+- [x] **F3 aclimatação ao calor** (04/11): sessões do plano marcadas como calor + rua ≥ 28 °C em Brasília (Open-Meteo), últimos 14 dias; modo prova e Tendências → Prova.
+- [x] **H SpO2 da noite** (04/11): guardado da Garmin (sono/resumo diário), linha no cartão de sono e aviso com 2 noites ≥ 2 pontos abaixo da mediana de 30 noites. Não entra no REC. Body Battery (ao acordar e máximo) também passa a ser guardado, ainda sem tela (A5 em avaliação).
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 

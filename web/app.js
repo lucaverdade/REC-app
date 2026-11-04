@@ -321,6 +321,7 @@ function sleepCard(d) {
       </div>
       ${s.bedtime && d.isToday ? `<p class="sl-bed">Deitar até <b>${esc(s.bedtime.bedtime)}</b><span>para acordar por volta de ${esc(s.bedtime.wake)} com a meta de ${hmm(need.total)}</span></p>` : ''}
       ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).${s.regularityScore != null ? ` Regularidade <b>${s.regularityScore}</b>/100.` : ''}</p>` : ''}
+      ${s.spo2 ? `<p class="sl-reg">SpO2 da noite <b${s.spo2.below ? ' class="c-bad"' : ''}>${s.spo2.avg}%</b>${s.spo2.low != null ? ` (mínima ${s.spo2.low}%)` : ''}${s.spo2.base != null ? `, seu normal ${s.spo2.base}%` : ''}. Não entra no REC.</p>` : ''}
       ${s.napYesterday ? `<p class="sl-reg">Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}: <b>${Math.round(s.napYesterday * 60)} min</b> (conta na dívida).</p>` : ''}
       <details class="explain sl-exp"><summary>Como é calculado</summary>
         <p><b>Sua base</b> vem da resposta do seu HRV, não do hábito: o app cruza as horas dormidas com o HRV da noite (contra a sua base de 60 dias) nos últimos 180 dias e acha a partir de quantas horas o HRV para de melhorar. Refeita todo mês${s.base && !s.base.fallback ? ` (em ${s.base.month.slice(5)}/${s.base.month.slice(0, 4)}: ${s.base.n} noites; abaixo de 7 h seu HRV ficou ${s.base.below7 > 0 ? '+' : ''}${String(s.base.below7).replace('.', ',')}% da base, com 7 h ou mais ${s.base.above7 > 0 ? '+' : ''}${String(s.base.above7).replace('.', ',')}%)` : ''}.</p>
@@ -435,6 +436,7 @@ function render(d) {
       ${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir o modo prova.">${esc(raceTxt)} ›</a>` : ''}
     </header>
 
+    ${d.phase && d.isToday ? `<p class="phase-line">${esc(d.phase)}</p>` : ''}
     ${d.syncIssue ? `<a class="alert sync-alert" role="status" href="#garmin">${esc(d.syncIssue.text)} <em>Garmin ›</em></a>` : ''}
 
     ${morningHtml(d)}

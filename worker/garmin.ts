@@ -17,6 +17,8 @@ export interface GarminDay {
   resp: number | null; stress: number | null;
   sleep_start: string | null; sleep_end: string | null; // horário local "AAAA-MM-DDTHH:MM"
   nap_h: number | null; // cochilos do dia (h)
+  spo2_avg?: number | null; spo2_low?: number | null; // SpO2 da noite (%), se o relógio mede no sono
+  bb_wake?: number | null; bb_high?: number | null;   // Body Battery ao acordar e máximo do dia
 }
 
 export interface GarminActivity {
@@ -91,6 +93,8 @@ export function parseSleep(j: any) {
     nap_h: (() => { const v = first(dto.napTimeSeconds); return v == null ? null : v / 3600; })(),
     sleep_start: localStamp(dto.sleepStartTimestampLocal),
     sleep_end: localStamp(dto.sleepEndTimestampLocal),
+    spo2_avg: first(dto.averageSpO2Value, dto.averageSpo2Value, j?.spo2SleepSummary?.averageSPO2, j?.wellnessSpO2SleepSummaryDTO?.averageSpo2) ?? findNum(j?.spo2SleepSummary ?? dto.spo2SleepSummary, (k) => /avg|average/i.test(k)),
+    spo2_low: first(dto.lowestSpO2Value, dto.lowestSpo2Value, j?.spo2SleepSummary?.lowestSPO2, j?.wellnessSpO2SleepSummaryDTO?.lowestSpo2) ?? findNum(j?.spo2SleepSummary ?? dto.spo2SleepSummary, (k) => /low|min/i.test(k)),
   };
 }
 
@@ -128,7 +132,7 @@ export function findNum(obj: any, test: (key: string) => boolean): number | null
   return null;
 }
 
-type Summary = { rhr: number | null; stress: number | null; resp: number | null };
+type Summary = { rhr: number | null; stress: number | null; resp: number | null; spo2_avg: number | null; spo2_low: number | null; bb_wake: number | null; bb_high: number | null };
 export function parseDailySummaries(j: any): Map<string, Summary> {
   const m = new Map<string, Summary>();
   for (const s of arr(j, 'data', 'dailySummaries')) {
@@ -137,7 +141,11 @@ export function parseDailySummaries(j: any): Map<string, Summary> {
     const rhr = first(s.restingHeartRate, s.restingHeartRateValue) ?? findNum(s.heartRate, (k) => /resting/i.test(k));
     const st = first(s.averageStressLevel, s.avgStressLevel) ?? findNum(s.stress, (k) => /^(avg|average)/i.test(k) && /stress|level/i.test(k));
     const resp = findNum(s.respiration, (k) => /sleep/i.test(k) && /avg|average/i.test(k));
-    m.set(d, { rhr, stress: st !== null && st >= 0 ? st : null, resp });
+    const spo2_avg = first(s.averageSpo2, s.averageSpO2) ?? findNum(s.spo2 ?? s.pulseOx, (k) => /avg|average/i.test(k));
+    const spo2_low = first(s.lowestSpo2, s.lowestSpO2) ?? findNum(s.spo2 ?? s.pulseOx, (k) => /low|min/i.test(k));
+    const bb_wake = first(s.bodyBatteryAtWakeTime) ?? findNum(s.bodyBattery, (k) => /wake/i.test(k));
+    const bb_high = first(s.bodyBatteryHighestValue) ?? findNum(s.bodyBattery, (k) => /high|max/i.test(k));
+    m.set(d, { rhr, stress: st !== null && st >= 0 ? st : null, resp, spo2_avg, spo2_low, bb_wake, bb_high });
   }
   return m;
 }
@@ -221,6 +229,10 @@ export async function fetchDays(env: GarminEnv, from: string, to: string): Promi
       sleep_end: s?.sleep_end ?? null,
       resp: sum.get(d)?.resp ?? s?.resp ?? null,
       stress: stress.get(d) ?? sum.get(d)?.stress ?? null,
+      spo2_avg: s?.spo2_avg ?? sum.get(d)?.spo2_avg ?? null,
+      spo2_low: s?.spo2_low ?? sum.get(d)?.spo2_low ?? null,
+      bb_wake: sum.get(d)?.bb_wake ?? null,
+      bb_high: sum.get(d)?.bb_high ?? null,
     };
   });
   return { days, raw, detail };

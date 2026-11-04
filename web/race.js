@@ -37,6 +37,8 @@ export async function renderRace(screen, api) {
 
     ${projHtml(d.projection, r.date)}
 
+    ${heatHtml(d.heat)}
+
     <section class="block" id="wx"><h2>Clima em Aracaju no dia</h2><p class="empty">Carregando…</p></section>
 
     <section class="block" id="chk"></section>
@@ -79,6 +81,24 @@ async function renderWeather(sec, api) {
     </div>
     <p class="note">${prev ? 'Previsão Open-Meteo, atualizada a cada 3 h. Chuva = chance de chover.'
       : `Média de ${w.years ?? 10} anos (22/11 a 06/12), Open-Meteo. Chuva = % das horas com chuva. A previsão do dia entra sozinha a partir de ${new Date(w.availableFrom + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' })}.`}</p>`;
+}
+
+// Aclimatação ao calor: sessões no calor dos últimos 14 dias
+export function heatHtml(h, withTitle = true) {
+  if (!h) return '';
+  const dd = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '');
+  const head = !h.count14 ? 'Nenhuma sessão no calor nos últimos 14 dias.'
+    : `<b>${h.count14} ${h.count14 === 1 ? 'sessão' : 'sessões'}</b> no calor nos últimos 14 dias (${h.minutes14} min)${h.daysSince != null ? `, a última ${h.daysSince === 0 ? 'hoje' : h.daysSince === 1 ? 'ontem' : `há ${h.daysSince} dias`}` : ''}.`;
+  return `
+    <section class="block heat">
+      ${withTitle ? '<h2>Aclimatação ao calor</h2>' : ''}
+      <p class="proj-head">${head}</p>
+      ${h.sessions.length ? `<ul class="acts">${h.sessions.map((x) => `<li><span><i class="dot s-${x.sport}"></i>${esc(dd(x.date))} · ${esc(x.label)} ${x.min} min</span><span class="meta">${esc(x.why)}</span></li>`).join('')}</ul>` : ''}
+      <details class="explain"><summary>Como é contado</summary>
+        <p>Conta como sessão no calor o treino que o plano marcou como calor ("Calor 1", "Calor 2"…) ou o treino na rua com temperatura média de 28 °C ou mais em Brasília durante o treino${h.weather ? '' : ' (temperatura indisponível agora)'}. Treinos de 20 min ou mais.</p>
+        <p>Referência dos estudos de aclimatação: as adaptações (mais plasma, suor mais cedo, FC mais baixa no calor) aparecem com cerca de 5 sessões e ficam quase completas com 8 a 10 em 1 a 2 semanas; sem estímulo por mais de uma semana, começam a se perder aos poucos.</p>
+      </details>
+    </section>`;
 }
 
 // Forma projetada até a prova: últimos 14 dias reais + dias com plano publicado

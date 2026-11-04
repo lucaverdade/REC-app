@@ -903,3 +903,6 @@ body.is-share main { padding-bottom: 0; }
 .sh-opts .hb:disabled { opacity: .35; }
 .sh-strain-line { margin: 0; font-size: 16px; color: var(--text-2); }
 .sh-strain-line b { font: 300 34px/1 var(--font-display); color: var(--strain); margin-right: 4px; }
+
+.phase-line { margin: -6px 0 14px; font-size: 13px; color: var(--text-2); }
+.tsec .block.heat { padding: 0; }
