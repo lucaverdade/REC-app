@@ -1334,3 +1334,11 @@ body.is-share main { padding-bottom: 0; }
 .mo-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .mo-d { min-width: 0; overflow: hidden; }
 .mo-c { aspect-ratio: 1; height: auto; }
+.sp-q { margin: 0 0 12px; font-size: 14px; color: var(--text-2); }
+.sp-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.sp-bars li { display: grid; grid-template-columns: 64px 1fr 56px; align-items: center; gap: 10px; }
+.sp-l b { display: block; font-size: 15px; } .sp-l small, .sp-v small { display: block; font-size: 11px; color: var(--text-3); }
+.sp-t { height: 14px; border-radius: 7px; background: var(--card-2); overflow: hidden; }
+.sp-t i { display: block; height: 100%; border-radius: 7px; }
+.sp-v { text-align: right; } .sp-v b { font: 400 20px var(--font-display); }
+.sp-bars li.on .sp-t { outline: 1px solid var(--text-2); }

@@ -133,27 +133,22 @@ export async function renderEvolution(box, api) {
   strainWeeks(box, api); evolve(box, api); scatterSec(box, api); zonesSec(box, api); volume(box, api); focusSec(box, api); fageSec(box, api);
 }
 
-// Strain × Prontidão (estilo Whoop): cada ponto é um dia dos últimos 6 meses
+// Strain × Prontidão (04/11, v2 mais simples): quanto você costuma treinar quando acorda com Prontidão baixa, média ou alta
 async function scatterSec(box, api) {
   const sec = box.querySelector('#scat'); if (!sec) return;
   sec.innerHTML = '<p class="empty">Carregando…</p>';
   let d; try { d = await api('/api/ready-series?days=182'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
   const pts = d.days.filter((x) => x.ready != null);
   if (pts.length < 10) { sec.innerHTML = '<p class="empty">Poucos dias com Prontidão ainda.</p>'; return; }
-  const W = 340, H = 190, maxS = Math.max(50, ...pts.map((p) => p.strain)) * 1.05;
-  const X = (v) => 30 + (v / 100) * (W - 40), Y = (s) => H - 18 - (s / maxS) * (H - 30);
-  const grp = (lo, hi) => { const g = pts.filter((p) => p.ready >= lo && p.ready <= hi && p.strain > 0); return g.length ? { n: g.length, s: Math.round(g.reduce((a, p) => a + p.strain, 0) / g.length) } : null; };
-  const G = [['Baixa (0–33)', grp(0, 33)], ['Média (34–66)', grp(34, 66)], ['Alta (67–100)', grp(67, 100)]];
-  const last = pts[pts.length - 1];
-  sec.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="chart sc" role="img" aria-label="Strain por Prontidão">
-      ${[33, 66].map((v) => `<line x1="${X(v)}" x2="${X(v)}" y1="6" y2="${H - 18}" class="bl-ref"/>`).join('')}
-      <line x1="30" x2="${W - 10}" y1="${H - 18}" y2="${H - 18}" class="tl-base"/>
-      ${pts.map((p) => `<circle cx="${X(p.ready).toFixed(1)}" cy="${Y(p.strain).toFixed(1)}" r="${p === last ? 5 : 3}" style="fill:${readyColor(p.ready)};opacity:${p === last ? 1 : 0.7}"${p === last ? ' stroke="#fff" stroke-width="1.5"' : ''}/>`).join('')}
-      <text x="30" y="${H - 4}" class="ax">0</text><text x="${X(50)}" y="${H - 4}" class="ax" text-anchor="middle">Prontidão (%)</text><text x="${W - 10}" y="${H - 4}" class="ax" text-anchor="end">100</text>
-      <text x="26" y="${Y(maxS / 1.05) + 4}" class="ax" text-anchor="end">${Math.round(maxS / 1.05)}</text><text x="26" y="${H - 18}" class="ax" text-anchor="end">0</text>
-    </svg>
-    <ul class="acts sc-g">${G.map(([l, g]) => `<li><span>Prontidão ${l.toLowerCase()}</span><span class="meta">${g ? `Strain médio <b>${g.s}</b> · ${g.n} dias de treino` : 'sem dias'}</span></li>`).join('')}</ul>
-    <p class="note">Últimos 6 meses, um ponto por dia (contorno branco = o dia mais recente). Prontidão da manhã × Strain feito no dia.</p>`;
+  const grp = (lo, hi) => { const g = pts.filter((p) => p.ready >= lo && p.ready <= hi && p.strain > 0); return { n: g.length, s: g.length ? Math.round(g.reduce((a, p) => a + p.strain, 0) / g.length) : null }; };
+  const G = [['Baixa', 0, 33, 17], ['Média', 34, 66, 50], ['Alta', 67, 100, 84]].map(([l, lo, hi, mid]) => ({ l, lo, hi, c: readyColor(mid), ...grp(lo, hi) }));
+  const max = Math.max(...G.map((g) => g.s ?? 0), 1);
+  const last = pts[pts.length - 1], cur = G.find((g) => last.ready >= g.lo && last.ready <= g.hi);
+  sec.innerHTML = `
+    <p class="sp-q">Quanto você costuma treinar no dia, conforme a Prontidão da manhã</p>
+    <ul class="sp-bars">${G.map((g) => `<li class="${g === cur ? 'on' : ''}"><span class="sp-l"><b style="color:${g.c}">${g.l}</b><small>${g.lo}–${g.hi}%</small></span>
+      <span class="sp-t"><i style="width:${g.s ? (g.s / max) * 100 : 0}%;background:${g.c}"></i></span><span class="sp-v"><b>${g.s ?? '–'}</b><small>${g.n} dias</small></span></li>`).join('')}</ul>
+    <p class="note">Strain médio nos dias com treino, últimos 6 meses. ${cur ? `Hoje a Prontidão está <b>${cur.l.toLowerCase()}</b> (${last.ready}%): nesses dias você costuma fazer Strain por volta de <b>${cur.s ?? '–'}</b>.` : ''}</p>`;
 }
 
 /** Uma métrica na própria tela (#tend/<id>). */
