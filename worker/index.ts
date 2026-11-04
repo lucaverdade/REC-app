@@ -685,7 +685,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     return recoveryVerdict(zr.map((r) => ({ date: r.date as unknown as string, z: { hrv: r.z_hrv, rhr: r.z_rhr, sleep: r.z_sleep, resp: r.z_resp, stress: r.z_stress }, raw: {} })),
       { zoneKey: ln.zone?.key ?? null, fatigueAboveDays: 0, hrvBase: null, rhrBase: null, sleepNeed: 7.5 });
   })();
-  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end, spo2_avg, spo2_low FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
     .bind(addDays(date, -95), date).all<SleepNight>();
   const sb = await sleepBase(env, date);
   const need = sb.hours;
@@ -726,11 +726,6 @@ async function todayPayload(env: Env, date: string, req?: Request) {
         return a ? [a] : [];
       })()),
       ...alerts(t, yesterday), ...(await loadAlerts(env, date)),
-      ...(await (async () => {
-        const { results: sp } = await env.DB.prepare('SELECT date, spo2_avg, spo2_low FROM daily_metrics WHERE date BETWEEN ?1 AND ?2').bind(addDays(date, -31), date).all<{ date: string; spo2_avg: number | null; spo2_low: number | null }>();
-        const o = spo2Of(sp, date);
-        return o?.twoNights ? [{ kind: 'spo2', text: `SpO2 da noite abaixo do seu normal há 2 noites (${o.avg}% × ${o.base}% de costume). Comum com altitude, nariz entupido ou início de doença.` }] : [];
-      })()),
     ],
     hrvTrend: await (async () => { const h = await hrvTrendOn(env, date); return h && { cls: h.cls, label: h.label, days: h.days, mean7: h.mean7, lo: h.lo, hi: h.hi }; })(),
     week: [...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec === null ? null : Math.round(r.rec) })),
@@ -769,7 +764,6 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       need: sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null, heavy),
       regularity: regularity(nights),
       regularityScore: regularityScore(regularity(nights)),
-      spo2: spo2Of(nights as any, date),
       bedtime: bedtimeTarget(nights, sleepNeedTonight(need, debt, ln.strain, lastNight?.nap_h ?? null, heavy).total, addDays(date, 1)),
     },
     isToday: date === brtToday(),
@@ -868,20 +862,6 @@ async function activityPayload(env: Env, id: string, req?: Request) {
     form: ln.formPct, formZone: ln.zone && { key: ln.zone.key, label: ln.zone.label },
     garminLoad: a.load == null ? null : Math.round(a.load), teLabel: a.te_label ?? null,
     fitness: ln.fitness, plan,
-  };
-}
-
-// --- SpO2 da noite (H): só aviso, não entra no REC ---
-function spo2Of(nights: { date: string; spo2_avg: number | null; spo2_low: number | null }[], date: string) {
-  const n = nights.find((x) => x.date === date);
-  if (n?.spo2_avg == null) return null;
-  const prev = nights.filter((x) => x.date < date && x.date >= addDays(date, -30) && x.spo2_avg != null).map((x) => x.spo2_avg as number).sort((a, b) => a - b);
-  const base = prev.length >= 7 ? prev[Math.floor(prev.length / 2)] : null;
-  const y = nights.find((x) => x.date === addDays(date, -1));
-  const low = (v: number | null | undefined) => base != null && v != null && v <= base - 2;
-  return {
-    avg: Math.round(n.spo2_avg), low: n.spo2_low == null ? null : Math.round(n.spo2_low), base: base == null ? null : Math.round(base),
-    below: low(n.spo2_avg), twoNights: low(n.spo2_avg) && low(y?.spo2_avg),
   };
 }
 
