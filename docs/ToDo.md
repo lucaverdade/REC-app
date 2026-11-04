@@ -35,6 +35,11 @@ Lista viva do que o Luca pediu para depois.
 
 - [x] **Fase 1 das ideias** (03/11): diário de hábitos, "O que mexe no meu REC" (com horário irregular automático), deitar até, nota de regularidade, clima de Aracaju. Fase 2 feita em 03/11 (tendência do HRV, alerta de doença, 80/20, relatório da manhã, resumo da semana). Fase 3 (desacoplamento e eficiência) feita e **removida** em 03/11: métrica volátil demais fora de treino controlado.
 
+- [x] **Tendências em 3 abas** (04/11): Carga, Corpo e Prova; resposta de uma frase no topo; blocos fechados que abrem ao tocar (carregam ao abrir); última aba lembrada.
+- [x] **Cartão do treino para compartilhar** (04/11): toque no treino na aba Hoje → story 9:16 (Strain, duração, distância, ritmo, calorias ativas, FC, zonas, REC e Forma). Campos novos da Garmin: nome, calorias (ativas = total − basal), subida, velocidade, potência, cadência, TE anaeróbico.
+- [ ] Cartão de compartilhar v2: botão "Salvar imagem" e escolha dos números.
+- [x] **Strain do dia sem %** (04/11): anel mostra o número; meta = tracinho; excesso em outra cor.
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 

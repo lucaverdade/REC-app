@@ -1,6 +1,6 @@
 // Modo prova: Ironman 70.3 Aracaju. Ativa sozinho na semana da prova; antes disso abre como prévia.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const tfmt = (m) => {
+export const tfmt = (m) => {
   if (m == null) return '–';
   const s = Math.round(m * 60), h = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
   return h ? `${h}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}` : `${mm}:${String(ss).padStart(2, '0')}`;
@@ -86,7 +86,7 @@ const ZONES = [['risco', -Infinity, -30], ['produtivo', -30, -10], ['neutro', -1
 const zkey = (p) => ZONES.find(([, lo, hi]) => p >= lo && p < hi)?.[0] ?? 'neutro';
 const sg = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + '%';
 const short = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' });
-function projHtml(pr, raceDate) {
+export function projHtml(pr, raceDate) {
   if (!pr?.series?.length) return '';
   const S = pr.series.filter((x) => x.formPct != null);
   const W = 340, H = 130, n = S.length;

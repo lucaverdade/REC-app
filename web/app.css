@@ -874,3 +874,21 @@ body.is-share main { padding-bottom: 0; }
 .sh-foot { display: flex; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line-soft); font-size: 14px; color: var(--text-2); }
 .sh-foot i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 .sh-foot b { color: var(--text); font-weight: 600; }
+
+/* Tendências em abas */
+.ttabs { margin: 0 0 14px; }
+.t-answer { margin: 0 0 16px; padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
+.t-answer span { display: block; font-size: 12px; letter-spacing: .02em; color: var(--text-2); margin-bottom: 4px; }
+.t-answer p { margin: 0; font-size: 16px; line-height: 1.4; }
+.tsec { margin: 0 0 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--line-soft); }
+.tsec > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; }
+.tsec > summary::-webkit-details-marker { display: none; }
+.tsec > summary::after { content: "›"; font-size: 22px; line-height: 1; color: var(--text-2); transition: transform .2s ease; }
+.tsec[open] > summary::after { transform: rotate(90deg); }
+.tsec > summary b { display: block; font-size: 16px; font-weight: 600; }
+.tsec > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--text-2); }
+.tsec > section.block { margin: 0; padding: 0 16px 14px; }
+.tsec > section.block > h2:first-child { display: none; }
+.tsec .block.proj { padding: 0; } .tsec .block.proj > h2 { display: none; }
+.t-race { display: block; text-align: center; margin: 14px 0 6px; text-decoration: none; }
+.tsec #recov .v-answer, .tsec #recov .v-trend { display: none; }

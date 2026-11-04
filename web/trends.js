@@ -1,5 +1,6 @@
 // Aba Tendências: períodos de calendário (semana seg–dom, mês, 3 e 6 meses, 1 ano) com navegação.
 import { fmtDay, lineChart, nf } from './charts.js';
+import { projHtml } from './race.js';
 
 const UNITS = [['semana', 'Semana'], ['mes', 'Mês'], ['3m', '3 meses'], ['6m', '6 meses'], ['ano', '1 ano']];
 const SPORTS = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
@@ -35,25 +36,77 @@ function periodTitle(d) {
   return `${prefix}${f(a)} – ${f(b)}`;
 }
 
+// Tendências em 3 abas (04/11): cada aba responde uma pergunta; os blocos ficam fechados e abrem ao tocar.
+const TABS = [
+  { k: 'carga', l: 'Carga', q: 'Estou treinando no ritmo certo?', secs: [
+    ['sw', 'Strain semanal', 'Quanto treinei por semana, contra a sua faixa', (b, a) => strainWeeks(b, a)],
+    ['evo', 'Estou evoluindo?', 'Fitness, Fadiga e Forma', (b, a) => evolve(b, a)],
+    ['vol', 'Como treinei?', 'Horas, modalidades e intensidade', (b, a) => volume(b, a)],
+  ] },
+  { k: 'corpo', l: 'Corpo', q: 'Meu corpo está recuperando?', secs: [
+    ['recov', 'Recuperação', 'REC, HRV, FC de repouso e sono contra o seu normal', (b, a) => recovery(b, a)],
+    ['hrvt', 'Tendência do HRV', 'Adaptando bem ou acumulando fadiga', (b, a) => hrvTrendSec(b, a)],
+    ['habs', 'O que mexe no meu REC', 'Hábitos do diário e horário de sono', (b, a) => habits(b, a)],
+  ] },
+  { k: 'prova', l: 'Prova', q: 'Como estou para Aracaju?', secs: [
+    ['pred', 'Previsões de corrida', '5 km, 10 km, meia e maratona', (b, a) => predictions(b, a)],
+    ['proj', 'Forma até a prova', 'Projeção com o plano publicado', (b, a) => projSec(b, a)],
+  ] },
+];
+let tab = (() => { try { return localStorage.getItem('rec.ttab') || 'carga'; } catch { return 'carga'; } })();
+
 export async function renderTrends(screen, api) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  if (!TABS.some((t) => t.k === tab)) tab = 'carga';
+  const T = TABS.find((t) => t.k === tab);
   screen.innerHTML = `
     <header class="top"><h1>Tendências</h1></header>
-    <section class="block" id="sw"></section>
-    <section class="block" id="evo"></section>
-    <section class="block" id="pred"></section>
-    <section class="block" id="vol"></section>
-    <section class="block" id="recov"></section>
-    <section class="block" id="hrvt"></section>
-    <section class="block" id="habs"></section>`;
-  const box = screen;
-  strainWeeks(box, api);
-  evolve(box, api);
-  predictions(box, api);
-  volume(box, api);
-  recovery(box, api);
-  hrvTrendSec(box, api);
-  habits(box, api);
+    <div class="seg ttabs" role="tablist">${TABS.map((t) => `<button role="tab" data-tab="${t.k}" aria-selected="${t.k === tab}">${t.l}</button>`).join('')}</div>
+    <section class="t-answer" aria-live="polite"><span>${esc(T.q)}</span><p id="t-ans">…</p></section>
+    ${T.secs.map(([id, title, sub], i) => `
+      <details class="tsec" data-sec="${id}" ${i === 0 ? 'open' : ''}>
+        <summary><span><b>${title}</b><small>${sub}</small></span></summary>
+        <section class="block" id="${id}"></section>
+      </details>`).join('')}
+    ${tab === 'prova' ? '<a class="btn ghost t-race" href="#prova">Abrir o modo prova</a>' : ''}`;
+  screen.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+    tab = b.dataset.tab; try { localStorage.setItem('rec.ttab', tab); } catch {} renderTrends(screen, api); window.scrollTo(0, 0);
+  }));
+  // cada bloco carrega quando abre pela primeira vez
+  const done = new Set();
+  const load = (det) => { const id = det.dataset.sec; if (done.has(id)) return; done.add(id); T.secs.find((x) => x[0] === id)[3](screen, api); };
+  screen.querySelectorAll('.tsec').forEach((det) => { if (det.open) load(det); det.addEventListener('toggle', () => det.open && load(det)); });
+  answer(screen, api, tab);
+}
+
+// resposta de uma frase no topo de cada aba
+async function answer(screen, api, k) {
+  const el = screen.querySelector('#t-ans'); if (!el) return;
+  try {
+    if (k === 'carga') {
+      const [t, r] = await Promise.all([longtrend(api, evoWin), api('/api/strain-weeks?weeks=4')]);
+      const sm = t.summary, z = zoneOfPct(sm.formPct), w = r.weeks[r.weeks.length - 1];
+      const st = { abaixo: 'abaixo da sua faixa', dentro: 'dentro da sua faixa', acima: 'acima da sua faixa', bem_acima: 'bem acima da sua faixa' }[w.status];
+      el.innerHTML = `${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>. ` : ''}${sm.fitness4wPct == null ? '' : sm.fitness4wPct === 0 ? 'Fitness estável em 4 semanas.' : `Fitness ${sm.fitness4wPct > 0 ? 'subiu' : 'caiu'} ${Math.abs(sm.fitness4wPct)}% em 4 semanas.`}`;
+    } else if (k === 'corpo') {
+      const t = await longtrend(api, recWin);
+      el.innerHTML = t.verdict ? `<b>${esc(t.verdict.answer)}</b> ${esc(t.verdict.trendTxt)}` : 'Ainda sem dados suficientes.';
+    } else {
+      const d = await raceData(api);
+      const pr = d.projection, end = pr?.raceDay ? { ...pr.raceDay, date: d.race.date } : pr?.end;
+      const dd = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' });
+      el.innerHTML = `Aracaju em <b>${d.race.days} dias</b>.${end?.formPct != null ? ` Forma prevista ${pr.raceDay ? 'no dia da prova' : `em ${dd(end.date)}`}: <b class="z-${end.zone?.key}">${signed(end.formPct)}%</b>, ${esc(end.zone?.label.toLowerCase() ?? '')}.` : ''}${d.halfPrediction ? ` Meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b>.` : ''}`;
+    }
+  } catch { el.textContent = ''; }
+}
+let raceCache = null;
+const raceData = (api) => (raceCache ??= api('/api/race').catch((e) => { raceCache = null; throw e; }));
+
+async function projSec(box, api) {
+  const sec = box.querySelector('#proj');
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  try { const d = await raceData(api); sec.innerHTML = projHtml(d.projection, d.race.date) || '<p class="empty">Sem plano publicado para projetar.</p>'; }
+  catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; }
 }
 
 // ---------- Tendência do HRV (HRV4Training) ----------
