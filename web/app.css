@@ -1155,3 +1155,4 @@ main > .card:nth-of-type(5) { animation-delay: .16s; } main > .card:nth-of-type(
 #ready-parts .rp-note { font-size: 13px; color: var(--text-3); }
 #ready-parts li { grid-template-areas: "label value" "bar bar" "base base"; }
 #ready-parts .value { color: var(--text-3); font-size: 13px; }
+.hero .rt-track, .hero .rt-arc { stroke-width: 7; }

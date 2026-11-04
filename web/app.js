@@ -93,6 +93,14 @@ function contribHtml(list) {
   }).join('');
 }
 
+// cor contínua da Prontidão (04/11, opção C3): brasa → rosa-claro → lavanda → azul → gelo
+const READY_STOPS = ['#e2614f', '#d98aa6', '#b3a7e6', '#86c3f2', '#74e6ff'].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+function readyColor(v) {
+  if (v == null) return 'var(--text-3)';
+  const x = Math.max(0, Math.min(100, v)) / 25, i = Math.min(3, Math.floor(x)), k = x - i;
+  return `rgb(${READY_STOPS[i].map((c, j) => Math.round(c + (READY_STOPS[i + 1][j] - c) * k)).join(',')})`;
+}
+
 function readyPartsHtml(r) {
   if (!r) return '';
   const W = { corpo: 55, carga: 20, ontem: 10, sono: 15 };
@@ -199,7 +207,7 @@ function strainRing(done, t) {
   </div>`;
 }
 
-function ringTile({ id, value, unit = '', frac = 0, color, label, sub, aria, segments }) {
+function ringTile({ id, value, unit = '', frac = 0, color, valColor = '', label, sub, aria, segments }) {
   const f1 = Math.max(0, Math.min(1, frac)), f2 = Math.max(0, Math.min(1, frac - 1)); // segunda volta (Strain acima de 100%)
   return `<button type="button" class="rtile" data-ring="${id}" aria-label="${esc(aria)}" ${id === 'ready' ? 'aria-expanded="false" aria-controls="ready-parts"' : ''}>
     <span class="rt-ring">
@@ -208,7 +216,7 @@ function ringTile({ id, value, unit = '', frac = 0, color, label, sub, aria, seg
         <circle cx="50" cy="50" r="40" class="rt-arc" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f1)}"/>`}
         ${!segments && f2 > 0 ? `<circle cx="50" cy="50" r="40" class="rt-arc rt-lap" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f2)}"/>` : ''}
       </svg>
-      <span class="rt-val"><span><span${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</span>${unit ? `<small>${unit}</small>` : ''}</span></span>
+      <span class="rt-val"${valColor ? ` style="color:${valColor}"` : ''}><span><span${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</span>${unit ? `<small>${unit}</small>` : ''}</span></span>
     </span>
     <span class="rt-label">${esc(label)}</span>
     <span class="rt-sub">${esc(sub)}</span>
@@ -491,8 +499,8 @@ function formCard(d) {
 
 
 function render(d) {
-  const z = zoneOf(d.ready?.score ?? d.rec);
-  document.documentElement.style.setProperty('--rec', zoneVar(z));
+  const z = zoneOf(d.rec);
+  document.documentElement.style.setProperty('--rec', d.ready?.score != null ? readyColor(d.ready.score) : zoneVar(z));
   const raceTxt = d.race.days > 0 ? `Aracaju em ${d.race.days} dias` : d.race.days === 0 ? 'Dia de prova' : '';
   const todayIso = d.date;
 
@@ -519,7 +527,7 @@ function render(d) {
       const r = d.ready, sc = r?.score == null ? null : Math.round(r.score);
       const fp = d.load?.formPct;
       return `<section class="hero" aria-label="Estou pronto hoje?">
-      ${ringTile({ id: 'ready', value: sc ?? '–', unit: sc == null ? '' : '%', segments: recSegments(sc), label: 'Prontidão',
+      ${ringTile({ id: 'ready', value: sc ?? '–', unit: sc == null ? '' : '%', frac: (sc ?? 0) / 100, color: readyColor(sc), valColor: sc == null ? '' : readyColor(sc), label: 'Prontidão',
         sub: sc == null && d.isToday ? 'a noite ainda não chegou' : '', aria: 'Prontidão. Toque para ver o que entrou na conta.' })}
       <div class="hero-mini">
         <button type="button" class="mini" data-ring="rec" aria-expanded="false" aria-controls="contrib" aria-label="REC. Toque para ver o que compõe o número.">

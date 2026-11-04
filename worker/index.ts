@@ -8,7 +8,7 @@ import { bedtimeTarget, debtLevel, irregularNights, regularity, regularityScore,
 import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
 import { hrvTrendNow } from '../src/hrvtrend.ts';
 import { illnessAlert } from '../src/illness.ts';
-import { calibration } from '../src/calibration.ts';
+import { calibration, spearman } from '../src/calibration.ts';
 import { cumulativeStress, loadFocus, trainingStatus, workoutInsights } from '../src/insights.ts';
 import { ARACAJU, climatology, parseForecast, type HourRow } from '../src/weather.ts';
 import { longTrend } from '../src/longtrend.ts';
@@ -1307,7 +1307,26 @@ async function handle(req: Request, env: Env): Promise<Response> {
     if (url.pathname === '/api/calibration' && req.method === 'GET') {
       const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress
         FROM feel_notes f LEFT JOIN rec_daily r ON r.date = f.date ORDER BY f.date`).all<Record<string, any>>();
-      return json(calibration(results.map((r) => ({ date: r.date, feel: r.feel, rec: r.rec, z: { hrv: r.z_hrv, sleep: r.z_sleep, rhr: r.z_rhr, resp: r.z_resp, stress: r.z_stress } }))));
+      const cal = calibration(results.map((r) => ({ date: r.date, feel: r.feel, rec: r.rec, z: { hrv: r.z_hrv, sleep: r.z_sleep, rhr: r.z_rhr, resp: r.z_resp, stress: r.z_stress } })));
+      // Prontidão × "como me sinto" (calibração contínua, 04/11): refaz a Prontidão de cada dia com nota
+      const withRec = results.filter((r) => r.rec != null);
+      let readyRho: number | null = null, readyN = 0;
+      if (withRec.length) {
+        const first = withRec[0].date as string, last = withRec[withRec.length - 1].date as string;
+        const loads = await dailyLoads(env, addDays(first, -400), last);
+        const idx = new Map(loads.map((x, i) => [x.date, i]));
+        const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date').bind(addDays(first, -140), last).all<SleepNight>();
+        const need = (await sleepBase(env, brtToday())).hours;
+        const pairs: [number, number][] = [];
+        for (const r of withRec) {
+          const i = idx.get(r.date as string); if (i == null) continue;
+          const dh: number[] = []; for (let x = addDays(r.date, -120); x < r.date; x = addDays(x, 1)) { const v = sleepDebt(nights, need, x); if (v != null) dh.push(v); }
+          const rd = readiness(r.rec, loads.slice(0, i).map((x) => x.load), sleepDebt(nights, need, r.date), dh);
+          if (rd.score != null) pairs.push([rd.score, r.feel]);
+        }
+        readyN = pairs.length; readyRho = spearman(pairs.map((p) => p[0]), pairs.map((p) => p[1]));
+      }
+      return json({ ...cal, ready: { n: readyN, rho: readyRho == null ? null : Math.round(readyRho * 100) / 100 }, enough: cal.ready });
     }
     if (url.pathname === '/api/load-insights' && req.method === 'GET') return json(await loadInsightsPayload(env));
     if (url.pathname === '/api/stress31' && req.method === 'GET') return json(await stress31Payload(env));

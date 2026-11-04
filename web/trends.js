@@ -177,7 +177,8 @@ async function calibSec(box, api) {
     <div class="wk-bar"><i style="width:${pctDone}%"></i></div>
     ${d.withRec >= 15 ? `<ul class="acts">${d.groups.filter((g) => g.n).map((g) => `<li><span>Dias em que se sentiu ${esc(g.label.toLowerCase())}</span><span class="meta">REC médio <b>${g.rec}</b> · ${g.n} dias</span></li>`).join('')}</ul>
       <p class="note">Sinal que mais acompanha a sua nota: ${d.signals.filter((x) => x.rho != null).sort((a, b) => b.rho - a.rho).slice(0, 2).map((x) => `${SN[x.k]} (${nf(x.rho, 2)})`).join(', ') || '–'}.</p>` : ''}
-    <p class="note">${d.ready ? 'Já dá para calibrar: ajustar os pesos do REC para seguir melhor como você se sente.' : 'Marque a nota "como me sinto" na aba Hoje todo dia. Com 40 notas dá para ajustar os pesos e limites do REC (planejado para depois de Aracaju).'}</p>`;
+    ${d.withRec >= 15 && d.ready?.rho != null ? `<p class="note">Prontidão × como me sinto: concordância <b>${nf(d.ready.rho, 2)}</b> (${d.ready.n} dias)${d.rho != null ? `; o REC sozinho: ${nf(d.rho, 2)}` : ''}. Se a Prontidão ficar abaixo do REC, os pesos da carga e do sono precisam de ajuste.</p>` : ''}
+    <p class="note">${d.enough ? 'Já dá para calibrar: ajustar os pesos do REC para seguir melhor como você se sente.' : 'Marque a nota "como me sinto" na aba Hoje todo dia. Com 40 notas dá para ajustar os pesos e limites do REC (planejado para depois de Aracaju).'}</p>`;
 }
 
 // O ano em quadradinhos: 53 colunas (semanas) × 7 linhas (seg a dom)
