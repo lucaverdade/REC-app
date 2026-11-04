@@ -42,11 +42,14 @@ const TABS = [
     ['sw', 'Strain semanal', 'Quanto treinei por semana, contra a sua faixa', (b, a) => strainWeeks(b, a)],
     ['evo', 'Estou evoluindo?', 'Fitness, Fadiga e Forma', (b, a) => evolve(b, a)],
     ['vol', 'Como treinei?', 'Horas, modalidades e intensidade', (b, a) => volume(b, a)],
+    ['focus', 'Foco da carga', 'Leve, forte ou anaeróbico nas últimas 4 semanas', (b, a) => focusSec(b, a)],
   ] },
   { k: 'corpo', l: 'Corpo', q: 'Meu corpo está recuperando?', secs: [
     ['recov', 'Recuperação', 'REC, HRV, FC de repouso e sono contra o seu normal', (b, a) => recovery(b, a)],
     ['hrvt', 'Tendência do HRV', 'Adaptando bem ou acumulando fadiga', (b, a) => hrvTrendSec(b, a)],
     ['habs', 'O que mexe no meu REC', 'Hábitos do diário e horário de sono', (b, a) => habits(b, a)],
+    ['stress31', 'Estresse acumulado', 'O último mês contra o seu normal', (b, a) => stressSec(b, a)],
+    ['fage', 'Idade fitness e VO2máx', 'Números da Garmin', (b, a) => fageSec(b, a)],
   ] },
   { k: 'prova', l: 'Prova', q: 'Como estou para Aracaju?', secs: [
     ['pred', 'Previsões de corrida', '5 km, 10 km, meia e maratona', (b, a) => predictions(b, a)],
@@ -85,10 +88,10 @@ async function answer(screen, api, k) {
   const el = screen.querySelector('#t-ans'); if (!el) return;
   try {
     if (k === 'carga') {
-      const [t, r] = await Promise.all([longtrend(api, evoWin), api('/api/strain-weeks?weeks=4')]);
+      const [t, r, li] = await Promise.all([longtrend(api, evoWin), api('/api/strain-weeks?weeks=4'), loadInsights(api).catch(() => null)]);
       const sm = t.summary, z = zoneOfPct(sm.formPct), w = r.weeks[r.weeks.length - 1];
       const st = { abaixo: 'abaixo da sua faixa', dentro: 'dentro da sua faixa', acima: 'acima da sua faixa', bem_acima: 'bem acima da sua faixa' }[w.status];
-      el.innerHTML = `${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>. ` : ''}${sm.fitness4wPct == null ? '' : sm.fitness4wPct === 0 ? 'Fitness estável em 4 semanas.' : `Fitness ${sm.fitness4wPct > 0 ? 'subiu' : 'caiu'} ${Math.abs(sm.fitness4wPct)}% em 4 semanas.`}`;
+      el.innerHTML = `${li?.status ? `<b class="st-${li.status.key}">${esc(li.status.label)}.</b> ${esc(li.status.txt)}<br>` : ''}${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>. ` : ''}${sm.fitness4wPct == null ? '' : sm.fitness4wPct === 0 ? 'Fitness estável em 4 semanas.' : `Fitness ${sm.fitness4wPct > 0 ? 'subiu' : 'caiu'} ${Math.abs(sm.fitness4wPct)}% em 4 semanas.`}`;
     } else if (k === 'corpo') {
       const t = await longtrend(api, recWin);
       el.innerHTML = t.verdict ? `<b>${esc(t.verdict.answer)}</b> ${esc(t.verdict.trendTxt)}` : 'Ainda sem dados suficientes.';
@@ -100,6 +103,61 @@ async function answer(screen, api, k) {
     }
   } catch { el.textContent = ''; }
 }
+let liCache = null;
+const loadInsights = (api) => (liCache ??= api('/api/load-insights').catch((e) => { liCache = null; throw e; }));
+
+// I1 · Foco da carga
+async function focusSec(box, api) {
+  const sec = box.querySelector('#focus');
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await loadInsights(api); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const f = d.focus;
+  if (!f) { sec.innerHTML = '<p class="empty">Sem treinos com zonas nas últimas 4 semanas.</p>'; return; }
+  const ROWS = [['low', 'Aeróbico leve', 'abaixo da Z1 a Z2', 'var(--z-descansado)'], ['high', 'Aeróbico forte', 'Z3 e Z4', '#2fbf8f'], ['ana', 'Anaeróbico', 'Z5', '#ff8a5c']];
+  const ST = { falta: 'falta', ok: 'na faixa', sobra: 'sobra' };
+  sec.innerHTML = `
+    <p class="headline">${esc(f.txt)}</p>
+    <div class="fc-rows">${ROWS.map(([k, l, zz, c]) => {
+      const [lo, hi] = f.ref[k];
+      return `<div class="fc-row fc-${f.status[k]}"><div class="fc-top"><span>${l} <small>${zz}</small></span><b>${f.pct[k]}%</b><em>${ST[f.status[k]]}</em></div>
+        <div class="fc-bar"><span class="fc-ref" style="left:${lo}%;width:${hi - lo}%"></span><i style="width:${f.pct[k]}%;background:${c}"></i></div></div>`;
+    }).join('')}</div>
+    <p class="note">Parte do Strain das últimas 4 semanas em cada tipo de esforço. A faixa clara é a referência para endurance em fase de construção (adaptada do "Foco da carga" da Garmin): leve 55–75%, forte 20–40%, anaeróbico 3–12%. Na semana da prova o leve sobe naturalmente.</p>`;
+}
+
+// I5 · Estresse acumulado
+async function stressSec(box, api) {
+  const sec = box.querySelector('#stress31');
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await api('/api/stress31'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  if (!d) { sec.innerHTML = '<p class="empty">Precisa de pelo menos 10 dias de dados no último mês.</p>'; return; }
+  const ST = { ok: ['no normal', ''], atencao: ['atenção', 'c-warn'], pesando: ['pesando', 'c-bad'], sem: ['sem dados', ''] };
+  sec.innerHTML = `
+    <p class="headline">Estresse acumulado <b class="sx-${d.level}">${esc(d.label.toLowerCase())}</b> nos últimos 31 dias.</p>
+    <ul class="acts">${d.contributors.map((c) => `<li><span>${esc(c.label)}</span><span class="meta ${ST[c.state][1]}">${ST[c.state][0]}${c.k === 'reg' && c.pct != null ? ` · ${c.pct}% das noites irregulares` : ''}${c.k === 'carga' ? ` · ${c.days} de 31 dias` : ''}</span></li>`).join('')}</ul>
+    <details class="explain"><summary>Como é calculado</summary>
+      <p>Inspirado no "Estresse acumulado" da Oura: olha o mês inteiro, não o dia. Junta a média de 31 dias de HRV, sono, estresse da Garmin e FC de repouso contra o seu normal (os mesmos sinais do REC), o aumento de noites com horário irregular e os dias com Fadiga acima do Fitness.</p>
+      <p>Baixo: o mês está no seu normal. Moderado: algum sinal pesando há semanas. Alto: vários sinais abaixo do normal por muito tempo, quando o risco de desgaste e de ficar doente sobe.</p>
+    </details>`;
+}
+
+// I6 · Idade fitness e VO2máx (Garmin)
+async function fageSec(box, api) {
+  const sec = box.querySelector('#fage');
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await api('/api/fitness-age'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const fa = d.fitnessAge;
+  const last = (xs) => (xs.length ? xs[xs.length - 1] : null);
+  const first90 = (xs) => { const lim = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10); return xs.find((x) => x.date >= lim) ?? null; };
+  const row = (sp, l) => { const xs = d.vo2[sp]; const a = last(xs), b = first90(xs); if (!a) return ''; const dv = b ? Math.round((a.vo2 - b.vo2) * 10) / 10 : null;
+    return `<li><span>VO2máx ${l}</span><span class="meta"><b>${nf(a.vo2)}</b>${dv ? ` · ${dv > 0 ? '+' : '−'}${nf(Math.abs(dv), 1)} em 3 meses` : ''}</span></li>`; };
+  const vo2 = row('corrida', 'corrida') + row('bike', 'bike');
+  sec.innerHTML = `
+    ${fa?.fitnessAge != null ? `<p class="headline">Idade fitness <b>${nf(fa.fitnessAge)}</b>${fa.chronologicalAge ? ` (idade real ${nf(fa.chronologicalAge)})` : ''}${fa.achievable ? `. Possível chegar a ${nf(fa.achievable)}.` : '.'}</p>` : `<p class="note">${fa?.error ? `A Garmin não entregou a idade fitness (${esc(fa.error)}).` : 'Idade fitness indisponível.'}</p>`}
+    ${vo2 ? `<ul class="acts">${vo2}</ul>` : '<p class="note">Os treinos ainda não trouxeram o VO2máx da Garmin. Garmin → Buscar 90 dias preenche os anteriores.</p>'}
+    <p class="note">Calculados pela Garmin: a idade fitness usa VO2máx, FC de repouso, minutos intensos e peso; o VO2máx vem das corridas e pedais ao ar livre com FC (e potência na bike). Atualiza uma vez por mês (idade) e a cada treino (VO2máx).</p>`;
+}
+
 let raceCache = null;
 const raceData = (api) => (raceCache ??= api('/api/race').catch((e) => { raceCache = null; throw e; }));
 

@@ -68,6 +68,8 @@ export async function renderActivity(screen, api, id) {
       <p class="ad-date">${esc(date.charAt(0).toUpperCase() + date.slice(1))} · ${esc(a.time ?? '')}</p>
     </section>
 
+    ${a.insights?.length ? `<section class="ad-card ad-ins"><span class="ad-lab">Destaques</span><ul>${a.insights.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></section>` : ''}
+
     ${bName ? `<section class="ad-card ad-benefit">
       <span class="ad-lab">Para que serviu</span>
       <b>${esc(bName)}</b>

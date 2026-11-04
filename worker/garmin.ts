@@ -26,7 +26,7 @@ export interface GarminActivity {
   min: number | null; km: number | null; avghr: number | null; maxhr: number | null;
   load: number | null; te_aer: number | null; rpe: number | null; feel: number | null;
   z: (number | null)[]; // minutos nas zonas 1–5
-  extra?: { name: string | null; te_label: string | null; kcal: number | null; kcal_bmr: number | null; elev: number | null; speed: number | null; maxspeed: number | null; power: number | null; te_ana: number | null; cadence: number | null };
+  extra?: { name: string | null; te_label: string | null; vo2: number | null; kcal: number | null; kcal_bmr: number | null; elev: number | null; speed: number | null; maxspeed: number | null; power: number | null; te_ana: number | null; cadence: number | null };
 }
 
 export class GarminError extends Error {
@@ -171,6 +171,7 @@ export function parseActivity(a: any): GarminActivity | null {
       te_label: typeof a.trainingEffectLabel === 'string' ? a.trainingEffectLabel.slice(0, 40)
         : typeof a.aerobicTrainingEffectMessage === 'string' ? a.aerobicTrainingEffectMessage.slice(0, 40) : null,
       kcal: first(a.calories), kcal_bmr: first(a.bmrCalories),
+      vo2: first(a.vO2MaxValue, a.vO2MaxPreciseValue),
       elev: first(a.elevationGain), speed: first(a.averageSpeed), maxspeed: first(a.maxSpeed),
       power: first(a.avgPower, a.averagePower), te_ana: first(a.anaerobicTrainingEffect),
       cadence: first(a.averageRunningCadenceInStepsPerMinute, a.averageBikingCadenceInRevPerMinute, a.averageSwimCadenceInStrokesPerMinute),
@@ -284,6 +285,16 @@ export function parseHrZones(j: any) {
     out[key] = { floors: floors as number[], max: n(z?.maxHeartRateUsed), rest: n(z?.restingHeartRateUsed), method: typeof z?.trainingMethod === 'string' ? z.trainingMethod : null };
   }
   return out;
+}
+
+/** Idade fitness da Garmin (bruto + campos principais, procurados pelo nome). */
+export async function fetchFitnessAge(env: GarminEnv, date: string) {
+  const j = await get(env, `/fitnessage-service/fitnessage/v2/${date}`);
+  return {
+    fitnessAge: first(j?.fitnessAge) ?? findNum(j, (k) => /^fitnessAge$/i.test(k)),
+    chronologicalAge: first(j?.chronologicalAge) ?? findNum(j, (k) => /chronological/i.test(k)),
+    achievable: first(j?.achievableFitnessAge) ?? findNum(j, (k) => /achievable/i.test(k)),
+  };
 }
 
 /** Zonas de FC configuradas no Garmin (bruto). */

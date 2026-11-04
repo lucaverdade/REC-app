@@ -8,12 +8,13 @@ import { bedtimeTarget, debtLevel, irregularNights, regularity, regularityScore,
 import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
 import { hrvTrendNow } from '../src/hrvtrend.ts';
 import { illnessAlert } from '../src/illness.ts';
+import { cumulativeStress, loadFocus, trainingStatus, workoutInsights } from '../src/insights.ts';
 import { ARACAJU, climatology, parseForecast, type HourRow } from '../src/weather.ts';
 import { longTrend } from '../src/longtrend.ts';
 import { dailySummary, recTrend } from '../src/daily.ts';
 import { strainTargetV2 } from '../src/target.ts';
 import { recoveryVerdict } from '../src/verdict.ts';
-import { fetchActivities, fetchActivityFile, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
+import { fetchActivities, fetchActivityFile, fetchFitnessAge, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
 export interface Env {
@@ -70,7 +71,7 @@ async function ensureSchema(env: Env) {
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
   // migrações de colunas (ignora "duplicate column" quando já existem)
-  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN te_label TEXT', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
+  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN te_label TEXT', 'ALTER TABLE activities ADD COLUMN vo2 REAL', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
     try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
   }
   schemaReady = true;
@@ -97,7 +98,7 @@ async function writeDays(env: Env, days: GarminDay[]) {
 async function writeActivities(env: Env, acts: GarminActivity[]) {
   // remove linhas do export do mesmo treino (mesma data, hora e tipo) para não duplicar
   const del = env.DB.prepare(`DELETE FROM activities WHERE date = ?1 AND time = ?2 AND type = ?3 AND id <> ?4`);
-  const ex = env.DB.prepare(`UPDATE activities SET name = ?2, kcal = ?3, kcal_bmr = ?4, elev = ?5, speed = ?6, maxspeed = ?7, power = ?8, te_ana = ?9, cadence = ?10, te_label = ?11 WHERE id = ?1`);
+  const ex = env.DB.prepare(`UPDATE activities SET name = ?2, kcal = ?3, kcal_bmr = ?4, elev = ?5, speed = ?6, maxspeed = ?7, power = ?8, te_ana = ?9, cadence = ?10, te_label = ?11, vo2 = ?12 WHERE id = ?1`);
   const st = env.DB.prepare(
     `INSERT INTO activities (id, date, time, type, sport, min, km, avghr, maxhr, load, te_aer, rpe, feel, z1, z2, z3, z4, z5)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
@@ -115,7 +116,7 @@ async function writeActivities(env: Env, acts: GarminActivity[]) {
   await env.DB.batch(acts.flatMap((a) => [
     del.bind(a.date, a.time, a.type, a.id),
     st.bind(a.id, a.date, a.time, a.type, sportOf(a.type), a.min, a.km, a.avghr, a.maxhr, a.load, a.te_aer, a.rpe, a.feel, ...a.z),
-    ...(a.extra ? [ex.bind(a.id, a.extra.name, a.extra.kcal, a.extra.kcal_bmr, a.extra.elev, a.extra.speed, a.extra.maxspeed, a.extra.power, a.extra.te_ana, a.extra.cadence, a.extra.te_label)] : []),
+    ...(a.extra ? [ex.bind(a.id, a.extra.name, a.extra.kcal, a.extra.kcal_bmr, a.extra.elev, a.extra.speed, a.extra.maxspeed, a.extra.power, a.extra.te_ana, a.extra.cadence, a.extra.te_label, a.extra.vo2)] : []),
   ]));
   return acts.length;
 }
@@ -673,6 +674,12 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
   const phase = req ? (await readPlan(env, req, mondayOf(date)))?.fase ?? null : null;
+  const tomorrow = req ? await (async () => {
+    const t = addDays(date, 1), pl = await readPlan(env, req, mondayOf(t));
+    if (!pl) return null;
+    const rates = await strainRates(env, date);
+    return { date: t, sessions: (pl.dias?.[t] ?? []).map((p) => { const sp = normSport(p.modalidade); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, chave: !!p.chave, strain: plannedStrainEst(p, rates).v }; }) };
+  })() : null;
   const planned = await (async () => {
     if (!req) return [] as { label: string; sport: Sport; titulo: string | null; minutos: number | null; zona: string | null; strain: number | null; strainSrc: string | null }[];
     const plan = await readPlan(env, req, mondayOf(date));
@@ -753,7 +760,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       };
     })(),
     planned,
-    phase,
+    phase, tomorrow,
     sleep: {
       night: lastNight && { hours: lastNight.sleep_h, start: lastNight.sleep_start?.slice(11) ?? null, end: lastNight.sleep_end?.slice(11) ?? null },
       napYesterday: yesterdayNap,
@@ -847,7 +854,11 @@ async function activityPayload(env: Env, id: string, req?: Request) {
   const z = [a.z1, a.z2, a.z3, a.z4, a.z5];
   const has = z.some((v) => v != null), inZ = z.reduce((x: number, v: number | null) => x + (v ?? 0), 0);
   const active = a.kcal != null ? (a.kcal_bmr != null ? a.kcal - a.kcal_bmr : a.kcal) : null;
+  const { results: past } = await env.DB.prepare(`SELECT id, date, type, min, km, avghr, ${STRAIN_SQL} strain FROM activities WHERE sport = ?1 AND date BETWEEN ?2 AND ?3 AND min >= 10`)
+    .bind(a.sport, addDays(a.date, -365), a.date).all<{ id: string; date: string; type: string | null; min: number; km: number | null; avghr: number | null; strain: number | null }>();
+  const insights = workoutInsights({ id: a.id, date: a.date, type: a.type, min: a.min ?? 0, km: a.km, avghr: a.avghr, strain: a.strain, sport: a.sport, label: SPORT_LABEL[a.sport as Sport] }, past);
   return {
+    insights,
     id: a.id, date: a.date, time: a.time, type: a.type, sport: a.sport as Sport, label: SPORT_LABEL[a.sport as Sport], name: a.name ?? null,
     indoor: /indoor|virtual|treadmill|trainer|pool/i.test(a.type ?? ''),
     min: a.min, km: a.km, avghr: a.avghr, maxhr: a.maxhr, rpe: a.rpe,
@@ -909,6 +920,52 @@ async function heatPayload(env: Env, req: Request) {
     sessions: last14.reverse(), count14: last14.length, minutes14: last14.reduce((a, x) => a + x.min, 0),
     daysSince: last ? daysBetween(last.date, today) : null, weather: !!temps,
   };
+}
+
+// --- I1 + I2: foco da carga e status de treino ---
+async function loadInsightsPayload(env: Env) {
+  const today = brtToday();
+  const ln = await loadOn(env, today);
+  const h = await hrvTrendOn(env, today);
+  const status = trainingStatus({ fitness4w: ln.fitness4w, acwr: ln.tgt.acwr, formPct: ln.formPct, hrvCls: h?.cls ?? null });
+  const { results } = await env.DB.prepare(`SELECT min, z1, z2, z3, z4, z5 FROM activities WHERE date BETWEEN ?1 AND ?2 AND sport <> 'academia'`)
+    .bind(addDays(today, -27), today).all<{ min: number | null; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null }>();
+  const focus = loadFocus(results.map((r) => ({ min: r.min, z: [r.z1, r.z2, r.z3, r.z4, r.z5] })));
+  return { status: { ...status, hrv: h ? h.label : null }, focus };
+}
+
+// --- I5: estresse acumulado em 31 dias ---
+async function stress31Payload(env: Env) {
+  const today = brtToday(), from = addDays(today, -30);
+  const { results: z } = await env.DB.prepare('SELECT z_hrv, z_rhr, z_sleep, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2').bind(from, today)
+    .all<{ z_hrv: number | null; z_rhr: number | null; z_sleep: number | null; z_stress: number | null }>();
+  const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+    .bind(addDays(today, -140), today).all<SleepNight>();
+  const irr = irregularNights(nights);
+  const pct = (xs: { irregular: boolean }[]) => (xs.length >= 10 ? Math.round((xs.filter((x) => x.irregular).length / xs.length) * 100) : null);
+  const loads = await dailyLoads(env, addDays(today, -400), today);
+  const p = pmc(loads).filter((d) => d.date >= from);
+  const r = cumulativeStress({
+    z: { hrv: z.map((x) => x.z_hrv), rhr: z.map((x) => x.z_rhr), sleep: z.map((x) => x.z_sleep), stress: z.map((x) => x.z_stress) },
+    irregularPct: pct(irr.filter((x) => x.date >= from)), irregularPctBefore: pct(irr.filter((x) => x.date < from && x.date >= addDays(from, -90))),
+    fatigueAboveDays: p.filter((d) => d.fatigue > d.fitness).length,
+  });
+  return r;
+}
+
+// --- I6: idade fitness (Garmin, cache mensal) e VO2máx das atividades ---
+async function fitnessAgePayload(env: Env) {
+  const today = brtToday();
+  type FA = { month: string; fitnessAge: number | null; chronologicalAge: number | null; achievable: number | null; error?: string; at?: number };
+  let fa = await getSetting<FA>(env, 'fitness_age');
+  if (!fa || fa.month !== today.slice(0, 7) || (fa.error && Date.now() - (fa.at ?? 0) > 864e5)) {
+    try { fa = { month: today.slice(0, 7), ...(await fetchFitnessAge(env, today)) }; }
+    catch (e) { fa = { month: today.slice(0, 7), fitnessAge: null, chronologicalAge: null, achievable: null, error: garminMsg(e), at: Date.now() }; }
+    await setSetting(env, 'fitness_age', fa);
+  }
+  const { results } = await env.DB.prepare(`SELECT date, sport, vo2 FROM activities WHERE vo2 IS NOT NULL AND date >= ?1 ORDER BY date`).bind(addDays(today, -365)).all<{ date: string; sport: Sport; vo2: number }>();
+  const series = (sp: Sport) => results.filter((r) => r.sport === sp).map((r) => ({ date: r.date, vo2: r.vo2 }));
+  return { fitnessAge: fa, vo2: { corrida: series('corrida'), bike: series('bike') } };
 }
 
 // --- tendência do HRV (A2) ---
@@ -1039,6 +1096,9 @@ export default {
       const a = await activityPayload(env, url.searchParams.get('id') ?? '', req);
       return a ? json(a) : json({ error: 'nao_encontrado' }, 404);
     }
+    if (url.pathname === '/api/load-insights' && req.method === 'GET') return json(await loadInsightsPayload(env));
+    if (url.pathname === '/api/stress31' && req.method === 'GET') return json(await stress31Payload(env));
+    if (url.pathname === '/api/fitness-age' && req.method === 'GET') return json(await fitnessAgePayload(env));
     if (url.pathname === '/api/hrvtrend' && req.method === 'GET') return json(await hrvTrendOn(env, brtToday()));
     if (url.pathname === '/api/review' && req.method === 'GET') {
       const m = url.searchParams.get('monday');

@@ -45,6 +45,8 @@ Lista viva do que o Luca pediu para depois.
 - [x] **H SpO2** (04/11): mostrado e retirado no mesmo dia (não entra no REC). O app só guarda o valor da Garmin, sem tela.
 - [ ] **Validar Body Battery × REC (por volta de 25/11)**: o app guarda Body Battery ao acordar e máximo do dia desde 04/11, sem mostrar. Cruzar com o REC (correlação e dias em que discordam) e reportar ao Luca.
 
+- [x] **I1–I6** (04/11): status de treino, foco da carga, destaques do treino, aviso da véspera, estresse acumulado (31 dias), idade fitness e VO2máx da Garmin. Ver Guia 8f. Idade fitness: confirmar se a Garmin entrega para a chave pessoal.
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 

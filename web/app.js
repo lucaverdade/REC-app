@@ -380,6 +380,18 @@ function morningHtml(d) {
   </section>`;
 }
 
+// ---------- aviso da véspera (I4): a partir das 17 h, o que vem amanhã e a meta de sono ----------
+function tomorrowHtml(d) {
+  if (!d.isToday || new Date().getHours() < 17 || !d.tomorrow) return '';
+  const ss = d.tomorrow.sessions ?? [], key = ss.find((x) => x.chave), need = d.sleep?.need, bed = d.sleep?.bedtime;
+  const wd = new Date(d.tomorrow.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' });
+  return `<section class="tmr" aria-label="Amanhã">
+    <span class="mr-lab">Amanhã, ${esc(wd)}</span>
+    ${ss.length ? `<ul class="mr-plan">${ss.map((p) => `<li><i class="dot s-${p.sport}"></i><span>${esc(p.titulo || p.label)}${p.chave ? ' <em class="tmr-key">chave</em>' : ''}</span><em>${p.minutos ? `${p.minutos} min` : ''}${p.zona ? ` · ${esc(p.zona)}` : ''}</em></li>`).join('')}</ul>` : '<p class="mr-meta">Sem treino no plano: descanso.</p>'}
+    ${need ? `<p class="tmr-sleep">Hoje à noite: meta <b>${hmm(need.total)}</b>${bed ? ` · deitar até <b>${esc(bed.bedtime)}</b>` : ''}${key ? ' (véspera de sessão-chave)' : ''}</p>` : ''}
+  </section>`;
+}
+
 // ---------- Forma: medidor semicircular com as faixas (como o anel do REC) ----------
 const G = { min: -50, max: 40 };
 function gaugeSvg(pct) {
@@ -440,6 +452,7 @@ function render(d) {
     ${d.syncIssue ? `<a class="alert sync-alert" role="status" href="#garmin">${esc(d.syncIssue.text)} <em>Garmin ›</em></a>` : ''}
 
     ${morningHtml(d)}
+    ${tomorrowHtml(d)}
     <div id="hoje-review"></div>
 
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Modo prova ›</em></a>` : ''}

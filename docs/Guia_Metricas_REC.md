@@ -115,6 +115,14 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - **Diário de hábitos e impacto** (`src/habits.ts`): REC da manhã seguinte com × sem cada marcação, desde o primeiro uso; precisa de 5 dias de cada lado. Horário irregular = deitar ou acordar > 60 min da mediana das 14 noites anteriores.
 - **Deitar até** (`src/sleep.ts`): acordar típico (mediana, mesmo tipo de dia) − meta da noite − tempo acordado na cama (mediana) − 15 min. **Regularidade** = 100 − 1,2 × média dos desvios de deitar e acordar (min).
 
+## 8f. Leituras inspiradas em Garmin, Oura, Whoop e Strava (04/11) — `src/insights.ts`
+- **Status de treino** (Garmin Training Status): Sobrecarga se razão aguda/crônica > 1,5 ou (Forma < −30% e HRV em fadiga/risco); Pico se Forma ≥ +5% e Fitness em 4 semanas ≥ −5%; Carga sem resposta se Fitness 4 sem ≥ +5% e HRV em fadiga/risco; Produtivo se Fitness 4 sem ≥ +5%; Recuperando se razão < 0,8; Perdendo forma se Fitness 4 sem ≤ −5%; senão Mantendo.
+- **Foco da carga** (Garmin Load Focus): Strain de 4 semanas dividido em aeróbico leve (abaixo da Z1 × 0,5 + Z1 + Z2 × 2), aeróbico forte (Z3 × 3 + Z4 × 4) e anaeróbico (Z5 × 5). Referência: 55–75%, 20–40%, 3–12%.
+- **Estresse acumulado** (Oura Cumulative Stress): 31 dias. Média dos z do REC (HRV 2, sono 1,5, estresse 1,5, FC 1; só o lado ruim) + aumento de noites irregulares contra os 90 dias anteriores (0,5) + dias com Fadiga acima do Fitness (0,5). < 0,15 baixo, < 0,4 moderado, senão alto.
+- **Destaques do treino** (Strava): maior Strain da modalidade em 6 semanas; mais longo desde…; FC média ≥ 5 bpm diferente dos treinos do mesmo tipo (rua × indoor) e duração parecida (±25%) em 90 dias. Sem comparar ritmo (vento, subida, calor).
+- **Aviso da véspera** (Whoop): a partir das 17 h, sessões de amanhã (plano) e a meta de sono/horário de deitar.
+- **Idade fitness e VO2máx**: valores da Garmin (`/fitnessage-service/fitnessage/v2/{data}`, mensal; `vO2MaxValue` das atividades).
+
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)
 - Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.
