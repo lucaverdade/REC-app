@@ -47,6 +47,11 @@ Lista viva do que o Luca pediu para depois.
 
 - [x] **I1–I6** (04/11): status de treino, foco da carga, destaques do treino, aviso da véspera, estresse acumulado (31 dias), idade fitness e VO2máx da Garmin. Ver Guia 8f. Idade fitness: confirmar se a Garmin entrega para a chave pessoal.
 
+- [x] **Velocidade** (04/11): respostas GET guardadas no D1 por versão dos dados (`api_cache`); qualquer escrita invalida; a rotina aquece Hoje e Tendências depois de buscar dados. Aba Hoje: ~140 ms → ~15 ms no teste local.
+- [x] **Coerência das leituras** (04/11): status de treino só diz "corpo cansado" com duas confirmações (HRV + recuperação de 7 dias); respostas das abas citam os sinais de apoio; tabela "qual leitura responde o quê" no Guia (8.0).
+- [x] **Completar treinos (12 meses)** (04/11): Garmin → Completar treinos troca as linhas do CSV pelas da API (sem duplicar), em janelas de 31 dias. **Pendente: o Luca rodar (antes de recalcular zonas).**
+- [x] **Calibração do REC preparada** (04/11): Tendências → Corpo → "O REC acerta?": REC × "como me sinto", progresso até 40 notas, REC médio por faixa de nota e o sinal que mais acompanha. **Calibrar de fato depois de Aracaju.**
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 

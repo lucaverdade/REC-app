@@ -956,3 +956,4 @@ body.is-share main { padding-bottom: 0; }
 .tmr { margin: 0 0 16px; padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
 .tmr-key { font-style: normal; font-size: 11px; padding: 1px 6px; margin-left: 4px; border-radius: 6px; border: 1px solid var(--accent); color: var(--accent); }
 .tmr-sleep { margin: 10px 0 0; font-size: 14px; color: var(--text-2); } .tmr-sleep b { color: var(--sleep); font-weight: 500; }
+.t-why { display: block; margin-top: 6px; font-size: 13px; line-height: 1.4; color: var(--text-2); }

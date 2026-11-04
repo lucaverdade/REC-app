@@ -4,7 +4,7 @@
 // Cruza: Fitness em 4 semanas (%), razão aguda/crônica, Forma (%) e tendência do HRV (A2).
 export const STATUS = {
   sobrecarga: { label: 'Sobrecarga', txt: 'Carga recente bem acima do costume, com o corpo dando sinal. Risco de acumular cansaço demais.' },
-  nao_produtivo: { label: 'Carga sem resposta', txt: 'O Fitness está subindo, mas o HRV mostra fadiga: o corpo não está absorvendo bem a carga.' },
+  nao_produtivo: { label: 'Carga sem resposta', txt: 'Treinando no ritmo de costume, mas o HRV e a recuperação da semana mostram fadiga: o corpo não está absorvendo bem a carga.' },
   produtivo: { label: 'Produtivo', txt: 'Fitness subindo e corpo respondendo bem: a carga está virando condicionamento.' },
   pico: { label: 'Pico', txt: 'Descansado e com o Fitness preservado: o ponto que se busca antes de uma prova.' },
   recuperando: { label: 'Recuperando', txt: 'Semana mais leve que o costume: o cansaço está saindo.' },
@@ -13,18 +13,31 @@ export const STATUS = {
 } as const;
 export type StatusKey = keyof typeof STATUS;
 
-export function trainingStatus(i: { fitness4w: number | null; acwr: number | null; formPct: number | null; hrvCls: string | null }) {
+// Coerência (04/11): "corpo cansado" só conta com DUAS confirmações independentes —
+// tendência do HRV (fadiga ou risco) E resposta de recuperação dos 7 dias (um pouco abaixo, abaixo ou não recuperando).
+// Assim o status não diz "Produtivo/Mantendo" quando a aba Corpo diz que o corpo não está absorvendo.
+export function trainingStatus(i: { fitness4w: number | null; acwr: number | null; formPct: number | null; hrvCls: string | null; recovery?: string | null }) {
   const f = i.fitness4w ?? 0, r = i.acwr ?? 1, form = i.formPct ?? 0;
-  const tired = i.hrvCls === 'fadiga' || i.hrvCls === 'risco';
+  const hrvTired = i.hrvCls === 'fadiga' || i.hrvCls === 'risco';
+  const recLow = i.recovery === 'atencao' || i.recovery === 'abaixo' || i.recovery === 'ruim';
+  const tired = hrvTired && (i.recovery == null || recLow);
   let k: StatusKey;
   if (r > 1.5 || (form < -30 && tired)) k = 'sobrecarga';
-  else if (form >= 5 && f >= -5) k = 'pico';
-  else if (f >= 5 && tired) k = 'nao_produtivo';
+  else if (form >= 5 && f >= -5 && !tired) k = 'pico';
+  else if (tired && r >= 0.8) k = 'nao_produtivo';
+  else if (tired) k = 'recuperando';
   else if (f >= 5) k = 'produtivo';
   else if (r < 0.8 && f > -10) k = 'recuperando';
   else if (f <= -5) k = 'caindo';
   else k = 'mantendo';
-  return { key: k, ...STATUS[k], inputs: i };
+  // por quê, com os números (para a resposta citar os sinais de apoio)
+  const why = [
+    i.fitness4w == null ? null : `Fitness ${f > 0 ? '+' : f < 0 ? '−' : ''}${Math.abs(f)}% em 4 semanas`,
+    i.acwr == null ? null : `carga da semana ${String(Math.round(r * 10) / 10).replace('.', ',')}× o costume`,
+    hrvTired ? `HRV em ${i.hrvCls === 'risco' ? 'risco de má adaptação' : 'fadiga acumulada'}` : i.hrvCls ? 'HRV no normal' : null,
+    i.recovery ? (recLow ? 'recuperação da semana abaixo do normal' : 'recuperação da semana no normal') : null,
+  ].filter(Boolean).join(', ');
+  return { key: k, ...STATUS[k], why, inputs: i };
 }
 
 // ---------- I1 · Foco da carga (estilo Garmin Load Focus) ----------

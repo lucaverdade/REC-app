@@ -115,6 +115,16 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - **Diário de hábitos e impacto** (`src/habits.ts`): REC da manhã seguinte com × sem cada marcação, desde o primeiro uso; precisa de 5 dias de cada lado. Horário irregular = deitar ou acordar > 60 min da mediana das 14 noites anteriores.
 - **Deitar até** (`src/sleep.ts`): acordar típico (mediana, mesmo tipo de dia) − meta da noite − tempo acordado na cama (mediana) − 15 min. **Regularidade** = 100 − 1,2 × média dos desvios de deitar e acordar (min).
 
+## 8.0 Qual leitura responde o quê (coerência, 04/11)
+| Pergunta | Resposta principal | Sinais de apoio (explicam, não competem) | Janela |
+|---|---|---|---|
+| Como acordei hoje? | **REC** | contribuintes do REC, frase do dia | 1 noite |
+| Meu corpo está recuperando? | **Resposta de recuperação** (verdict) | tendência do HRV, estresse acumulado | 7 dias (apoio: 7 noites; 31 dias) |
+| Estou treinando no ritmo certo? | **Status de treino** | Forma, Fitness, carga da semana, foco da carga | 4 semanas |
+| Quanto treinar hoje? | **Meta de Strain** | REC, recuperação, semana | hoje |
+| Como estou para a prova? | **Forma prevista no dia da prova** | previsões, calor | até 29/11 |
+- Regra de coerência: o status só diz "corpo cansado" (Carga sem resposta, Sobrecarga, Recuperando por fadiga) quando **duas** leituras independentes concordam: tendência do HRV em fadiga/risco **e** recuperação dos 7 dias abaixo do normal. As respostas das abas citam os sinais de apoio ("Por quê: …").
+
 ## 8f. Leituras inspiradas em Garmin, Oura, Whoop e Strava (04/11) — `src/insights.ts`
 - **Status de treino** (Garmin Training Status): Sobrecarga se razão aguda/crônica > 1,5 ou (Forma < −30% e HRV em fadiga/risco); Pico se Forma ≥ +5% e Fitness em 4 semanas ≥ −5%; Carga sem resposta se Fitness 4 sem ≥ +5% e HRV em fadiga/risco; Produtivo se Fitness 4 sem ≥ +5%; Recuperando se razão < 0,8; Perdendo forma se Fitness 4 sem ≤ −5%; senão Mantendo.
 - **Foco da carga** (Garmin Load Focus): Strain de 4 semanas dividido em aeróbico leve (abaixo da Z1 × 0,5 + Z1 + Z2 × 2), aeróbico forte (Z3 × 3 + Z4 × 4) e anaeróbico (Z5 × 5). Referência: 55–75%, 20–40%, 3–12%.

@@ -681,6 +681,13 @@ async function renderGarmin() {
     </section>
 
     <section class="block">
+      <h2>Completar treinos (12 meses)</h2>
+      <p class="note">Os treinos que vieram do arquivo inicial não têm o identificador da Garmin, então ficam sem calorias, nome, efeito de treino e VO2máx, e o recálculo de zonas não chega neles. Isto busca os treinos do último ano direto da API e troca as linhas antigas pelas completas (sem duplicar). Faça antes de recalcular as zonas.</p>
+      <button class="btn" id="acts12" ${st.hasKey ? '' : 'disabled'}>Completar treinos</button>
+      <p class="progress" id="acts12-out" aria-live="polite"></p>
+    </section>
+
+    <section class="block">
       <h2>Zonas do histórico</h2>
       <p class="note">Os treinos até 02/11 usam as zonas que estavam no Garmin na época (bike e natação mudaram em 03/11). Isto relê o arquivo de cada treino do último ano (bike, corrida, natação e Hyrox) e refaz o tempo em zona com as suas zonas atuais. Strain, Fitness, Fadiga e Forma mudam junto. Dá para desfazer.</p>
       <button class="btn ghost" id="zcur" ${st.hasKey ? '' : 'disabled'}>Ver zonas atuais</button>
@@ -701,6 +708,33 @@ async function renderGarmin() {
       <h2>Últimas sincronizações</h2>
       ${st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>'}
     </section>`;
+
+  // completar treinos: janelas de 31 dias do mais antigo para o mais recente; retoma de onde parou
+  screen.querySelector('#acts12').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, out = screen.querySelector('#acts12-out'); btn.disabled = true;
+    const iso = (d) => d.toISOString().slice(0, 10), add = (s, n) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+    const today = iso(new Date(Date.now() - 3 * 3600e3));
+    let from = ls.get('rec.acts12') || add(today, -365), total = 0;
+    try {
+      while (from <= today) {
+        const to = add(from, 30) > today ? today : add(from, 30);
+        let tries = 0, r;
+        for (;;) {
+          try { r = await api(`/api/garmin/activities?from=${from}&to=${to}`, { method: 'POST' }); break; }
+          catch (e) {
+            if (/limite|429/.test(e.message) && tries < 6) { tries++; out.textContent = `A Garmin pediu pausa; tentando de novo em 60 s (${tries}/6)…`; await new Promise((ok) => setTimeout(ok, 60000)); continue; }
+            throw e;
+          }
+        }
+        total += r.atividades; ls.set('rec.acts12', add(to, 1));
+        out.textContent = `${from.split('-').reverse().slice(0, 2).join('/')} a ${to.split('-').reverse().slice(0, 2).join('/')}: ${r.atividades} treinos. Total ${total}.`;
+        from = add(to, 1);
+      }
+      out.textContent = `Pronto: ${total} treinos atualizados com os dados completos da Garmin.`;
+      try { localStorage.removeItem('rec.acts12'); } catch {}
+    } catch (e) { out.textContent = `Parou: ${e.message}. Toque de novo para continuar de onde parou.`; }
+    btn.disabled = false;
+  });
 
   // zonas do histórico
   const zout = screen.querySelector('#zrun-out');

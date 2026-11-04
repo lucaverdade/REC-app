@@ -50,6 +50,7 @@ const TABS = [
     ['habs', 'O que mexe no meu REC', 'Hábitos do diário e horário de sono', (b, a) => habits(b, a)],
     ['stress31', 'Estresse acumulado', 'O último mês contra o seu normal', (b, a) => stressSec(b, a)],
     ['fage', 'Idade fitness e VO2máx', 'Números da Garmin', (b, a) => fageSec(b, a)],
+    ['calib', 'O REC acerta?', 'REC × "como me sinto"', (b, a) => calibSec(b, a)],
   ] },
   { k: 'prova', l: 'Prova', q: 'Como estou para Aracaju?', secs: [
     ['pred', 'Previsões de corrida', '5 km, 10 km, meia e maratona', (b, a) => predictions(b, a)],
@@ -91,10 +92,11 @@ async function answer(screen, api, k) {
       const [t, r, li] = await Promise.all([longtrend(api, evoWin), api('/api/strain-weeks?weeks=4'), loadInsights(api).catch(() => null)]);
       const sm = t.summary, z = zoneOfPct(sm.formPct), w = r.weeks[r.weeks.length - 1];
       const st = { abaixo: 'abaixo da sua faixa', dentro: 'dentro da sua faixa', acima: 'acima da sua faixa', bem_acima: 'bem acima da sua faixa' }[w.status];
-      el.innerHTML = `${li?.status ? `<b class="st-${li.status.key}">${esc(li.status.label)}.</b> ${esc(li.status.txt)}<br>` : ''}${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>. ` : ''}${sm.fitness4wPct == null ? '' : sm.fitness4wPct === 0 ? 'Fitness estável em 4 semanas.' : `Fitness ${sm.fitness4wPct > 0 ? 'subiu' : 'caiu'} ${Math.abs(sm.fitness4wPct)}% em 4 semanas.`}`;
+      el.innerHTML = `${li?.status ? `<b class="st-${li.status.key}">${esc(li.status.label)}.</b> ${esc(li.status.txt)}${li.status.why ? `<small class="t-why">Por quê: ${esc(li.status.why)}.</small>` : ''}` : ''}<small class="t-why">${st ? `Semana ${st} (${nf(w.total)} de ${nf(w.lo)}–${nf(w.hi)}). ` : ''}${z ? `Forma <b class="z-${z.key}">${signed(sm.formPct)}%, ${z.label.toLowerCase()}</b>.` : ''}</small>`;
     } else if (k === 'corpo') {
-      const t = await longtrend(api, recWin);
-      el.innerHTML = t.verdict ? `<b>${esc(t.verdict.answer)}</b> ${esc(t.verdict.trendTxt)}` : 'Ainda sem dados suficientes.';
+      const [t, h, c] = await Promise.all([longtrend(api, recWin), api('/api/hrvtrend').catch(() => null), api('/api/stress31').catch(() => null)]);
+      const sig = [h ? `HRV de 7 noites: ${h.label.toLowerCase()}` : null, c ? `estresse do mês: ${c.label.toLowerCase()}` : null].filter(Boolean).join(' · ');
+      el.innerHTML = t.verdict ? `<b>${esc(t.verdict.answer)}</b> ${esc(t.verdict.trendTxt)}${sig ? `<small class="t-why">${esc(sig.charAt(0).toUpperCase() + sig.slice(1))}.</small>` : ''}` : 'Ainda sem dados suficientes.';
     } else {
       const d = await raceData(api);
       const pr = d.projection, end = pr?.raceDay ? { ...pr.raceDay, date: d.race.date } : pr?.end;
@@ -156,6 +158,22 @@ async function fageSec(box, api) {
     ${fa?.fitnessAge != null ? `<p class="headline">Idade fitness <b>${nf(fa.fitnessAge)}</b>${fa.chronologicalAge ? ` (idade real ${nf(fa.chronologicalAge)})` : ''}${fa.achievable ? `. Possível chegar a ${nf(fa.achievable)}.` : '.'}</p>` : `<p class="note">${fa?.error ? `A Garmin não entregou a idade fitness (${esc(fa.error)}).` : 'Idade fitness indisponível.'}</p>`}
     ${vo2 ? `<ul class="acts">${vo2}</ul>` : '<p class="note">Os treinos ainda não trouxeram o VO2máx da Garmin. Garmin → Buscar 90 dias preenche os anteriores.</p>'}
     <p class="note">Calculados pela Garmin: a idade fitness usa VO2máx, FC de repouso, minutos intensos e peso; o VO2máx vem das corridas e pedais ao ar livre com FC (e potência na bike). Atualiza uma vez por mês (idade) e a cada treino (VO2máx).</p>`;
+}
+
+// Calibração: REC × nota "como me sinto"
+async function calibSec(box, api) {
+  const sec = box.querySelector('#calib');
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await api('/api/calibration'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const SN = { hrv: 'HRV', sleep: 'Sono', rhr: 'FC de repouso', resp: 'Respiração', stress: 'Estresse' };
+  const pctDone = Math.min(100, Math.round((d.withRec / d.target) * 100));
+  const read = d.rho == null ? '' : d.rho >= 0.5 ? 'o REC acompanha bem como você se sente' : d.rho >= 0.3 ? 'o REC acompanha em parte como você se sente' : d.rho >= 0.1 ? 'relação fraca entre o REC e como você se sente' : 'o REC ainda não acompanha como você se sente';
+  sec.innerHTML = `
+    <p class="headline">${d.withRec} de ${d.target} notas "como me sinto" com REC.${d.withRec >= 15 && d.rho != null ? ` Concordância ${nf(d.rho, 2)}: ${read}.` : ' Com 15 notas aparece a primeira leitura.'}</p>
+    <div class="wk-bar"><i style="width:${pctDone}%"></i></div>
+    ${d.withRec >= 15 ? `<ul class="acts">${d.groups.filter((g) => g.n).map((g) => `<li><span>Dias em que se sentiu ${esc(g.label.toLowerCase())}</span><span class="meta">REC médio <b>${g.rec}</b> · ${g.n} dias</span></li>`).join('')}</ul>
+      <p class="note">Sinal que mais acompanha a sua nota: ${d.signals.filter((x) => x.rho != null).sort((a, b) => b.rho - a.rho).slice(0, 2).map((x) => `${SN[x.k]} (${nf(x.rho, 2)})`).join(', ') || '–'}.</p>` : ''}
+    <p class="note">${d.ready ? 'Já dá para calibrar: ajustar os pesos do REC para seguir melhor como você se sente.' : 'Marque a nota "como me sinto" na aba Hoje todo dia. Com 40 notas dá para ajustar os pesos e limites do REC (planejado para depois de Aracaju).'}</p>`;
 }
 
 let raceCache = null;

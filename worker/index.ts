@@ -8,6 +8,7 @@ import { bedtimeTarget, debtLevel, irregularNights, regularity, regularityScore,
 import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
 import { hrvTrendNow } from '../src/hrvtrend.ts';
 import { illnessAlert } from '../src/illness.ts';
+import { calibration } from '../src/calibration.ts';
 import { cumulativeStress, loadFocus, trainingStatus, workoutInsights } from '../src/insights.ts';
 import { ARACAJU, climatology, parseForecast, type HourRow } from '../src/weather.ts';
 import { longTrend } from '../src/longtrend.ts';
@@ -98,6 +99,10 @@ async function writeDays(env: Env, days: GarminDay[]) {
 async function writeActivities(env: Env, acts: GarminActivity[]) {
   // remove linhas do export do mesmo treino (mesma data, hora e tipo) para não duplicar
   const del = env.DB.prepare(`DELETE FROM activities WHERE date = ?1 AND time = ?2 AND type = ?3 AND id <> ?4`);
+  // linhas do CSV (id não numérico) do mesmo treino com hora arredondada diferente: mesma data e tipo, ±20 min e duração ±3 min
+  const delCsv = env.DB.prepare(`DELETE FROM activities WHERE date = ?1 AND type = ?2 AND id <> ?3 AND id GLOB '*[^0-9]*'
+    AND abs(COALESCE(min, 0) - ?4) < 3 AND time IS NOT NULL
+    AND abs((CAST(substr(time, 1, 2) AS INTEGER) * 60 + CAST(substr(time, 4, 2) AS INTEGER)) - ?5) <= 20`);
   const ex = env.DB.prepare(`UPDATE activities SET name = ?2, kcal = ?3, kcal_bmr = ?4, elev = ?5, speed = ?6, maxspeed = ?7, power = ?8, te_ana = ?9, cadence = ?10, te_label = ?11, vo2 = ?12 WHERE id = ?1`);
   const st = env.DB.prepare(
     `INSERT INTO activities (id, date, time, type, sport, min, km, avghr, maxhr, load, te_aer, rpe, feel, z1, z2, z3, z4, z5)
@@ -115,6 +120,7 @@ async function writeActivities(env: Env, acts: GarminActivity[]) {
   if (!acts.length) return 0;
   await env.DB.batch(acts.flatMap((a) => [
     del.bind(a.date, a.time, a.type, a.id),
+    delCsv.bind(a.date, a.type, a.id, a.min ?? 0, Number(a.time.slice(0, 2)) * 60 + Number(a.time.slice(3, 5))),
     st.bind(a.id, a.date, a.time, a.type, sportOf(a.type), a.min, a.km, a.avghr, a.maxhr, a.load, a.te_aer, a.rpe, a.feel, ...a.z),
     ...(a.extra ? [ex.bind(a.id, a.extra.name, a.extra.kcal, a.extra.kcal_bmr, a.extra.elev, a.extra.speed, a.extra.maxspeed, a.extra.power, a.extra.te_ana, a.extra.cadence, a.extra.te_label, a.extra.vo2)] : []),
   ]));
@@ -134,19 +140,19 @@ async function morningRoutine(env: Env, trigger: 'cron' | 'manual' | 'open') {
   const today = brtToday();
   // com a noite já no banco, a rotina vira "leve": só busca as atividades de ontem e hoje (treinos do dia)
   const light = await hasTonight(env, today);
-  let status = 'ok', detail = '';
+  let status = 'ok', detail = '', changed = false;
   try {
     if (!hasKey(env)) {
       status = 'sem_dados'; detail = 'garmin: sem_chave';
     } else if (light && trigger !== 'manual') {
       const na = await writeActivities(env, await fetchActivities(env, addDays(today, -1), today));
-      detail = `garmin: atividades (${na})`;
+      detail = `garmin: atividades (${na})`; changed = na > 0;
     } else {
       const from = addDays(today, -2);
       const { days } = await fetchDays(env, from, today);
       const nd = await writeDays(env, days);
       const na = await writeActivities(env, await fetchActivities(env, from, today));
-      detail = `garmin: ${nd} dias, ${na} atividades`;
+      detail = `garmin: ${nd} dias, ${na} atividades`; changed = nd > 0 || na > 0;
       if (!(await hasTonight(env, today))) status = 'sem_dados';
     }
     if (!(light && trigger !== 'manual')) detail += `; rec: ${await recompute(env, today)} dias`;
@@ -155,7 +161,7 @@ async function morningRoutine(env: Env, trigger: 'cron' | 'manual' | 'open') {
     detail = garminMsg(e);
   }
   await env.DB.prepare('INSERT INTO sync_log (trigger, status, detail) VALUES (?1, ?2, ?3)').bind(trigger, status, detail).run();
-  return { status, detail };
+  return { status, detail, changed };
 }
 
 // --- diagnóstico: API x banco (export), campo a campo ---
@@ -705,20 +711,8 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   for (const k of K) { empty.z[k] = null; empty.value[k] = null; empty.base[k] = null; }
   const t = today ?? empty;
 
-  // aviso de sincronização (só no dia de hoje): falha, noite que não chegou ou busca automática parada
   const minsSinceSync = lastSync?.at ? Math.round((Date.now() - Date.parse(String(lastSync.at).replace(' ', 'T') + 'Z')) / 60000) : null;
-  const syncIssue = await (async () => {
-    if (date !== brtToday()) return null;
-    const hhmm = (at: unknown) => { const d = new Date(Date.parse(String(at).replace(' ', 'T') + 'Z') - 3 * 3600e3); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
-    const hour = new Date(Date.now() - 3 * 3600e3).getUTCHours();
-    if (!lastSync) return { kind: 'nunca', text: 'O servidor ainda não buscou dados na Garmin.' };
-    const when = hhmm(lastSync.at);
-    if (lastSync.status === 'erro') return { kind: 'erro', text: `A última busca na Garmin falhou (${when}): ${String(lastSync.detail ?? '').slice(0, 160)}` };
-    if (String(lastSync.detail ?? '').includes('sem_chave')) return { kind: 'erro', text: 'A chave da Garmin não está cadastrada no servidor.' };
-    if (!(await hasTonight(env, date)) && hour >= 11) return { kind: 'noite', text: `A noite de hoje ainda não veio da Garmin (última busca às ${when}). O relógio precisa sincronizar com o Garmin Connect.` };
-    if (minsSinceSync != null && minsSinceSync > 90 && hour >= 5) return { kind: 'parado', text: `Última busca na Garmin há ${minsSinceSync >= 120 ? Math.floor(minsSinceSync / 60) + ' h' : minsSinceSync + ' min'} (às ${when}). A busca automática pode ter parado.` };
-    return null;
-  })();
+  const syncIssue = await syncIssueOf(env, date, lastSync, minsSinceSync);
 
   return {
     date,
@@ -922,12 +916,20 @@ async function heatPayload(env: Env, req: Request) {
   };
 }
 
+async function verdictOn(env: Env, date: string, zoneKey: string | null) {
+  const { results: zr } = await env.DB.prepare('SELECT date, z_hrv, z_rhr, z_sleep, z_resp, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
+    .bind(addDays(date, -6), date).all<Record<string, number | null>>();
+  return recoveryVerdict(zr.map((r) => ({ date: r.date as unknown as string, z: { hrv: r.z_hrv, rhr: r.z_rhr, sleep: r.z_sleep, resp: r.z_resp, stress: r.z_stress }, raw: {} })),
+    { zoneKey, fatigueAboveDays: 0, hrvBase: null, rhrBase: null, sleepNeed: 7.5 });
+}
+
 // --- I1 + I2: foco da carga e status de treino ---
 async function loadInsightsPayload(env: Env) {
   const today = brtToday();
   const ln = await loadOn(env, today);
   const h = await hrvTrendOn(env, today);
-  const status = trainingStatus({ fitness4w: ln.fitness4w, acwr: ln.tgt.acwr, formPct: ln.formPct, hrvCls: h?.cls ?? null });
+  const v7 = await verdictOn(env, today, ln.zone?.key ?? null);
+  const status = trainingStatus({ fitness4w: ln.fitness4w, acwr: ln.tgt.acwr, formPct: ln.formPct, hrvCls: h?.cls ?? null, recovery: v7?.level ?? null });
   const { results } = await env.DB.prepare(`SELECT min, z1, z2, z3, z4, z5 FROM activities WHERE date BETWEEN ?1 AND ?2 AND sport <> 'academia'`)
     .bind(addDays(today, -27), today).all<{ min: number | null; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null }>();
   const focus = loadFocus(results.map((r) => ({ min: r.min, z: [r.z1, r.z2, r.z3, r.z4, r.z5] })));
@@ -1061,12 +1063,84 @@ function authorized(req: Request, env: Env) {
 }
 const isDate = (s: string | null): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
+async function syncIssueOf(env: Env, date: string, lastSync: Record<string, unknown> | null, minsSinceSync: number | null) {
+    if (date !== brtToday()) return null;
+    const hhmm = (at: unknown) => { const d = new Date(Date.parse(String(at).replace(' ', 'T') + 'Z') - 3 * 3600e3); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+    const hour = new Date(Date.now() - 3 * 3600e3).getUTCHours();
+    if (!lastSync) return { kind: 'nunca', text: 'O servidor ainda não buscou dados na Garmin.' };
+    const when = hhmm(lastSync.at);
+    if (lastSync.status === 'erro') return { kind: 'erro', text: `A última busca na Garmin falhou (${when}): ${String(lastSync.detail ?? '').slice(0, 160)}` };
+    if (String(lastSync.detail ?? '').includes('sem_chave')) return { kind: 'erro', text: 'A chave da Garmin não está cadastrada no servidor.' };
+    if (!(await hasTonight(env, date)) && hour >= 11) return { kind: 'noite', text: `A noite de hoje ainda não veio da Garmin (última busca às ${when}). O relógio precisa sincronizar com o Garmin Connect.` };
+    if (minsSinceSync != null && minsSinceSync > 90 && hour >= 5) return { kind: 'parado', text: `Última busca na Garmin há ${minsSinceSync >= 120 ? Math.floor(minsSinceSync / 60) + ' h' : minsSinceSync + ' min'} (às ${when}). A busca automática pode ter parado.` };
+    return null;
+  }
+
+// --- cálculos prontos (03/11 → 04/11): respostas GET guardadas no D1 por "versão dos dados" ---
+// Qualquer escrita (sincronização com dado novo, nota, diário, recálculo…) sobe a versão e invalida tudo.
+// Campos que dependem do relógio (última busca, aviso de sincronização) são refeitos a cada abertura.
+const CACHEABLE = new Set(['/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
+  '/api/habits', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration']);
+const CACHE_TTL = 30 * 60e3; // também expira em 30 min (plano novo publicado, virada de hora)
+async function dataVer(env: Env) {
+  const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'data_ver'").first<{ value: string }>();
+  return Number(r?.value ?? 0);
+}
+async function bumpData(env: Env) {
+  await env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('data_ver', '1')
+    ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT), updated_at = datetime('now')`).run();
+}
+async function liveToday(env: Env, date: string) {
+  const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
+  const minsSinceSync = lastSync?.at ? Math.round((Date.now() - Date.parse(String(lastSync.at).replace(' ', 'T') + 'Z')) / 60000) : null;
+  return { lastSync, minsSinceSync, syncIssue: await syncIssueOf(env, date, lastSync, minsSinceSync) };
+}
+async function cachedGet(env: Env, url: URL, compute: () => Promise<Response>): Promise<Response> {
+  const key = `${url.pathname}?${url.searchParams.toString()}|${brtToday()}`;
+  const ver = await dataVer(env);
+  const hit = await env.DB.prepare('SELECT body, ver, at FROM api_cache WHERE key = ?1').bind(key).first<{ body: string; ver: number; at: number }>();
+  let body: string | null = hit && hit.ver === ver && Date.now() - hit.at < CACHE_TTL ? hit.body : null;
+  const fromCache = !!body;
+  if (!body) {
+    const res = await compute();
+    if (res.status !== 200) return res;
+    body = await res.text();
+    await env.DB.prepare('INSERT OR REPLACE INTO api_cache (key, ver, at, body) VALUES (?1, ?2, ?3, ?4)').bind(key, ver, Date.now(), body).run();
+  }
+  if (url.pathname === '/api/today') {
+    const d = JSON.parse(body);
+    if (d.isToday) Object.assign(d, await liveToday(env, d.date));
+    body = JSON.stringify(d);
+  }
+  return new Response(body, { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-rec-cache': fromCache ? 'hit' : 'miss' } });
+}
+/** Depois da rotina: deixa a aba Hoje e as Tendências principais calculadas. */
+async function warm(env: Env) {
+  const base = 'https://rec.internal';
+  for (const path of ['/api/today', '/api/load-insights', '/api/longtrend?days=56', '/api/strain-weeks?weeks=16', '/api/race']) {
+    const u = new URL(base + path);
+    try { await cachedGet(env, u, () => handle(new Request(u), env)); } catch { /* aquecimento é opcional */ }
+  }
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     if (!authorized(req, env)) return json({ error: 'nao_autorizado' }, 401);
     await ensureSchema(env);
+    if (req.method === 'GET' && CACHEABLE.has(url.pathname)) return cachedGet(env, url, () => handle(req, env));
+    const res = await handle(req, env);
+    if (req.method === 'POST' && res.status < 400) { await bumpData(env); if (url.pathname === '/api/refresh') await warm(env); }
+    return res;
+  },
+  async scheduled(_c: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil((async () => { await ensureSchema(env); const r = await morningRoutine(env, 'cron'); if (r.changed) { await bumpData(env); await warm(env); } })());
+  },
+} satisfies ExportedHandler<Env>;
+
+async function handle(req: Request, env: Env): Promise<Response> {
+    const url = new URL(req.url);
 
     if (url.pathname === '/api/today' && req.method === 'GET') {
       const d = url.searchParams.get('date');
@@ -1095,6 +1169,11 @@ export default {
     if (url.pathname === '/api/activity' && req.method === 'GET') {
       const a = await activityPayload(env, url.searchParams.get('id') ?? '', req);
       return a ? json(a) : json({ error: 'nao_encontrado' }, 404);
+    }
+    if (url.pathname === '/api/calibration' && req.method === 'GET') {
+      const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress
+        FROM feel_notes f LEFT JOIN rec_daily r ON r.date = f.date ORDER BY f.date`).all<Record<string, any>>();
+      return json(calibration(results.map((r) => ({ date: r.date, feel: r.feel, rec: r.rec, z: { hrv: r.z_hrv, sleep: r.z_sleep, rhr: r.z_rhr, resp: r.z_resp, stress: r.z_stress } }))));
     }
     if (url.pathname === '/api/load-insights' && req.method === 'GET') return json(await loadInsightsPayload(env));
     if (url.pathname === '/api/stress31' && req.method === 'GET') return json(await stress31Payload(env));
@@ -1249,15 +1328,21 @@ export default {
         return json({ from, to, dias: nd, atividades: na });
       } catch (e) { return json({ error: garminMsg(e) }, 502); }
     }
+    // só atividades (sem métricas diárias): completa o histórico de treinos pela API, até 62 dias por chamada
+    if (url.pathname === '/api/garmin/activities' && req.method === 'POST') {
+      if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);
+      const from = url.searchParams.get('from'), to = url.searchParams.get('to');
+      if (!isDate(from) || !isDate(to) || to < from || daysBetween(from, to) > 61) return json({ error: 'intervalo_invalido (máx. 62 dias)' }, 400);
+      try {
+        const na = await writeActivities(env, await fetchActivities(env, from, to));
+        const left = await env.DB.prepare("SELECT COUNT(*) n FROM activities WHERE date BETWEEN ?1 AND ?2 AND id GLOB '*[^0-9]*'").bind(from, to).first<{ n: number }>();
+        return json({ from, to, atividades: na, semId: left?.n ?? 0 });
+      } catch (e) { return json({ error: garminMsg(e) }, e instanceof GarminError && e.status === 429 ? 429 : 502); }
+    }
     if (url.pathname === '/api/recompute' && req.method === 'POST') {
       const to = url.searchParams.get('to');
       const keep = Math.min(Math.max(Number(url.searchParams.get('keep')) || 10, 1), 60);
       return json({ dias: await recompute(env, isDate(to) ? to : brtToday(), keep) });
     }
     return json({ error: 'nao_encontrado' }, 404);
-  },
-
-  async scheduled(_c: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(morningRoutine(env, 'cron'));
-  },
-} satisfies ExportedHandler<Env>;
+}

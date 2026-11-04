@@ -72,3 +72,11 @@ CREATE TABLE IF NOT EXISTS settings (
   value      TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- respostas prontas (cache por versão dos dados; ver worker/index.ts, cachedGet)
+CREATE TABLE IF NOT EXISTS api_cache (
+  key  TEXT PRIMARY KEY,
+  ver  INTEGER NOT NULL,
+  at   INTEGER NOT NULL,
+  body TEXT NOT NULL
+);
