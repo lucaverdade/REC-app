@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS activities (
   z1 REAL, z2 REAL, z3 REAL, z4 REAL, z5 REAL,  -- minutos em cada zona
   name TEXT, kcal REAL, kcal_bmr REAL, elev REAL, speed REAL, maxspeed REAL, power REAL, te_ana REAL, cadence REAL,
   te_label TEXT, vo2 REAL,
-  z_orig TEXT, z_src TEXT        -- zonas originais da Garmin e origem das atuais (fit = recalculadas)
+  z_orig TEXT, z_src TEXT, z_err TEXT        -- zonas originais da Garmin e origem das atuais (fit = recalculadas)
 );
 CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
 

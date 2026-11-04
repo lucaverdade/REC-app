@@ -5,7 +5,7 @@ import { renderRace } from './race.js';
 import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
 import { renderActivity } from './activity.js';
-import { recalcHistory } from './zones.js';
+import { recalcHistory, testOne } from './zones.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -692,6 +692,7 @@ async function renderGarmin() {
       <p class="note">Os treinos até 02/11 usam as zonas que estavam no Garmin na época (bike e natação mudaram em 03/11). Isto relê o arquivo de cada treino do último ano (bike, corrida, natação e Hyrox) e refaz o tempo em zona com as suas zonas atuais. Strain, Fitness, Fadiga e Forma mudam junto. Dá para desfazer.</p>
       <button class="btn ghost" id="zcur" ${st.hasKey ? '' : 'disabled'}>Ver zonas atuais</button>
       <div id="zcur-out"></div>
+      <button class="btn ghost" id="ztest" ${st.hasKey ? '' : 'disabled'}>Testar com 1 treino</button>
       <button class="btn" id="zrun" ${st.hasKey ? '' : 'disabled'}>Recalcular histórico</button>
       <button class="btn ghost" id="zundo">Desfazer</button>
       <p class="progress" id="zrun-out" aria-live="polite"></p>
@@ -752,8 +753,15 @@ async function renderGarmin() {
       const r = await recalcHistory(api, { onEach: ({ item, z, error, left }) => {
         zout.textContent = error ? `${item.date}: pulado (${error})` : `${item.date} ${item.sport}: ${z ? 'zonas refeitas' : 'sem FC no arquivo'}${left != null ? ` · faltam ${Math.max(0, left)}` : ''}`;
       } });
-      zout.textContent = r.busy ? 'Já está rodando.' : r.stop ?? `Pronto: ${r.done} treinos recalculados.`;
+      const errs = Object.entries(r.errors ?? {});
+      zout.textContent = r.busy ? 'Já está rodando.' : r.stop ?? (r.found === 0 ? 'Nenhum treino pendente para recalcular (todos já processados). Toque em "Desfazer" para refazer do zero.'
+        : `Pronto: ${r.done} treinos recalculados${r.noHr ? `, ${r.noHr} sem FC no arquivo` : ''}${errs.length ? `, ${errs.reduce((a, [, n]) => a + n, 0)} com erro (${errs.map(([m, n]) => `${m}: ${n}`).join('; ')})` : ''}.`);
     } catch (e) { zout.textContent = `Parou: ${e.message}`; }
+    btn.disabled = false;
+  });
+  screen.querySelector('#ztest').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget; btn.disabled = true; zout.textContent = 'Testando…';
+    try { zout.innerHTML = (await testOne(api)).map((x) => esc(x)).join('<br>'); } catch (e) { zout.textContent = `Falhou em: ${e.message}`; }
     btn.disabled = false;
   });
   screen.querySelector('#zundo').addEventListener('click', async () => {

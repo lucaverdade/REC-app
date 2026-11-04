@@ -72,7 +72,7 @@ async function ensureSchema(env: Env) {
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
   // migrações de colunas (ignora "duplicate column" quando já existem)
-  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN te_label TEXT', 'ALTER TABLE activities ADD COLUMN vo2 REAL', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
+  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN te_label TEXT', 'ALTER TABLE activities ADD COLUMN z_err TEXT', 'ALTER TABLE activities ADD COLUMN vo2 REAL', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
     try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
   }
   schemaReady = true;
@@ -1284,7 +1284,8 @@ async function handle(req: Request, env: Env): Promise<Response> {
       const { results } = await env.DB.prepare(`SELECT id, date, type, sport, min FROM activities WHERE ${where} ORDER BY date DESC LIMIT ?2`).bind(from, n).all();
       const left = await env.DB.prepare(`SELECT COUNT(*) n FROM activities WHERE ${where}`).bind(from).first<{ n: number }>();
       const done = await env.DB.prepare(`SELECT COUNT(*) n FROM activities WHERE z_src = 'fit'`).first<{ n: number }>();
-      return json({ pending: results, left: left?.n ?? 0, done: done?.n ?? 0 });
+      const { results: st } = await env.DB.prepare(`SELECT CASE WHEN id GLOB '*[^0-9]*' THEN 'sem_id' ELSE COALESCE(z_src, 'pendente') END s, COUNT(*) n FROM activities WHERE sport IN ('bike','corrida','natacao','hyrox') AND date >= ?1 AND date < '2026-11-03' GROUP BY 1`).bind(from).all<{ s: string; n: number }>();
+      return json({ pending: results, left: left?.n ?? 0, done: done?.n ?? 0, states: Object.fromEntries(st.map((x) => [x.s, x.n])) });
     }
     if (url.pathname === '/api/fit/file' && req.method === 'GET') {
       const id = url.searchParams.get('id') ?? '';
@@ -1302,7 +1303,11 @@ async function handle(req: Request, env: Env): Promise<Response> {
       const id = String(b.id ?? '');
       if (!/^\d+$/.test(id)) return json({ error: 'id_invalido' }, 400);
       const z = Array.isArray(b.z) && b.z.length === 5 && b.z.every((v: unknown) => typeof v === 'number' && v >= 0 && v < 2000) ? b.z as number[] : null;
-      if (!z) { await env.DB.prepare("UPDATE activities SET z_src = 'sem_fc' WHERE id = ?1").bind(id).run(); return json({ ok: true, skipped: true }); }
+      if (!z) {
+        const err = typeof b.error === 'string' ? b.error.slice(0, 200) : null;
+        await env.DB.prepare('UPDATE activities SET z_src = ?2, z_err = ?3 WHERE id = ?1').bind(id, err ? 'erro' : 'sem_fc', err).run();
+        return json({ ok: true, skipped: true });
+      }
       // guarda as zonas originais da Garmin (para desfazer) e grava as recalculadas
       await env.DB.prepare(`UPDATE activities SET z_orig = COALESCE(z_orig, json_array(z1, z2, z3, z4, z5)), z1 = ?2, z2 = ?3, z3 = ?4, z4 = ?5, z5 = ?6, z_src = 'fit' WHERE id = ?1`)
         .bind(id, ...z.map((v) => Math.round(v * 100) / 100)).run();
@@ -1310,7 +1315,7 @@ async function handle(req: Request, env: Env): Promise<Response> {
     }
     if (url.pathname === '/api/zones/undo' && req.method === 'POST') {
       await env.DB.prepare(`UPDATE activities SET z1 = json_extract(z_orig, '$[0]'), z2 = json_extract(z_orig, '$[1]'), z3 = json_extract(z_orig, '$[2]'), z4 = json_extract(z_orig, '$[3]'), z5 = json_extract(z_orig, '$[4]'), z_src = NULL, z_orig = NULL WHERE z_orig IS NOT NULL`).run();
-      await env.DB.prepare(`UPDATE activities SET z_src = NULL WHERE z_src IN ('sem_arquivo', 'sem_fc')`).run();
+      await env.DB.prepare(`UPDATE activities SET z_src = NULL, z_err = NULL WHERE z_src IN ('sem_arquivo', 'sem_fc', 'erro')`).run();
       return json({ ok: true });
     }
     if (url.pathname === '/api/garmin/zones' && req.method === 'GET') {
