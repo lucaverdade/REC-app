@@ -1261,3 +1261,5 @@ body.is-share main { padding-bottom: 0; }
 .zs-unit { margin: 8px 0 0; text-align: right; font-size: 11px; color: var(--text-3); }
 .zs-per { margin: 18px 0 10px; }
 .zs-note { font-size: 13px; color: var(--text-2); margin: 0; }
+.wg-steps { margin: 0 0 6px; padding-left: 20px; display: grid; gap: 10px; font-size: 15px; line-height: 1.45; }
+.wg-code { width: 100%; height: 160px; margin-top: 8px; background: var(--card-2); color: var(--text-2); border: 1px solid var(--line); border-radius: 10px; font: 11px/1.4 ui-monospace, monospace; }

@@ -925,11 +925,45 @@ function renderSettings() {
     <nav class="card set-list">
       <a href="#garmin">${ICON.heart}<span><b>Garmin</b><small id="set-garmin">Dados, conexão e o que falta completar</small></span><em>›</em></a>
       <a href="#tema">${ICON.sun}<span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
+      <a href="#widget">${ICON.check}<span><b>Widget do iPhone</b><small>Prontidão na tela inicial</small></span><em>›</em></a>
     </nav>`;
   api('/api/diag').then((d) => {
     const miss = [d.dias.falta, d.horarios.falta, d.treinos.falta, d.zonas.states.pendente, d.zonas.states.erro, d.rec.falta].filter((x) => x > 0).length;
     const el = screen.querySelector('#set-garmin'); if (el && miss) el.textContent = `${miss} ${miss === 1 ? 'parte' : 'partes'} para completar`;
   }).catch(() => {});
+}
+
+// --- widget do iPhone (Scriptable): passo a passo + copiar o código já com o endereço deste app ---
+function renderWidgetHelp() {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  screen.innerHTML = `
+    <header class="top"><h1>Widget do iPhone</h1><a class="foot-link" href="#ajustes">Voltar</a></header>
+    <section class="card">
+      <ol class="wg-steps">
+        <li>Instale o app <b>Scriptable</b> (gratuito) na App Store.</li>
+        <li>Toque em <b>Copiar código</b> aqui embaixo. Ele já vem com o endereço do seu app.</li>
+        <li>Abra o Scriptable, toque no <b>+</b> (canto de cima), cole o código e toque no título “Untitled Script” para dar o nome <b>REC</b>. Toque em <b>Done</b>.</li>
+        <li>Toque no script REC uma vez: deve aparecer uma prévia do widget. Se aparecer “sem conexão”, me avise.</li>
+        <li>Na tela inicial do iPhone, segure um espaço vazio até os ícones tremerem → <b>Editar</b> → <b>Adicionar widget</b> → procure <b>Scriptable</b> → escolha o tamanho <b>médio</b> (ou pequeno) → <b>Adicionar widget</b>.</li>
+        <li>Com os ícones ainda tremendo, toque no widget → em <b>Script</b> escolha <b>REC</b> → em <b>When Interacting</b> escolha <b>Open URL</b> (abre o app ao tocar). Toque fora para fechar.</li>
+      </ol>
+      <button class="btn dg-go" id="wg-copy">Copiar código</button>
+      <p class="progress" id="wg-out" aria-live="polite"></p>
+      <p class="note">O widget se atualiza sozinho mais ou menos a cada 30 minutos (o iPhone decide o momento exato). Pequeno: só o anel da Prontidão. Médio: anel + REC, Forma, Strain, treino do dia, horário de deitar e dias até Aracaju.</p>
+    </section>`;
+  screen.querySelector('#wg-copy').addEventListener('click', async () => {
+    const out = screen.querySelector('#wg-out');
+    try {
+      const code = (await (await fetch('/widget-rec.js', { cache: 'no-store' })).text()).replace("https://SEU-APP.workers.dev", location.origin);
+      await navigator.clipboard.writeText(code);
+      out.textContent = 'Copiado. Agora cole no Scriptable (passo 3).';
+    } catch (e) {
+      out.innerHTML = 'Não deu para copiar sozinho. Segure no texto abaixo → Selecionar tudo → Copiar.';
+      const ta = document.createElement('textarea'); ta.className = 'wg-code'; ta.readOnly = true;
+      ta.value = (await (await fetch('/widget-rec.js')).text()).replace("https://SEU-APP.workers.dev", location.origin);
+      out.after(ta);
+    }
+  });
 }
 
 // --- tema (guardado só neste aparelho) ---
@@ -964,7 +998,7 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? '#tendencias' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? '#tendencias' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -978,6 +1012,7 @@ function route() {
   else if (h === '#garmin') renderGarmin();
   else if (h === '#tema') renderTheme();
   else if (h === '#ajustes') renderSettings();
+  else if (h === '#widget') renderWidgetHelp();
   else if (h === '#tendencias') renderTrends(page(), api);
   else if (h === '#treino') renderTrain(page(), api);
   else if (h === '#prova') renderRace(page(), api);
