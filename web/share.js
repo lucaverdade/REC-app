@@ -42,7 +42,8 @@ function loadPrefs() {
 const savePrefs = (p) => { try { localStorage.setItem('rec.share', JSON.stringify(p)); } catch {} };
 
 /** Números escolhidos, na ordem da preferência; completa até 6 com os padrões se faltar. */
-function pick(all, prefs) {
+function pick(all0, prefs) {
+  const all = all0.filter((s) => s.key !== 'te');
   const by = new Map(all.map((s) => [s.key, s]));
   const chosen = prefs.stats.map((k) => by.get(k)).filter(Boolean);
   return chosen.slice(0, MAX);
@@ -83,7 +84,7 @@ function cardHtml(a, prefs) {
 }
 
 function editorHtml(a, prefs) {
-  const all = allStats(a);
+  const all = allStats(a).filter((s) => s.key !== 'te'); // efeito de treino fica só no detalhe do treino
   const on = new Set(prefs.stats);
   const n = all.filter((s) => on.has(s.key)).length;
   return `
