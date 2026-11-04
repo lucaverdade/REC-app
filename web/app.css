@@ -1342,3 +1342,4 @@ body.is-share main { padding-bottom: 0; }
 .sp-t i { display: block; height: 100%; border-radius: 7px; }
 .sp-v { text-align: right; } .sp-v b { font: 400 20px var(--font-display); }
 .sp-bars li.on .sp-t { outline: 1px solid var(--text-2); }
+.co-md { white-space: pre-wrap; word-break: break-word; font: 11px/1.45 ui-monospace, SFMono-Regular, monospace; color: var(--text-2); margin: 0; max-height: 60vh; overflow: auto; }

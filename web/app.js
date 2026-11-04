@@ -928,12 +928,38 @@ function renderSettings() {
       <a href="#garmin">${ICON.heart}<span><b>Garmin</b><small id="set-garmin">Dados, conexão e o que falta completar</small></span><em>›</em></a>
       <a href="#tema">${ICON.sun}<span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
       <a href="#tend/calib">${ICON.smile}<span><b>O REC acerta?</b><small>Calibração: REC e Prontidão × como me sinto</small></span><em>›</em></a>
+      <a href="#treinador">${ICON.book}<span><b>Relatório do treinador</b><small id="set-coach">Publicado no GitHub para o chat de treino</small></span><em>›</em></a>
       <a href="#widget">${ICON.check}<span><b>Widget do iPhone</b><small>Prontidão na tela inicial</small></span><em>›</em></a>
     </nav>`;
   api('/api/diag').then((d) => {
     const miss = [d.dias.falta, d.horarios.falta, d.treinos.falta, d.zonas.states.pendente, d.zonas.states.erro, d.rec.falta].filter((x) => x > 0).length;
     const el = screen.querySelector('#set-garmin'); if (el && miss) el.textContent = `${miss} ${miss === 1 ? 'parte' : 'partes'} para completar`;
   }).catch(() => {});
+}
+
+// --- relatório do treinador: prévia, status e enviar agora ---
+async function renderCoach() {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  const head = '<header class="top"><h1>Relatório do treinador</h1><a class="foot-link" href="#ajustes">Voltar</a></header>';
+  screen.innerHTML = `${head}<p class="empty">Montando…</p>`;
+  const nav = navSeq;
+  let d; try { d = await api('/api/coach-report'); } catch (e) { if (nav === navSeq) screen.querySelector('.empty').textContent = errText(e); return; }
+  if (nav !== navSeq) return;
+  const when = d.sent?.last ? new Date(d.sent.last).toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : null;
+  screen.innerHTML = `${head}
+    <section class="card">${cardHead('book', 'Como funciona', { color: 'var(--accent)' })}
+      <p class="note">O servidor publica <b>relatorio/ultimo.md</b> no repositório do app duas vezes por dia: assim que a noite chega da Garmin e às 20 h (com o treino do dia). Cada dia também fica guardado em relatorio/AAAA-MM-DD.md. O chat de treino lê esse arquivo antes de montar os treinos.</p>
+      <p class="note">${d.hasToken ? (when ? `Último envio: ${esc(when)}.` : 'Token configurado; ainda não enviou.') : '<b>Falta configurar</b> o token do GitHub no Cloudflare (secret GITHUB_TOKEN).'}</p>
+      <button class="btn dg-go" id="co-send" ${d.hasToken ? '' : 'disabled'}>Enviar agora</button>
+      <p class="progress" id="co-out" aria-live="polite"></p>
+    </section>
+    <section class="card">${cardHead('check', 'Prévia (o que o treinador vê)', { color: 'var(--text-2)' })}<pre class="co-md">${esc(d.md)}</pre></section>`;
+  screen.querySelector('#co-send').addEventListener('click', async (ev) => {
+    const b = ev.currentTarget, out = screen.querySelector('#co-out'); b.disabled = true; out.textContent = 'Enviando…';
+    try { const r = await api('/api/coach-report', { method: 'POST' }); out.textContent = r.ok ? 'Publicado no GitHub.' : `Não enviou: ${r.error}`; }
+    catch (e) { out.textContent = `Não enviou: ${errText(e)}`; }
+    b.disabled = false;
+  });
 }
 
 // --- widget do iPhone (Scriptable): passo a passo + copiar o código já com o endereço deste app ---
@@ -1004,7 +1030,7 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') ? '#treino' : h.startsWith('#sono/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') ? '#treino' : h.startsWith('#sono/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h === '#treinador' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -1019,6 +1045,7 @@ function route() {
   else if (h === '#tema') renderTheme();
   else if (h === '#ajustes') renderSettings();
   else if (h === '#widget') renderWidgetHelp();
+  else if (h === '#treinador') renderCoach();
   else if (h === '#tendencias') renderTrends(page(), api);
   else if (h === '#treino') renderTrain(page(), api);
   else if (h === '#prova') renderRace(page(), api);

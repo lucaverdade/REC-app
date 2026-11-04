@@ -25,6 +25,10 @@ export interface Env {
   APP_TOKEN?: string;         // secret opcional: se existir, o app pede código
   GARMIN_API_KEY?: string;    // secret: chave pessoal da Garmin
   GARMIN_BASE_URL?: string;   // só para testes locais com servidor simulado
+  GITHUB_TOKEN?: string;      // secret opcional: token do GitHub (só "Contents: read and write" no repositório) para publicar o relatório do treinador
+  GITHUB_REPO?: string;       // padrão lucaverdade/REC-app
+  GITHUB_BRANCH?: string;     // padrão main
+  GITHUB_API?: string;        // só para testes locais
 }
 
 const RACE = { name: 'Ironman 70.3 Aracaju', date: '2026-11-29' };
@@ -429,6 +433,91 @@ async function sleepPayload(env: Env, date: string) {
     hrv: r ? { v: r.v_hrv, base: r.b_hrv } : null, rhr: r ? { v: r.v_rhr, base: r.b_rhr } : null,
     avg14: { h: mean(prev.map((p) => p.sleep_h)), deep: avgStage('deep'), light: avgStage('light'), rem: avgStage('rem'), awake: avgStage('awake'), n: prev.length },
   };
+}
+
+// --- relatório para o chat de treino (04/11): Markdown com o estado do corpo e da carga, publicado no GitHub ---
+// Arquivos: relatorio/ultimo.md (sempre o mais recente) e relatorio/AAAA-MM-DD.md (histórico). Sai sozinho quando a
+// noite chega e de novo às 20 h (com o treino do dia). Só números e fatos; quem decide o treino é o chat de treino.
+const fx = (v: number | null | undefined, d = 0) => (v == null ? '–' : (Math.round(v * 10 ** d) / 10 ** d).toString().replace('.', ','));
+const hmx = (h: number | null | undefined) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`; };
+const sgn = (v: number | null | undefined) => (v == null ? '–' : `${v > 0 ? '+' : ''}${fx(v)}`);
+async function coachReport(env: Env, req: Request) {
+  const today = brtToday(), from = addDays(today, -13);
+  const d = await todayPayload(env, today, req);
+  const li = await loadInsightsPayload(env).catch(() => null);
+  const st31 = await stress31Payload(env).catch(() => null);
+  const series = await readinessSeries(env, from, today);
+  const { results: rd } = await env.DB.prepare('SELECT date, v_hrv, b_hrv, v_rhr, b_rhr FROM rec_daily WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string } & Record<string, any>>();
+  const { results: dm } = await env.DB.prepare('SELECT date, sleep_h, hrv, rhr FROM daily_metrics WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string } & Record<string, any>>();
+  const { results: acts } = await env.DB.prepare(`SELECT date, sport, min, rpe, ${STRAIN_SQL} strain FROM activities WHERE date BETWEEN ?1 AND ?2 ORDER BY date, time`).bind(from, today).all<Record<string, any>>();
+  const { results: feels } = await env.DB.prepare('SELECT date, value FROM feel_notes WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string; value: number }>();
+  const { results: tags } = await env.DB.prepare('SELECT date, tag FROM habit_tags WHERE date BETWEEN ?1 AND ?2').bind(from, today).all<{ date: string; tag: string }>();
+  const wk = await weekPayload(env, req, 0);
+  const lbl = new Map<string, string>(HABITS.map((h) => [h.key, h.label]));
+  const by = <T extends { date: string }>(xs: T[]) => new Map(xs.map((x) => [x.date, x]));
+  const rdB = by(rd), dmB = by(dm), fB = by(feels);
+  const r = d.ready, L: string[] = [];
+  const sig = (k: string) => d.contributors?.find((c: any) => c.key === k);
+  L.push(`# REC · relatório para o treinador · ${today}`, '');
+  L.push(`Gerado ${new Date(Date.now() - 3 * 3600e3).toISOString().slice(11, 16)} (Brasília). Prova: ${RACE.name} em ${d.race.days} dias (${RACE.date}).`, '');
+  L.push('## Hoje (manhã)', '');
+  L.push(`- **Prontidão:** ${r?.score == null ? '– (noite ainda não chegou' + (d.readyPrev != null ? `; ontem ${Math.round(d.readyPrev)}%` : '') + ')' : `${Math.round(r.score)}%`}${r?.cap ? ` — ${r.cap}` : ''}`);
+  if (r?.parts) for (const p of r.parts) L.push(`  - ${p.label}: ${p.detail}${p.z != null ? ` (z ${sgn(Math.round(p.z * 10) / 10)})` : ''}`);
+  L.push(`- **REC:** ${d.rec ?? '–'}${d.day?.trend ? ` (${d.day.trend.txt})` : ''}`);
+  for (const k of ['hrv', 'rhr', 'sleep', 'resp', 'stress']) { const c = sig(k); if (c) L.push(`  - ${c.label}: ${c.value ?? '–'}${c.base != null ? ` (base ${c.base})` : ''}`); }
+  L.push(`- **Sono:** ${hmx(d.sleep?.night?.hours)} (base ${hmx(d.sleep?.personalNeed)}); dívida 14 dias ${hmx(d.sleep?.debt)}${d.sleep?.regularityScore != null ? `; regularidade ${d.sleep.regularityScore}/100` : ''}`);
+  L.push(`- **Carga:** Fitness ${fx(d.load?.fitness)}, Fadiga ${fx(d.load?.fatigue)}, Forma ${sgn(d.load?.formPct)}% (${d.load?.zone?.label ?? '–'}); Strain hoje até agora ${d.load?.strain ?? 0}${d.day?.target ? `; meta do dia ${d.day.target.target}` : ''}`);
+  if (li?.status) L.push(`- **Status de treino:** ${li.status.label} — ${li.status.txt}${li.status.hrv ? ` (HRV 7 noites: ${li.status.hrv})` : ''}`);
+  if (st31) L.push(`- **Estresse acumulado 31 dias:** ${st31.label ?? '–'}`);
+  for (const a of d.alerts ?? []) L.push(`- **Alerta:** ${a.text}`);
+  if (d.feel != null) L.push(`- **Como me sinto hoje:** ${d.feel}/10`);
+  L.push('');
+  L.push('## Últimos 14 dias', '');
+  L.push('| Dia | Pront. | REC | HRV (base) | FC rep. (base) | Sono | Strain | Treinos | Sinto | Diário |');
+  L.push('|---|---|---|---|---|---|---|---|---|---|');
+  for (const x of [...series].reverse()) {
+    const q = rdB.get(x.date), m = dmB.get(x.date), a = acts.filter((y) => y.date === x.date);
+    const wd = new Date(x.date + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+    L.push(`| ${wd} ${x.date.slice(8)}/${x.date.slice(5, 7)} | ${x.ready ?? '–'} | ${x.rec ?? '–'} | ${fx(q?.v_hrv ?? m?.hrv)} (${fx(q?.b_hrv)}) | ${fx(q?.v_rhr ?? m?.rhr)} (${fx(q?.b_rhr, 1)}) | ${hmx(m?.sleep_h)} | ${x.strain || 0} | ${a.map((y) => `${SPORT_LABEL[y.sport as Sport]} ${Math.round(y.min ?? 0)}′${y.rpe ? ` RPE ${y.rpe}` : ''}`).join(', ') || '–'} | ${fB.get(x.date)?.value ?? '–'} | ${tags.filter((t) => t.date === x.date).map((t) => lbl.get(t.tag) ?? t.tag).join(', ') || '–'} |`);
+  }
+  L.push('');
+  L.push(`## Semana atual (${wk.monday} a ${wk.sunday})`, '');
+  L.push(`Strain ${wk.summary.strain}${wk.summary.plannedStrain != null ? ` de ${wk.summary.plannedStrain} previsto` : ''}; ${fx(wk.summary.doneHours, 1)} h${wk.summary.plannedHours != null ? ` de ${fx(wk.summary.plannedHours, 1)} h` : ''}${wk.summary.dist ? `; intensidade leve ${wk.summary.dist.low}% · média ${wk.summary.dist.mid}% · alta ${wk.summary.dist.high}%` : ''}${wk.plan?.fase ? `. Fase: ${wk.plan.fase}` : ''}`, '');
+  const ST: Record<string, string> = { feito: 'feito', parcial: 'parcial', nao_feito: 'não feito', previsto: 'previsto' };
+  for (const day of wk.days) {
+    const items = [...day.planned.map((p: any) => `${p.titulo || p.label}${p.minutos ? ` ${p.minutos}′` : ''}: ${ST[p.status]}${p.doneStrain != null ? ` (Strain ${p.doneStrain}${p.plannedStrain != null ? ` de ${p.plannedStrain}` : ''})` : ''}`),
+      ...day.executed.filter((e: any) => !e.matched).map((e: any) => `${e.label} ${Math.round(e.min ?? 0)}′ fora do plano (Strain ${e.strain ?? '–'})`)];
+    if (items.length) L.push(`- ${day.date.slice(8)}/${day.date.slice(5, 7)}: ${items.join('; ')}`);
+  }
+  L.push('', '---', 'Prontidão = REC (55%) + carga de 7 dias × média de 4 semanas (20%) + treino de ontem (10%) + dívida de sono (15%), tudo contra o normal do Luca; fixa desde a manhã. REC = HRV, FC de repouso, sono, respiração e estresse do dia anterior contra as bases. Strain = minutos × zona de FC (Z1 = 1 … Z5 = 5; 0,5/min abaixo da Z1).');
+  return L.join('\n') + '\n';
+}
+async function ghPut(env: Env, path: string, text: string, msg: string) {
+  const repo = env.GITHUB_REPO || 'lucaverdade/REC-app', branch = env.GITHUB_BRANCH || 'main', base = env.GITHUB_API || 'https://api.github.com';
+  const h = { authorization: `Bearer ${env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'rec-app', 'content-type': 'application/json' };
+  const cur = await fetch(`${base}/repos/${repo}/contents/${path}?ref=${branch}`, { headers: h });
+  const sha = cur.ok ? ((await cur.json()) as { sha?: string }).sha : undefined;
+  const bytes = new TextEncoder().encode(text); let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
+  const r = await fetch(`${base}/repos/${repo}/contents/${path}`, { method: 'PUT', headers: h, body: JSON.stringify({ message: msg, content: btoa(bin), branch, ...(sha ? { sha } : {}) }) });
+  if (!r.ok) throw new Error(`GitHub ${r.status}`); // sem detalhes: nunca registrar token nem resposta
+}
+async function publishCoach(env: Env, req: Request, when: string) {
+  if (!env.GITHUB_TOKEN) return { ok: false, error: 'sem_token' };
+  const today = brtToday(), md = await coachReport(env, req);
+  await ghPut(env, 'relatorio/ultimo.md', md, `relatório REC ${today} (${when})`);
+  await ghPut(env, `relatorio/${today}.md`, md, `relatório REC ${today} (${when})`);
+  const sent = (await getSetting<Record<string, string>>(env, 'coach_sent')) ?? {};
+  await setSetting(env, 'coach_sent', { ...sent, [when]: today, last: new Date().toISOString() });
+  return { ok: true };
+}
+/** Cron: manhã (assim que a noite chega) e 20 h. Cada um uma vez por dia. */
+async function coachCron(env: Env) {
+  if (!env.GITHUB_TOKEN) return;
+  const today = brtToday(), hour = new Date(Date.now() - 3 * 3600e3).getUTCHours();
+  const sent = (await getSetting<Record<string, string>>(env, 'coach_sent')) ?? {};
+  const req = new Request('https://rec.internal/');
+  if (sent.manha !== today && (await hasTonight(env, today))) await publishCoach(env, req, 'manha');
+  else if (sent.noite !== today && hour >= 20) await publishCoach(env, req, 'noite');
 }
 
 /** Fitness/Fadiga/Forma e Strain de um dia (aba Hoje). */
@@ -1493,7 +1582,7 @@ export default {
     return res;
   },
   async scheduled(_c: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil((async () => { await ensureSchema(env); const r = await morningRoutine(env, 'cron'); if (r.changed) { await bumpData(env); await warm(env); } await monthlyCalib(env).catch(() => {}); })());
+    ctx.waitUntil((async () => { await ensureSchema(env); const r = await morningRoutine(env, 'cron'); if (r.changed) { await bumpData(env); await warm(env); } await monthlyCalib(env).catch(() => {}); await coachCron(env).catch(() => {}); })());
   },
 } satisfies ExportedHandler<Env>;
 
@@ -1606,6 +1695,13 @@ async function handle(req: Request, env: Env): Promise<Response> {
       const date = url.searchParams.get('date') ?? brtToday();
       if (!isDate(date)) return json({ error: 'data_invalida' }, 400);
       return json(await sleepPayload(env, date));
+    }
+    if (url.pathname === '/api/coach-report' && req.method === 'GET') {
+      const sent = (await getSetting<Record<string, string>>(env, 'coach_sent')) ?? {};
+      return json({ md: await coachReport(env, req), hasToken: !!env.GITHUB_TOKEN, sent });
+    }
+    if (url.pathname === '/api/coach-report' && req.method === 'POST') {
+      try { return json(await publishCoach(env, req, 'manual')); } catch (e) { return json({ ok: false, error: e instanceof Error ? e.message : 'erro' }, 502); }
     }
     if (url.pathname === '/api/calibration' && req.method === 'GET') {
       const { results } = await env.DB.prepare(`SELECT f.date, f.value feel, r.rec, r.z_hrv, r.z_sleep, r.z_rhr, r.z_resp, r.z_stress

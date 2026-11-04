@@ -84,3 +84,8 @@ Marque a sessão com `"calor": true` (ou título começando com "Calor", ex.: "C
 
 ## Fase
 O campo `fase` da semana aparece na aba Hoje, logo abaixo da data.
+
+
+## Relatório do REC para o chat de treino (04/11)
+O app publica no mesmo repositório **`relatorio/ultimo.md`** (sempre o mais recente) e **`relatorio/AAAA-MM-DD.md`** (histórico), duas vezes por dia: assim que a noite chega da Garmin e às 20 h. Conteúdo: Prontidão (com as 4 partes), REC e sinais contra a base, sono e dívida, Fitness/Fadiga/Forma, status de treino, alertas, "como me sinto", tabela dos últimos 14 dias (Prontidão, REC, HRV, FC de repouso, sono, Strain, treinos com RPE, diário) e a semana atual planejado × feito.
+**Antes de montar ou ajustar treinos, leia `relatorio/ultimo.md`.** O relatório só traz números e fatos; a decisão do treino é do chat de treino.

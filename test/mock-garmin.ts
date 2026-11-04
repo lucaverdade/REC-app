@@ -26,6 +26,18 @@ createServer((req, res) => {
   calls++;
   const u = new URL(req.url!, 'http://x');
   const send = (code: number, body: unknown) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(typeof body === 'string' ? body : JSON.stringify(body)); };
+  // GitHub simulado (relatório do treinador): guarda o arquivo em test/.gh/
+  if (u.pathname.startsWith('/gh/repos/')) {
+    const path = u.pathname.split('/contents/')[1];
+    if (req.method === 'GET') return send(404, { message: 'Not Found' });
+    let body = ''; req.on('data', (c) => { body += c; }); req.on('end', async () => {
+      const j = JSON.parse(body); const fs = await import('node:fs');
+      fs.mkdirSync('test/.gh/' + path.split('/').slice(0, -1).join('/'), { recursive: true });
+      fs.writeFileSync('test/.gh/' + path, Buffer.from(j.content, 'base64').toString('utf8'));
+      send(201, { content: { path } });
+    });
+    return;
+  }
   if (u.pathname.endsWith('/personal-api-key/token')) {
     if (!req.headers.authorization?.startsWith('ApiKey ')) return send(401, '');
     const payload = Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400 })).toString('base64url');
