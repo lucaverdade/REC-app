@@ -14,7 +14,7 @@ function dur(m) {
 const mmss = (p) => { const s = Math.round(p * 60); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 /** Todos os números possíveis deste treino (os que existem). */
-function allStats(a) {
+export function allStats(a) {
   const out = [{ key: 'dur', k: 'Duração', v: dur(a.min) }];
   if (a.km >= 0.3) out.push({ key: 'dist', k: 'Distância', v: a.sport === 'natacao' ? nf(a.km * 1000) : nf(a.km, 2), u: a.sport === 'natacao' ? 'm' : 'km' });
   if (a.km >= 0.3 && a.min) {

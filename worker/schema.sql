@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS activities (
   feel    REAL,                   -- 0–100 (padrão do relógio = 50)
   z1 REAL, z2 REAL, z3 REAL, z4 REAL, z5 REAL,  -- minutos em cada zona
   name TEXT, kcal REAL, kcal_bmr REAL, elev REAL, speed REAL, maxspeed REAL, power REAL, te_ana REAL, cadence REAL,
+  te_label TEXT,
   z_orig TEXT, z_src TEXT        -- zonas originais da Garmin e origem das atuais (fit = recalculadas)
 );
 CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);

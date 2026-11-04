@@ -26,7 +26,7 @@ export interface GarminActivity {
   min: number | null; km: number | null; avghr: number | null; maxhr: number | null;
   load: number | null; te_aer: number | null; rpe: number | null; feel: number | null;
   z: (number | null)[]; // minutos nas zonas 1–5
-  extra?: { name: string | null; kcal: number | null; kcal_bmr: number | null; elev: number | null; speed: number | null; maxspeed: number | null; power: number | null; te_ana: number | null; cadence: number | null };
+  extra?: { name: string | null; te_label: string | null; kcal: number | null; kcal_bmr: number | null; elev: number | null; speed: number | null; maxspeed: number | null; power: number | null; te_ana: number | null; cadence: number | null };
 }
 
 export class GarminError extends Error {
@@ -167,6 +167,9 @@ export function parseActivity(a: any): GarminActivity | null {
     z: [1, 2, 3, 4, 5].map((i) => sec(`hrTimeInZone_${i}`)),
     extra: {
       name: typeof a.activityName === 'string' ? a.activityName.slice(0, 80) : null,
+      // benefício principal segundo a Garmin (ex.: AEROBIC_BASE, TEMPO, LACTATE_THRESHOLD, VO2MAX, ANAEROBIC_CAPACITY, RECOVERY)
+      te_label: typeof a.trainingEffectLabel === 'string' ? a.trainingEffectLabel.slice(0, 40)
+        : typeof a.aerobicTrainingEffectMessage === 'string' ? a.aerobicTrainingEffectMessage.slice(0, 40) : null,
       kcal: first(a.calories), kcal_bmr: first(a.bmrCalories),
       elev: first(a.elevationGain), speed: first(a.averageSpeed), maxspeed: first(a.maxSpeed),
       power: first(a.avgPower, a.averagePower), te_ana: first(a.anaerobicTrainingEffect),

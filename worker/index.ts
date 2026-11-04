@@ -70,7 +70,7 @@ async function ensureSchema(env: Env) {
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
   // migrações de colunas (ignora "duplicate column" quando já existem)
-  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
+  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN te_label TEXT', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
     try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
   }
   schemaReady = true;
@@ -97,7 +97,7 @@ async function writeDays(env: Env, days: GarminDay[]) {
 async function writeActivities(env: Env, acts: GarminActivity[]) {
   // remove linhas do export do mesmo treino (mesma data, hora e tipo) para não duplicar
   const del = env.DB.prepare(`DELETE FROM activities WHERE date = ?1 AND time = ?2 AND type = ?3 AND id <> ?4`);
-  const ex = env.DB.prepare(`UPDATE activities SET name = ?2, kcal = ?3, kcal_bmr = ?4, elev = ?5, speed = ?6, maxspeed = ?7, power = ?8, te_ana = ?9, cadence = ?10 WHERE id = ?1`);
+  const ex = env.DB.prepare(`UPDATE activities SET name = ?2, kcal = ?3, kcal_bmr = ?4, elev = ?5, speed = ?6, maxspeed = ?7, power = ?8, te_ana = ?9, cadence = ?10, te_label = ?11 WHERE id = ?1`);
   const st = env.DB.prepare(
     `INSERT INTO activities (id, date, time, type, sport, min, km, avghr, maxhr, load, te_aer, rpe, feel, z1, z2, z3, z4, z5)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
@@ -115,7 +115,7 @@ async function writeActivities(env: Env, acts: GarminActivity[]) {
   await env.DB.batch(acts.flatMap((a) => [
     del.bind(a.date, a.time, a.type, a.id),
     st.bind(a.id, a.date, a.time, a.type, sportOf(a.type), a.min, a.km, a.avghr, a.maxhr, a.load, a.te_aer, a.rpe, a.feel, ...a.z),
-    ...(a.extra ? [ex.bind(a.id, a.extra.name, a.extra.kcal, a.extra.kcal_bmr, a.extra.elev, a.extra.speed, a.extra.maxspeed, a.extra.power, a.extra.te_ana, a.extra.cadence)] : []),
+    ...(a.extra ? [ex.bind(a.id, a.extra.name, a.extra.kcal, a.extra.kcal_bmr, a.extra.elev, a.extra.speed, a.extra.maxspeed, a.extra.power, a.extra.te_ana, a.extra.cadence, a.extra.te_label)] : []),
   ]));
   return acts.length;
 }
@@ -835,12 +835,21 @@ async function sleepBase(env: Env, date: string): Promise<SleepBase> {
 }
 
 // --- um treino, para o cartão de compartilhar ---
-async function activityPayload(env: Env, id: string) {
+async function activityPayload(env: Env, id: string, req?: Request) {
   await ensureSchema(env);
   const a = await env.DB.prepare(`SELECT *, ${STRAIN_SQL} strain FROM activities WHERE id = ?1`).bind(id).first<Record<string, any>>();
   if (!a) return null;
   const rec = await env.DB.prepare('SELECT rec FROM rec_daily WHERE date = ?1').bind(a.date).first<{ rec: number | null }>();
+  const recNext = await env.DB.prepare('SELECT rec FROM rec_daily WHERE date = ?1').bind(addDays(a.date, 1)).first<{ rec: number | null }>();
   const ln = await loadOn(env, a.date);
+  // sessão do plano daquele dia, mesma modalidade
+  const plan = req ? await (async () => {
+    const pl = await readPlan(env, req, mondayOf(a.date));
+    const p = (pl?.dias?.[a.date] ?? []).find((x) => normSport(x.modalidade) === a.sport);
+    if (!p) return null;
+    const rates = await strainRates(env, a.date);
+    return { titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, detalhe: p.detalhe ?? null, strain: plannedStrainEst(p, rates).v };
+  })() : null;
   const z = [a.z1, a.z2, a.z3, a.z4, a.z5];
   const has = z.some((v) => v != null), inZ = z.reduce((x: number, v: number | null) => x + (v ?? 0), 0);
   const active = a.kcal != null ? (a.kcal_bmr != null ? a.kcal - a.kcal_bmr : a.kcal) : null;
@@ -855,7 +864,10 @@ async function activityPayload(env: Env, id: string) {
     strainVsDay: ln.fitness ? Math.round((a.strain ?? 0) / ln.fitness * 100) / 100 : null,
     zones: has ? [Math.max(0, (a.min ?? 0) - inZ), ...z.map((v) => v ?? 0)].map((m) => Math.round(m)) : null,
     rec: rec?.rec == null ? null : Math.round(rec.rec),
+    recNext: recNext?.rec == null ? null : Math.round(recNext.rec),
     form: ln.formPct, formZone: ln.zone && { key: ln.zone.key, label: ln.zone.label },
+    garminLoad: a.load == null ? null : Math.round(a.load), teLabel: a.te_label ?? null,
+    fitness: ln.fitness, plan,
   };
 }
 
@@ -1044,7 +1056,7 @@ export default {
     if (url.pathname === '/api/habits' && req.method === 'GET') return json(await habitsPayload(env));
     if (url.pathname === '/api/weather' && req.method === 'GET') return json(await weatherPayload(env));
     if (url.pathname === '/api/activity' && req.method === 'GET') {
-      const a = await activityPayload(env, url.searchParams.get('id') ?? '');
+      const a = await activityPayload(env, url.searchParams.get('id') ?? '', req);
       return a ? json(a) : json({ error: 'nao_encontrado' }, 404);
     }
     if (url.pathname === '/api/hrvtrend' && req.method === 'GET') return json(await hrvTrendOn(env, brtToday()));

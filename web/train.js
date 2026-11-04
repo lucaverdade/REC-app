@@ -44,6 +44,7 @@ function sessionCard({ sport, title, sub, status, key, planned, done, detail, ex
       ${ex?.zones ? zoneBar(ex.zones) : ''}
       ${detail ? `<p class="ss-detail">${esc(detail)}</p>` : ''}
     </details>` : ''}
+    ${ex?.id ? `<a class="ss-open" href="#atv/${encodeURIComponent(ex.id)}">Ver treino ›</a>` : ''}
   </li>`;
 }
 

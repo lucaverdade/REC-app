@@ -906,3 +906,33 @@ body.is-share main { padding-bottom: 0; }
 
 .phase-line { margin: -6px 0 14px; font-size: 13px; color: var(--text-2); }
 .tsec .block.heat { padding: 0; }
+
+/* detalhe do treino */
+.ad-hero { margin: 0 0 14px; padding: 16px 18px; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--c) 30%, var(--line));
+  background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--c) 22%, var(--card)) 0%, var(--card) 65%); }
+.ad-title { margin: 2px 0 4px; font: 600 26px/1.15 var(--font-display); letter-spacing: -.01em; }
+.ad-date { margin: 0; font-size: 13px; color: var(--text-2); }
+.ad-card { margin: 0 0 12px; padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line-soft); }
+.ad-lab { display: block; font-size: 12px; letter-spacing: .02em; color: var(--text-2); margin-bottom: 6px; }
+.ad-benefit > b { display: block; font: 600 22px/1.2 var(--font-display); }
+.ad-benefit > p { margin: 6px 0 12px; font-size: 15px; line-height: 1.45; }
+.te-row { margin: 10px 0 0; }
+.te-top { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.te-top span { flex: 1; color: var(--text-2); } .te-top b { font: 400 20px/1 var(--font-display); } .te-top em { font-style: normal; font-size: 13px; color: var(--text-2); min-width: 7.5em; text-align: right; }
+.te-bar { position: relative; height: 8px; margin-top: 6px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.te-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: linear-gradient(90deg, var(--z-descansado), var(--z-produtivo)); }
+.te-bar s { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--card); }
+.ad-note { margin: 10px 0 0; font-size: 14px; color: var(--text-2); line-height: 1.4; }
+.ad-src { margin: 10px 0 0; font-size: 12px; color: var(--text-3); line-height: 1.4; }
+.ad-load { display: flex; flex-wrap: wrap; gap: 14px 28px; }
+.ad-load b { display: block; font: 300 30px/1.1 var(--font-display); }
+.ad-load small { display: block; font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.ad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.ad-grid span { display: block; font-size: 12px; color: var(--text-2); }
+.ad-grid b { display: block; margin-top: 2px; font: 300 24px/1.1 var(--font-display); white-space: nowrap; }
+.ad-grid b small { margin-left: 4px; font: 400 12px var(--font); color: var(--text-2); }
+.ad-zones { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.ad-zones li { display: grid; grid-template-columns: 12px 1fr auto 3.2em; align-items: center; gap: 8px; font-size: 14px; }
+.ad-zones li i { width: 10px; height: 10px; border-radius: 3px; } .ad-zones em { font-style: normal; color: var(--text-2); text-align: right; }
+.ad-share { display: block; text-align: center; margin: 8px 0 20px; text-decoration: none; }
+.ss-open { display: inline-block; margin-top: 10px; font-size: 14px; color: var(--accent); text-decoration: none; }

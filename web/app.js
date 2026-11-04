@@ -4,6 +4,7 @@ import { renderTrain } from './train.js';
 import { renderRace } from './race.js';
 import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
+import { renderActivity } from './activity.js';
 import { recalcHistory } from './zones.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
@@ -108,12 +109,12 @@ function actsHtml(acts) {
       zones = `<div class="ac-zones" aria-hidden="true">${used.map((z) => `<i class="zc-${z.i}" style="flex:${z.m}"></i>`).join('')}</div>
         <ul class="ac-zlist">${used.map((z) => `<li><i class="zc-${z.i}"></i>${ZN[z.i]} <b>${z.m} min</b> <span>${Math.round((z.m / tot) * 100)}%</span></li>`).join('')}</ul>`;
     }
-    return `<li class="act-card" style="--c: var(--${esc(a.sport)})">${a.id ? `<a class="ac-link" href="#card/${encodeURIComponent(a.id)}" aria-label="Abrir o cartão do treino para compartilhar"></a>` : ''}
+    return `<li class="act-card" style="--c: var(--${esc(a.sport)})">${a.id ? `<a class="ac-link" href="#atv/${encodeURIComponent(a.id)}" aria-label="Ver os detalhes do treino"></a>` : ''}
       <div class="ac-head"><span class="ac-sport">${esc(a.label)}</span><span class="meta">${esc(a.time)}</span>
         ${a.strain != null ? `<span class="ac-strain"><b>${a.strain}</b><small>Strain</small></span>` : ''}</div>
       <div class="ac-stats">${stats.join('')}</div>
       ${zones}
-      ${a.id ? '<span class="ac-share">Cartão para compartilhar ›</span>' : ''}
+      ${a.id ? '<span class="ac-share">Detalhes do treino ›</span>' : ''}
     </li>`;
   }).join('')}</ul>`;
 }
@@ -830,13 +831,14 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h === '#garmin' || h === '#tema' ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h === '#garmin' || h === '#tema' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on || (h === '#prova' && t.getAttribute('href') === '#hoje'));
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
   window.scrollTo(0, 0);
   document.body.classList.remove('is-share');
   if (h.startsWith('#card/')) renderShare(screen, api, decodeURIComponent(h.slice(6)));
+  else if (h.startsWith('#atv/')) renderActivity(screen, api, decodeURIComponent(h.slice(5)));
   else if (h === '#garmin') renderGarmin();
   else if (h === '#tema') renderTheme();
   else if (h === '#tendencias') renderTrends(screen, api);
