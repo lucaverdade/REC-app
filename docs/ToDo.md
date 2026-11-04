@@ -37,7 +37,7 @@ Lista viva do que o Luca pediu para depois.
 
 - [x] **Tendências em 3 abas** (04/11): Carga, Corpo e Prova; resposta de uma frase no topo; blocos fechados que abrem ao tocar (carregam ao abrir); última aba lembrada.
 - [x] **Cartão do treino para compartilhar** (04/11): toque no treino na aba Hoje → story 9:16 (Strain, duração, distância, ritmo, calorias ativas, FC, zonas, REC e Forma). Campos novos da Garmin: nome, calorias (ativas = total − basal), subida, velocidade, potência, cadência, TE anaeróbico.
-- [ ] Cartão de compartilhar v2: botão "Salvar imagem" e escolha dos números.
+- [x] Cartão de compartilhar v2 (04/11): "Salvar imagem" (PNG 1080×1920 em canvas; no iPhone abre a folha de compartilhar) e escolha de até 6 números + blocos, guardada no aparelho.
 - [x] **Strain do dia sem %** (04/11): anel mostra o número; meta = tracinho; excesso em outra cor.
 
 ## Integrações

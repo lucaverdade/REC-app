@@ -892,3 +892,14 @@ body.is-share main { padding-bottom: 0; }
 .tsec .block.proj { padding: 0; } .tsec .block.proj > h2 { display: none; }
 .t-race { display: block; text-align: center; margin: 14px 0 6px; text-decoration: none; }
 .tsec #recov .v-answer, .tsec #recov .v-trend { display: none; }
+
+/* cartão de compartilhar v2 */
+.sh-wrap { position: relative; }
+.sh-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 4px; }
+.sh-msg { margin: 6px 0 0; min-height: 1.2em; font-size: 13px; color: var(--text-2); text-align: center; }
+.sh-edit { margin: 10px 0 24px; }
+.sh-edit h2 { margin: 18px 0 10px; }
+.sh-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.sh-opts .hb:disabled { opacity: .35; }
+.sh-strain-line { margin: 0; font-size: 16px; color: var(--text-2); }
+.sh-strain-line b { font: 300 34px/1 var(--font-display); color: var(--strain); margin-right: 4px; }
