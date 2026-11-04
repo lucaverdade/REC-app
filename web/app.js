@@ -149,31 +149,37 @@ function recSegments(rec) {
 
 // anel de Strain com meta do dia: enche com o feito; tracinho na meta (2/3 da volta)
 function strainRing(done, t) {
-  const target = t.target;
-  const scale = Math.max(target * 1.5, done);
-  const f = Math.min(1, done / scale), tA = (target / scale) * 2 * Math.PI;
-  const pct = target ? Math.round((done / target) * 100) : null;
-  const left = Math.max(0, target - done);
+  // Strain não é porcentagem: o anel mostra o número feito; a meta é o tracinho.
+  // Escala fixa = 1,5 × meta. Até a meta o arco é ciano; o que passa da meta fica em outra cor.
+  const target = t.target, scale = target * 1.5;
+  const fIn = Math.min(done, target) / scale, fOver = Math.max(0, Math.min(done, scale) - target) / scale;
+  const tA = (target / scale) * 2 * Math.PI;
+  const over = done - target;
   const why = [
     `Seu dia médio (Fitness): ${t.base}`,
     ...t.factors.map((x) => `${x.label}: ×${String(x.f).replace('.', ',')}`),
     t.week ? `Semana: teto ${t.week.hi}, feito até ontem ${t.week.doneBefore}, sobram ${t.week.room} para ${t.week.daysLeft} ${t.week.daysLeft === 1 ? 'dia' : 'dias'}${t.week.limited ? ' (limitou a meta)' : ''}` : null,
   ].filter(Boolean);
+  const status = done === 0 ? 'Nenhum treino ainda.'
+    : over < 0 ? `Faltam ${-over} para a meta.`
+    : over <= target * 0.15 ? 'Na meta.'
+    : `${over} acima da meta.`;
   return `<div class="st-card">
     <span class="st-ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <circle cx="50" cy="50" r="40" class="rt-track"/>
-        <circle cx="50" cy="50" r="40" class="rt-arc st-arc" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f)}"/>
+        <circle cx="50" cy="50" r="40" class="rt-arc st-arc" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - fIn)}"/>
+        ${fOver > 0 ? `<circle cx="50" cy="50" r="40" class="st-over" stroke-dasharray="${(RC * fOver).toFixed(1)} ${RC}" stroke-dashoffset="${(-RC * (target / scale)).toFixed(1)}"/>` : ''}
         <line x1="${50 + 33 * Math.cos(tA)}" y1="${50 + 33 * Math.sin(tA)}" x2="${50 + 49 * Math.cos(tA)}" y2="${50 + 49 * Math.sin(tA)}" class="st-tick"/>
       </svg>
-      <span class="rt-val"><span>${pct ?? '–'}<small>%</small></span></span>
+      <span class="rt-val"><span>${done}</span></span>
     </span>
     <div class="st-txt">
-      <b>Strain ${done} <span>de ${target}</span></b>
-      <span>${done >= target ? `Meta de hoje atingida${done > target * 1.15 ? `: ${done - target} acima` : ''}.` : `Cabem mais ${left} hoje.`}</span>
-      ${t.plan != null ? `<small>Plano de hoje: ${t.plan}${t.planNote === 'acima' ? ' (acima da meta)' : t.planNote === 'abaixo' ? ' (bem abaixo da meta)' : ''}</small>` : ''}
+      <b>Strain ${done} <span>· meta ${target}</span></b>
+      <span class="${over > target * 0.15 ? 'st-hi' : ''}">${status}</span>
+      ${t.plan != null ? `<small>Plano de hoje previa ${t.plan}${t.planNote === 'acima' ? ', acima da meta' : t.planNote === 'abaixo' ? ', bem abaixo da meta' : ''}.</small>` : ''}
       <details class="st-why"><summary>Como a meta foi calculada</summary><ul>${why.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>
-        <p>Modo sombra: o plano do treinador manda.</p></details>
+        <p>A meta é quanto Strain cabe hoje sem pesar demais, olhando REC, semana e carga recente. Strain não tem teto: é a soma de minutos × zona. Modo sombra: o plano do treinador manda.</p></details>
     </div>
   </div>`;
 }
