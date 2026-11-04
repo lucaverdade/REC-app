@@ -980,3 +980,63 @@ body.is-share main { padding-bottom: 0; }
 .tl-base { stroke: var(--line); stroke-width: 1; }
 .tl-t { fill: var(--text-3); font-size: 8px; }
 .tl-tip { margin: 0 0 6px; font-size: 13px; color: var(--text-2); min-height: 1.3em; }
+
+/* ===== padrão visual (04/11): cartão único, cabeçalho com ícone, ⓘ ===== */
+.card { position: relative; margin: 0 0 12px; padding: 16px; border-radius: 20px; background: var(--card); border: 1px solid var(--line-soft); animation: card-in .45s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+main > .card:nth-of-type(2) { animation-delay: .04s; } main > .card:nth-of-type(3) { animation-delay: .08s; } main > .card:nth-of-type(4) { animation-delay: .12s; }
+main > .card:nth-of-type(5) { animation-delay: .16s; } main > .card:nth-of-type(n+6) { animation-delay: .2s; }
+@media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+.ch { display: flex; align-items: center; gap: 9px; margin: 0 0 12px; --ic: var(--text-2); }
+.ic { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--ic, currentColor); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ch h2 { flex: 1; min-width: 0; margin: 0; font: 600 16px/1.2 var(--font); color: var(--text); letter-spacing: 0; text-transform: none; }
+.ch-r { font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.info-btn { flex: none; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--text-2); font: italic 600 12px/20px Georgia, serif; cursor: pointer; }
+.info-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.card-info { margin: -4px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.card-info p { margin: 0 0 8px; } .card-info p:last-child { margin: 0; } .card-info b { color: var(--text); font-weight: 500; }
+.card-lead { margin: 0 0 12px; font-size: 16px; line-height: 1.4; }
+.card-foot { margin: 12px 0 0; font-size: 13px; color: var(--text-2); } .card-foot b { color: var(--text); font-weight: 500; }
+.card > section.block, .card .block.proj { margin: 0; padding: 0; }
+.card #pred > h2, .card #pred > .block > h2 { display: none; }
+.card .acts li:first-child { border-top: 0; }
+.card .empty { margin: 0; }
+/* Hoje */
+.sleep-card.card { border-color: color-mix(in srgb, var(--sleep) 25%, var(--line-soft)); }
+.feel.card, .habits.card, .tl.card { padding-bottom: 14px; }
+.feel.card .ch { margin-bottom: 6px; }
+/* Prova: clima em faixa horizontal */
+.wx-strip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 0 16px 4px; scrollbar-width: none; }
+.wx-strip::-webkit-scrollbar { display: none; }
+.wx-strip .wx-h { flex: 0 0 66px; display: grid; justify-items: center; gap: 3px; padding: 10px 4px; border-radius: 14px; background: var(--card-2); border: 1px solid var(--line-soft); scroll-snap-align: start; color: var(--text); font-size: 13px; }
+.wx-strip .ic { width: 24px; height: 24px; --ic: #ffb547; margin: 2px 0; }
+.wx-strip b { font: 300 22px/1 var(--font-display); }
+.wx-strip small { font-size: 11px; color: var(--text-2); }
+.wx-t { font-size: 12px; color: var(--text-2); }
+.wx-rain { color: #8fcde0 !important; }
+/* Prova: calor */
+.heat-dots { display: flex; align-items: center; gap: 5px; margin: 0 0 12px; }
+.heat-dots i { width: 20px; height: 8px; border-radius: 4px; background: var(--track); }
+.heat-dots i.on { background: #ff8a5c; box-shadow: 0 0 8px color-mix(in srgb, #ff8a5c 50%, transparent); }
+.heat-dots span { margin-left: 6px; font-size: 11px; color: var(--text-3); }
+/* Prova: carbo */
+.cb-cols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.cb-col { display: grid; justify-items: center; gap: 6px; padding: 8px 0 6px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--text); font: inherit; cursor: pointer; }
+.cb-col[aria-pressed="true"] { background: var(--card-2); border-color: var(--line); }
+.cb-g { font: 400 16px/1 var(--font-display); } .cb-g small { font-size: 10px; color: var(--text-2); margin-left: 1px; }
+.cb-bar { width: 14px; height: 72px; border-radius: 7px; background: var(--track); display: flex; align-items: flex-end; overflow: hidden; }
+.cb-bar i { width: 100%; background: linear-gradient(180deg, var(--good), color-mix(in srgb, var(--good) 55%, var(--card))); border-radius: 7px; }
+.cb-d { display: grid; justify-items: center; font-size: 11px; color: var(--text-2); } .cb-d b { font-size: 15px; color: var(--text); font-weight: 500; }
+.cb-note { margin: 10px 0 0; font-size: 14px; line-height: 1.4; color: var(--text-2); min-height: 1.4em; }
+/* Prova: plano por etapa */
+.legs { display: grid; gap: 10px; }
+.leg { padding: 12px 14px; border-radius: 14px; background: var(--card-2); border-left: 3px solid var(--c); }
+.leg-h { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
+.leg-h .ic { --ic: var(--c); width: 20px; height: 20px; }
+.leg-h b { font-size: 15px; font-weight: 600; }
+.leg p { margin: 0; font-size: 14px; line-height: 1.5; text-align: left; }
+/* hero da prova */
+.race-hero { animation: card-in .45s cubic-bezier(.2,.7,.2,1) both; }
+.card .st-card { background: var(--card-2); }
+.card .act-cards { margin-bottom: 0; }
+.feel.card .saved:empty { display: none; }

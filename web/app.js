@@ -4,6 +4,7 @@ import { renderTrain } from './train.js';
 import { renderRace } from './race.js';
 import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
+import { ICON, cardHead, countUp } from './ui.js';
 import { renderActivity } from './activity.js';
 import { recalcHistory, testOne } from './zones.js';
 const TOKEN_KEY = 'rec.token';
@@ -235,13 +236,13 @@ function loadStrip(l) {
   return `<a class="load-strip" href="#tendencias" aria-label="Fadiga e Fitness. Ver tendências.">
     <div class="ls-row">
       <span class="ls-l"><i class="dot" style="background:var(--fatigue)"></i>Fadiga</span>
-      <b class="c-fat">${l.fatigue}</b>
+      <b class="c-fat" data-count="${l.fatigue}">${l.fatigue}</b>
       <span class="ls-d ${dv > 0 ? 'bad' : dv < 0 ? 'good' : ''}">${fat}</span>
       ${spark((l.trend ?? []).slice(-14).map((x) => x.fatigue), 'var(--fatigue)')}
     </div>
     <div class="ls-row">
       <span class="ls-l"><i class="dot" style="background:var(--fitness)"></i>Fitness</span>
-      <b class="c-fit">${l.fitness}</b>
+      <b class="c-fit" data-count="${l.fitness}">${l.fitness}</b>
       <span class="ls-d ${f4 > 0 ? 'good' : f4 < 0 ? 'bad' : ''}">${fit}</span>
       ${weekDots(l.fitnessWeekly ?? [])}
     </div>
@@ -280,7 +281,7 @@ function loadCard(l) {
     </div>
     <div class="lc">
       <span class="lc-l">Fadiga</span>
-      <b class="c-fat">${l.fatigue}</b>
+      <b class="c-fat" data-count="${l.fatigue}">${l.fatigue}</b>
       ${arrow(dl.fatigue, false)}
       ${spark((l.trend ?? []).map((x) => x.fatigue), 'var(--fatigue)')}
     </div>
@@ -300,6 +301,14 @@ function chipsHtml(list) {
 
 // ---------- Sono: noite, dívida, necessidade e regularidade ----------
 const hmm = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)}\u00a0h\u00a0${String(m % 60).padStart(2, '0')}`; };
+function sleepInfo(s) {
+  return `<p><b>Sua base</b> vem da resposta do seu HRV, não do hábito: o app cruza as horas dormidas com o HRV da noite (contra a sua base de 60 dias) nos últimos 180 dias e acha a partir de quantas horas o HRV para de melhorar. Refeita todo mês${s.base && !s.base.fallback ? ` (em ${s.base.month.slice(5)}/${s.base.month.slice(0, 4)}: ${s.base.n} noites; abaixo de 7 h seu HRV ficou ${s.base.below7 > 0 ? '+' : ''}${String(s.base.below7).replace('.', ',')}% da base, com 7 h ou mais ${s.base.above7 > 0 ? '+' : ''}${String(s.base.above7).replace('.', ',')}%)` : ''}.</p>
+        <p><b>Dívida</b>: nos últimos 14 dias, quanto você dormiu abaixo da sua necessidade, com as noites recentes pesando mais (uma noite curta perde metade do peso a cada 7 dias). Noites acima da necessidade e cochilos pagam a dívida. Faixas da Oura: baixa até 2 h, moderada de 2 a 5 h, alta acima de 5 h.</p>
+        <p><b>Deitar até</b>: horário em que você costuma acordar (mediana das últimas noites do mesmo tipo de dia, útil ou fim de semana) − a meta − o tempo que você costuma ficar acordado na cama − 15 min para pegar no sono.</p>
+        <p><b>Regularidade</b>: 100 menos a variação média dos horários de deitar e acordar nas últimas 14 noites (variação de 15 min ≈ 82; de 30 min ≈ 64).</p>
+        <p><b>Meta de hoje</b> muda todo dia: sua base + 30 min quando a Forma está em bloco de treino ou muito cansado (nessas semanas seu HRV rende mais com 8 a 8,5 h) + até 30 min pela dívida + até 30 min pelo treino do dia − cochilo de hoje. Os acréscimos somam no máximo 1 h. Não é preciso pagar a dívida de uma vez: ela some aos poucos com noites um pouco mais longas, cochilos e o próprio tempo.</p>`;
+}
+
 function sleepCard(d) {
   const s = d.sleep, n = s.night, need = s.need;
   const pn = s.personalNeed ?? 7.5;
@@ -311,9 +320,8 @@ function sleepCard(d) {
   if (need.nap >= 1 / 60) extra.push(`cochilo −${Math.round(need.nap * 60)} min`);
   const r = s.regularity;
   return `
-    <section class="sleep-card" aria-label="Sono">
-      <div class="sl-head"><span class="sl-title">Sono</span>
-        ${n?.start && n?.end ? `<span class="meta">${esc(n.start)} → ${esc(n.end)}</span>` : ''}</div>
+    <section class="card sleep-card" aria-label="Sono">
+      ${cardHead('moon', 'Sono', { color: 'var(--sleep)', right: n?.start && n?.end ? `${esc(n.start)} → ${esc(n.end)}` : '', info: sleepInfo(s) })}
       <div class="sl-main"><b>${hmm(n?.hours)}</b><span>de ${hmm(pn)} (sua base)</span></div>
       <div class="sl-bar"><i style="width:${(pct / 1.25) * 100}%"></i><em style="left:${(1 / 1.25) * 100}%"></em></div>
       <div class="sl-stats">
@@ -323,13 +331,6 @@ function sleepCard(d) {
       ${s.bedtime && d.isToday ? `<p class="sl-bed">Deitar até <b>${esc(s.bedtime.bedtime)}</b><span>para acordar por volta de ${esc(s.bedtime.wake)} com a meta de ${hmm(need.total)}</span></p>` : ''}
       ${r ? `<p class="sl-reg">Últimas ${r.nights} noites: deita por volta de <b>${r.bedtime}</b> (±${r.bedSd} min), acorda por volta de <b>${r.wake}</b> (±${r.wakeSd} min).${s.regularityScore != null ? ` Regularidade <b>${s.regularityScore}</b>/100.` : ''}</p>` : ''}
       ${s.napYesterday ? `<p class="sl-reg">Cochilo ${d.isToday ? 'ontem' : 'no dia anterior'}: <b>${Math.round(s.napYesterday * 60)} min</b> (conta na dívida).</p>` : ''}
-      <details class="explain sl-exp"><summary>Como é calculado</summary>
-        <p><b>Sua base</b> vem da resposta do seu HRV, não do hábito: o app cruza as horas dormidas com o HRV da noite (contra a sua base de 60 dias) nos últimos 180 dias e acha a partir de quantas horas o HRV para de melhorar. Refeita todo mês${s.base && !s.base.fallback ? ` (em ${s.base.month.slice(5)}/${s.base.month.slice(0, 4)}: ${s.base.n} noites; abaixo de 7 h seu HRV ficou ${s.base.below7 > 0 ? '+' : ''}${String(s.base.below7).replace('.', ',')}% da base, com 7 h ou mais ${s.base.above7 > 0 ? '+' : ''}${String(s.base.above7).replace('.', ',')}%)` : ''}.</p>
-        <p><b>Dívida</b>: nos últimos 14 dias, quanto você dormiu abaixo da sua necessidade, com as noites recentes pesando mais (uma noite curta perde metade do peso a cada 7 dias). Noites acima da necessidade e cochilos pagam a dívida. Faixas da Oura: baixa até 2 h, moderada de 2 a 5 h, alta acima de 5 h.</p>
-        <p><b>Deitar até</b>: horário em que você costuma acordar (mediana das últimas noites do mesmo tipo de dia, útil ou fim de semana) − a meta − o tempo que você costuma ficar acordado na cama − 15 min para pegar no sono.</p>
-        <p><b>Regularidade</b>: 100 menos a variação média dos horários de deitar e acordar nas últimas 14 noites (variação de 15 min ≈ 82; de 30 min ≈ 64).</p>
-        <p><b>Meta de hoje</b> muda todo dia: sua base + 30 min quando a Forma está em bloco de treino ou muito cansado (nessas semanas seu HRV rende mais com 8 a 8,5 h) + até 30 min pela dívida + até 30 min pelo treino do dia − cochilo de hoje. Os acréscimos somam no máximo 1 h. Não é preciso pagar a dívida de uma vez: ela some aos poucos com noites um pouco mais longas, cochilos e o próprio tempo.</p>
-      </details>
     </section>`;
 }
 
@@ -383,7 +384,8 @@ function morningHtml(d) {
 // ---------- linha do tempo do dia: sono, treinos, FC e estresse em 24 h ----------
 function timelineHtml(t, isToday) {
   const W = 340, H = 92, X = (m) => (m / 1440) * W;
-  if (!t.hr.length && !t.stress && !t.workouts.length && !t.sleep.length) return `<h2>${isToday ? 'Seu dia' : 'O dia'}</h2><p class="empty">${t.error ? `Sem curva da Garmin (${esc(t.error)}).` : 'Sem dados do dia ainda.'}</p>`;
+  const head = cardHead('clock', isToday ? 'Seu dia' : 'O dia', { color: 'var(--fatigue)', info: 'Sono (faixa lilás), treinos (faixa da cor da modalidade), FC (linha) e estresse da Garmin (barras) a cada 5 minutos. Toque no gráfico para ver a hora.' });
+  if (!t.hr.length && !t.stress && !t.workouts.length && !t.sleep.length) return `${head}<p class="empty">${t.error ? `Sem curva da Garmin (${esc(t.error)}).` : 'Sem dados do dia ainda.'}</p>`;
   const hrMax = Math.max(120, ...t.hr.map((p) => p[1])), hrMin = Math.min(40, ...t.hr.map((p) => p[1]));
   const yHr = (v) => 14 + (1 - (v - hrMin) / (hrMax - hrMin)) * (H - 30);
   const path = (pts, y) => { let d = '', last = -99; for (const [m, v] of pts) { d += `${m - last > 15 ? 'M' : 'L'}${X(m).toFixed(1)},${y(v).toFixed(1)}`; last = m; } return d; };
@@ -395,7 +397,7 @@ function timelineHtml(t, isToday) {
   const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
   const dayHr = t.hr.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1]);
   const stressDay = t.stress ? avg(t.stress.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1])) : null;
-  return `<h2>${isToday ? 'Seu dia' : 'O dia'}</h2>
+  return `${head}
     <svg viewBox="0 0 ${W} ${H}" class="tl-svg" role="img" aria-label="Linha do tempo do dia">
       ${sleep}${work}${stressArea}
       ${t.hr.length ? `<path d="${path(t.hr, yHr)}" class="tl-hr"/>` : ''}
@@ -499,7 +501,7 @@ function render(d) {
 
     <section class="rings rings-2" aria-label="Estou pronto hoje?">
       ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, segments: recSegments(d.rec),
-        label: 'REC', sub: d.day?.trend ? `${d.day.trend.dir === 'up' ? '↑' : d.day.trend.dir === 'down' ? '↓' : '→'} ${d.day.trend.txt.replace('REC ', '')}` : '', aria: 'REC. Toque para ver o que compõe o número.' })}
+        label: 'REC', sub: d.rec == null && d.isToday ? 'a noite ainda não chegou' : d.day?.trend ? `${d.day.trend.dir === 'up' ? '↑' : d.day.trend.dir === 'down' ? '↓' : '→'} ${d.day.trend.txt.replace('REC ', '')}` : '', aria: 'REC. Toque para ver o que compõe o número.' })}
       ${ringTile({ id: 'forma', value: d.load?.formPct == null ? '–' : `${d.load.formPct > 0 ? '+' : d.load.formPct < 0 ? '−' : ''}${Math.abs(d.load.formPct)}<small>%</small>`,
         segments: formSegments(d.load?.formPct), label: 'Forma', sub: shortZone(d.load?.zone?.key), aria: 'Forma. Toque para ver as tendências.' })}
     </section>
@@ -527,8 +529,8 @@ function render(d) {
     ${d.needsHistory ? '<p class="alert">O histórico ainda não foi carregado, então o REC não tem base. <a href="#garmin">Puxar histórico da Garmin</a></p>' : ''}
     ${d.sleep ? sleepCard(d) : ''}
 
-    <section class="block">
-      <h2>${d.isToday ? 'Treino de hoje' : 'Treinos do dia'}</h2>
+    <section class="card">
+      ${cardHead('bolt', d.isToday ? 'Treino de hoje' : 'Treinos do dia', { color: 'var(--strain)' })}
       ${d.day?.target ? strainRing(d.load?.strain ?? 0, d.day.target) : ''}
       ${d.planned?.length ? plannedHtml(d.planned, d.activities) : ''}
       ${actsHtml(d.activities)}
@@ -536,10 +538,10 @@ function render(d) {
 
 
 
-    <section class="block tl" id="tl"><h2>${d.isToday ? 'Seu dia' : 'O dia'}</h2><p class="empty">Carregando…</p></section>
+    <section class="card tl" id="tl">${cardHead('clock', d.isToday ? 'Seu dia' : 'O dia', { color: 'var(--fatigue)' })}<p class="empty">Carregando…</p></section>
 
-    <section class="block feel ${d.feel == null ? 'unset' : ''}">
-      <h2 id="feel-label">Como me sinto</h2>
+    <section class="card feel ${d.feel == null ? 'unset' : ''}">
+      <header class="ch" style="--ic:var(--accent)">${ICON.smile}<h2 id="feel-label">Como me sinto</h2></header>
       <div class="feel-row">
         <input type="range" min="1" max="10" step="1" value="${d.feel ?? 5}" aria-labelledby="feel-label">
         <output class="${d.feel == null ? 'unset' : ''}">${d.feel ?? '–'}</output>
@@ -547,10 +549,9 @@ function render(d) {
       <span class="saved" aria-live="polite"></span>
     </section>
 
-    ${d.habits ? `<section class="block habits">
-      <h2>${d.isToday ? 'Diário de hoje' : 'Diário do dia'}</h2>
+    ${d.habits ? `<section class="card habits">
+      ${cardHead('book', d.isToday ? 'Diário de hoje' : 'Diário do dia', { color: 'var(--accent)', info: 'Marque à noite o que aconteceu no dia. Conta para o REC de amanhã; o efeito de cada hábito aparece em Tendências → Corpo → O que mexe no meu REC.' })}
       <div class="hb-list">${d.habits.defs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>
-      <p class="hb-note">Marque à noite o que aconteceu no dia. Conta para o REC de amanhã.</p>
     </section>` : ''}
 
     <div class="foot">
@@ -604,6 +605,8 @@ function render(d) {
       }).catch(() => {});
     }
   }
+
+  countUp(screen);
 
   // diário de hábitos
   screen.querySelectorAll('.hb').forEach((b) => b.addEventListener('click', async () => {

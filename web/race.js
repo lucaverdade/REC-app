@@ -1,4 +1,5 @@
 import { predictions } from './trends.js';
+import { ICON, cardHead, countUp } from './ui.js';
 // Modo prova: Ironman 70.3 Aracaju. Ativa sozinho na semana da prova; antes disso abre como prévia.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const tfmt = (m) => {
@@ -15,7 +16,7 @@ export async function renderRace(screen, api) {
   let d;
   try { d = await api('/api/race'); } catch (e) { if (e.message !== '401') screen.querySelector('.empty').textContent = `Não carregou: ${e.message}`; return; }
   const r = d.race, n = r.days;
-  const count = n > 1 ? `<b>${n}</b><span>dias</span>` : n === 1 ? '<b>Amanhã</b>' : n === 0 ? '<b>Hoje</b>' : '<b>Prova feita</b>';
+  const count = n > 1 ? `<b data-count="${n}">${n}</b><span>dias</span>` : n === 1 ? '<b>Amanhã</b>' : n === 0 ? '<b>Hoje</b>' : '<b>Prova feita</b>';
 
   screen.innerHTML = `
     <header class="top"><h1>Prova</h1></header>
@@ -37,32 +38,50 @@ export async function renderRace(screen, api) {
 
     ${projHtml(d.projection, r.date)}
 
-    <section class="block" id="pred"></section>
+    <section class="card">${cardHead('stopwatch', 'Previsões de corrida', { color: 'var(--pred)' })}<div id="pred"></div></section>
 
     ${heatHtml(d.heat)}
 
-    <section class="block" id="wx"><h2>Clima em Aracaju no dia</h2><p class="empty">Carregando…</p></section>
+    <section class="card" id="wx">${cardHead('sun', 'Clima em Aracaju no dia', { color: '#ffb547' })}<p class="empty">Carregando…</p></section>
 
-    <section class="block" id="chk"></section>
+    <section class="card" id="chk"></section>
 
-    <section class="block">
-      <h2>Carbo por dia</h2>
-      ${d.carbo?.length ? `<ul class="acts">${d.carbo.map((c) => `<li><span>${esc(dayTxt(c.data))}</span><span class="meta"><b>${esc(c.gramas)} g</b>${c.nota ? `, ${esc(c.nota)}` : ''}</span></li>`).join('')}</ul>`
-        : '<p class="empty">Ainda não publicado pelo chat de treino.</p>'}
+    <section class="card" id="carbo">${cardHead('fork', 'Carbo por dia', { color: 'var(--good)', info: 'Publicado pelo chat de treino em prova.json. Toque num dia para ver o que fazer.' })}
+      ${d.carbo?.length ? carboHtml(d.carbo) : '<p class="empty">Ainda não publicado pelo chat de treino.</p>'}
     </section>
 
-    <section class="block">
-      <h2>Plano de prova</h2>
-      ${d.pace ? `<ul class="acts">${[['natacao', 'Natação'], ['bike', 'Bike'], ['corrida', 'Corrida'], ['nutricao', 'Nutrição na prova']]
-        .filter(([k]) => d.pace[k]).map(([k, l]) => `<li><span><i class="dot s-${k === 'nutricao' ? 'outro' : k}"></i>${l}</span><span class="meta">${esc(d.pace[k])}</span></li>`).join('')}</ul>`
+    <section class="card">${cardHead('route', 'Plano de prova', { info: d.notas ? esc(d.notas) : '' })}
+      ${d.pace ? `<div class="legs">${[['natacao', 'Natação', 'swim'], ['bike', 'Bike', 'bike'], ['corrida', 'Corrida', 'run'], ['nutricao', 'Nutrição', 'gel']]
+        .filter(([k]) => d.pace[k]).map(([k, l, ic]) => `<div class="leg" style="--c:var(--${k === 'nutricao' ? 'good' : k})"><div class="leg-h">${ICON[ic]}<b>${l}</b></div><p>${esc(d.pace[k])}</p></div>`).join('')}</div>`
         : '<p class="empty">Ainda não publicado pelo chat de treino.</p>'}
-      ${d.notas ? `<p class="note">${esc(d.notas)}</p>` : ''}
-      ${d.halfPrediction ? `<p class="note">Previsão da meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b> (referência; no 70.3 a corrida vem depois de 90 km de bike).</p>` : ''}
+      ${d.halfPrediction ? `<p class="card-foot">Meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b>. No 70.3 a corrida vem depois de 90 km de bike.</p>` : ''}
     </section>`;
 
   renderChecklist(screen.querySelector('#chk'), d.items, api);
   renderWeather(screen.querySelector('#wx'), api);
   predictions(screen, api);
+  bindCarbo(screen, d.carbo);
+  countUp(screen);
+}
+
+// Carbo: colunas por dia (altura = gramas); toque mostra a nota do dia
+function carboHtml(list) {
+  const max = Math.max(...list.map((c) => Number(c.gramas) || 0), 1);
+  const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  const sel = Math.max(0, list.findIndex((c) => c.data >= today));
+  return `<div class="cb-cols">${list.map((c, i) => {
+    const dt = new Date(c.data + 'T12:00:00');
+    return `<button type="button" class="cb-col" data-i="${i}" aria-pressed="${i === sel}"><span class="cb-g">${esc(c.gramas)}<small>g</small></span>
+      <span class="cb-bar"><i style="height:${Math.round(((Number(c.gramas) || 0) / max) * 100)}%"></i></span>
+      <span class="cb-d">${dt.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}<b>${dt.getDate()}</b></span></button>`;
+  }).join('')}</div><p class="cb-note">${esc(list[sel]?.nota ?? '')}</p>`;
+}
+function bindCarbo(screen, list) {
+  const box = screen.querySelector('#carbo'); if (!box || !list?.length) return;
+  box.querySelectorAll('.cb-col').forEach((b) => b.addEventListener('click', () => {
+    box.querySelectorAll('.cb-col').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    box.querySelector('.cb-note').textContent = list[Number(b.dataset.i)]?.nota ?? '';
+  }));
 }
 
 // Clima do dia da prova: previsão hora a hora (a partir de 16 dias antes) ou o que costuma fazer
@@ -75,15 +94,14 @@ async function renderWeather(sec, api) {
   const head = prev
     ? `Previsão para domingo, 5 h às 13 h: <b>${min}–${max} °C</b>, umidade ~${hum}%.`
     : `O que costuma fazer em 29/11 entre 5 h e 13 h: <b>${min}–${max} °C</b>, umidade ~${hum}%.`;
-  sec.innerHTML = `
-    <h2>Clima em Aracaju no dia</h2>
-    <p class="proj-head">${head}</p>
-    <div class="wx" role="table" aria-label="Clima por hora">
-      <div class="wx-r wx-h" role="row"><span>Hora</span><span>°C</span>${prev ? '<span>Sensação</span>' : ''}<span>Umidade</span><span>Vento</span><span>Chuva</span></div>
-      ${w.rows.map((r) => `<div class="wx-r" role="row"><span>${r.h} h</span><span><b>${r.temp ?? '–'}</b></span>${prev ? `<span>${r.feels ?? '–'}</span>` : ''}<span>${r.hum ?? '–'}%</span><span>${r.wind ?? '–'} km/h</span><span>${r.rain ?? '–'}%</span></div>`).join('')}
-    </div>
-    <p class="note">${prev ? 'Previsão Open-Meteo, atualizada a cada 3 h. Chuva = chance de chover.'
-      : `Média de ${w.years ?? 10} anos (22/11 a 06/12), Open-Meteo. Chuva = % das horas com chuva. A previsão do dia entra sozinha a partir de ${new Date(w.availableFrom + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' })}.`}</p>`;
+  const icon = (r) => ((r.rain ?? 0) >= 40 ? ICON.rain : (r.rain ?? 0) >= 15 ? ICON.cloud : r.h <= 6 ? ICON.partly : ICON.sun);
+  const info = prev ? 'Previsão Open-Meteo, atualizada a cada 3 h. Gota = chance de chuva.'
+    : `Média de ${w.years ?? 10} anos (22/11 a 06/12), Open-Meteo. Gota = % das horas com chuva. A previsão do dia entra sozinha a partir de ${new Date(w.availableFrom + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'numeric' })}.`;
+  sec.innerHTML = `${cardHead('sun', 'Clima em Aracaju no dia', { color: '#ffb547', info })}
+    <p class="card-lead">${head}</p>
+    <div class="wx-strip" role="list" aria-label="Clima por hora">${w.rows.map((r) => `
+      <div class="wx-h" role="listitem"><span class="wx-t">${r.h}h</span>${icon(r)}<b>${r.temp ?? '–'}°</b>${prev && r.feels != null ? `<small>sens. ${r.feels}°</small>` : ''}<small>${r.hum ?? '–'}%</small><small>${r.wind ?? '–'} km/h</small>${(r.rain ?? 0) > 0 ? `<small class="wx-rain">💧${r.rain}%</small>` : '<small class="wx-rain">–</small>'}</div>`).join('')}
+    </div>`;
 }
 
 // Aclimatação ao calor: sessões no calor dos últimos 14 dias
@@ -92,15 +110,15 @@ export function heatHtml(h, withTitle = true) {
   const dd = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '');
   const head = !h.count14 ? 'Nenhuma sessão no calor nos últimos 14 dias.'
     : `<b>${h.count14} ${h.count14 === 1 ? 'sessão' : 'sessões'}</b> no calor nos últimos 14 dias (${h.minutes14} min)${h.daysSince != null ? `, a última ${h.daysSince === 0 ? 'hoje' : h.daysSince === 1 ? 'ontem' : `há ${h.daysSince} dias`}` : ''}.`;
+  const info = `Conta como sessão no calor o treino que o plano marcou como calor ("Calor 1", "Calor 2"…) ou o treino na rua com temperatura média de 28 °C ou mais em Brasília durante o treino${h.weather ? '' : ' (temperatura indisponível agora)'}. Treinos de 20 min ou mais.<br><br>Referência dos estudos de aclimatação: as adaptações (mais plasma, suor mais cedo, FC mais baixa no calor) aparecem com cerca de 5 sessões e ficam quase completas com 8 a 10 em 1 a 2 semanas; sem estímulo por mais de uma semana, começam a se perder aos poucos.`;
+  const dots = Array.from({ length: 10 }, (_, i) => `<i class="${i < h.count14 ? 'on' : ''}"></i>`).join('');
   return `
-    <section class="block heat">
-      ${withTitle ? '<h2>Aclimatação ao calor</h2>' : ''}
-      <p class="proj-head">${head}</p>
+    <section class="card heat">
+      ${withTitle ? cardHead('flame', 'Aclimatação ao calor', { color: '#ff8a5c', info }) : ''}
+      <p class="card-lead">${head}</p>
+      <div class="heat-dots" aria-hidden="true">${dots}<span>5 · 8–10</span></div>
       ${h.sessions.length ? `<ul class="acts">${h.sessions.map((x) => `<li><span><i class="dot s-${x.sport}"></i>${esc(dd(x.date))} · ${esc(x.label)} ${x.min} min</span><span class="meta">${esc(x.why)}</span></li>`).join('')}</ul>` : ''}
-      <details class="explain"><summary>Como é contado</summary>
-        <p>Conta como sessão no calor o treino que o plano marcou como calor ("Calor 1", "Calor 2"…) ou o treino na rua com temperatura média de 28 °C ou mais em Brasília durante o treino${h.weather ? '' : ' (temperatura indisponível agora)'}. Treinos de 20 min ou mais.</p>
-        <p>Referência dos estudos de aclimatação: as adaptações (mais plasma, suor mais cedo, FC mais baixa no calor) aparecem com cerca de 5 sessões e ficam quase completas com 8 a 10 em 1 a 2 semanas; sem estímulo por mais de uma semana, começam a se perder aos poucos.</p>
-      </details>
+      ${withTitle ? '' : `<p class="note">${info}</p>`}
     </section>`;
 }
 
@@ -130,11 +148,10 @@ export function projHtml(pr, raceDate) {
     ? `Forma prevista no dia da prova: <b class="z-${end.zone?.key}">${sg(end.formPct)}</b>, ${esc(end.zone?.label.toLowerCase())}.`
     : end ? `Plano publicado até ${esc(short(pr.planUntil ?? end.date))}. Forma prevista em ${esc(short(end.date))}: <b class="z-${end.zone?.key}">${sg(end.formPct)}</b>, ${esc(end.zone?.label.toLowerCase())}.` : '';
   return `
-    <section class="block proj">
-      <h2>Forma até a prova</h2>
-      <p class="proj-head">${head}</p>
+    <section class="card proj">
+      ${cardHead('trend', 'Forma até a prova', { color: 'var(--z-descansado)', info: `Barras cheias: Forma real. Tracejadas: projeção com o Strain previsto do plano publicado (dia sem sessão = descanso). Alvo para a prova: descansado, entre +5% e +20%.${pr.raceDay ? '' : ' A projeção chega ao dia da prova quando o plano das últimas semanas for publicado.'}` })}
+      <p class="card-lead">${head}</p>
       <svg viewBox="0 -4 ${W} ${H + 22}" class="chart" role="img" aria-label="Forma dos últimos 14 dias e projetada pelo plano">${bands}<line x1="0" x2="${W}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" class="zero"/>${sep}${bars}${ticks}</svg>
-      <p class="note">Barras cheias: Forma real. Tracejadas: projeção com o Strain previsto do plano publicado (dia sem sessão = descanso). Alvo para a prova: descansado, entre +5% e +20%.${pr.raceDay ? '' : ' A projeção chega ao dia da prova quando o plano das últimas semanas for publicado.'}</p>
     </section>`;
 }
 
@@ -142,7 +159,7 @@ export function projHtml(pr, raceDate) {
 function renderChecklist(sec, items, api) {
   const done = items.filter((i) => i.done).length;
   sec.innerHTML = `
-    <h2>Checklist${items.length ? ` <span class="h2-num">${done} de ${items.length}</span>` : ''}</h2>
+    ${cardHead('check', 'Checklist', { right: items.length ? `${done} de ${items.length}` : '' })}
     ${items.length ? `<ul class="checklist">${items.map((i) => `
       <li><label><input type="checkbox" data-id="${esc(i.id)}" ${i.done ? 'checked' : ''}><span>${esc(i.texto)}</span></label>
         <button type="button" class="ck-del" data-del="${esc(i.id)}" aria-label="Apagar ${esc(i.texto)}">×</button></li>`).join('')}</ul>`
