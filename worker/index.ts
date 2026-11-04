@@ -13,7 +13,7 @@ import { longTrend } from '../src/longtrend.ts';
 import { dailySummary, recTrend } from '../src/daily.ts';
 import { strainTargetV2 } from '../src/target.ts';
 import { recoveryVerdict } from '../src/verdict.ts';
-import { fetchActivities, fetchDays, fetchHrZones, GarminError, hasKey, type GarminActivity, type GarminDay } from './garmin.ts';
+import { fetchActivities, fetchActivityFile, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
 export interface Env {
@@ -70,7 +70,7 @@ async function ensureSchema(env: Env) {
     .split(';').map((x) => x.trim()).filter(Boolean);
   await env.DB.batch(stmts.map((q) => env.DB.prepare(q)));
   // migrações de colunas (ignora "duplicate column" quando já existem)
-  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
+  for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
     try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
   }
   schemaReady = true;
@@ -97,8 +97,17 @@ async function writeActivities(env: Env, acts: GarminActivity[]) {
   const del = env.DB.prepare(`DELETE FROM activities WHERE date = ?1 AND time = ?2 AND type = ?3 AND id <> ?4`);
   const ex = env.DB.prepare(`UPDATE activities SET name = ?2, kcal = ?3, kcal_bmr = ?4, elev = ?5, speed = ?6, maxspeed = ?7, power = ?8, te_ana = ?9, cadence = ?10 WHERE id = ?1`);
   const st = env.DB.prepare(
-    `INSERT OR REPLACE INTO activities (id, date, time, type, sport, min, km, avghr, maxhr, load, te_aer, rpe, feel, z1, z2, z3, z4, z5)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)`,
+    `INSERT INTO activities (id, date, time, type, sport, min, km, avghr, maxhr, load, te_aer, rpe, feel, z1, z2, z3, z4, z5)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+     ON CONFLICT(id) DO UPDATE SET date = excluded.date, time = excluded.time, type = excluded.type, sport = excluded.sport,
+       min = excluded.min, km = excluded.km, avghr = excluded.avghr, maxhr = excluded.maxhr, load = excluded.load, te_aer = excluded.te_aer,
+       rpe = excluded.rpe, feel = excluded.feel,
+       -- zonas recalculadas pelo arquivo FIT (zonas atuais) não são sobrescritas pelas da Garmin
+       z1 = CASE WHEN activities.z_src = 'fit' THEN activities.z1 ELSE excluded.z1 END,
+       z2 = CASE WHEN activities.z_src = 'fit' THEN activities.z2 ELSE excluded.z2 END,
+       z3 = CASE WHEN activities.z_src = 'fit' THEN activities.z3 ELSE excluded.z3 END,
+       z4 = CASE WHEN activities.z_src = 'fit' THEN activities.z4 ELSE excluded.z4 END,
+       z5 = CASE WHEN activities.z_src = 'fit' THEN activities.z5 ELSE excluded.z5 END`,
   );
   if (!acts.length) return 0;
   await env.DB.batch(acts.flatMap((a) => [
@@ -1054,6 +1063,53 @@ export default {
       if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);
       const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 14, 3), 28);
       try { return json(await garminCheck(env, days)); } catch (e) { return json({ error: garminMsg(e) }, 502); }
+    }
+    // --- recalcular zonas do histórico com as zonas atuais (FC segundo a segundo do arquivo FIT, lido no navegador) ---
+    if (url.pathname === '/api/zones/current' && req.method === 'GET') {
+      if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);
+      try {
+        const raw = await fetchHrZones(env);
+        const z = parseHrZones(raw);
+        if (!Object.keys(z).length) return json({ error: 'formato_desconhecido', keys: Array.isArray(raw) ? Object.keys(raw[0] ?? {}) : Object.keys(raw ?? {}) }, 422);
+        return json({ zones: z });
+      } catch (e) { return json({ error: garminMsg(e) }, 502); }
+    }
+    if (url.pathname === '/api/zones/pending' && req.method === 'GET') {
+      await ensureSchema(env);
+      const n = Math.min(20, Number(url.searchParams.get('n')) || 5);
+      const where = `sport IN ('bike','corrida','natacao','hyrox') AND date >= ?1 AND date < '2026-11-03' AND id NOT GLOB '*[^0-9]*' AND z_src IS NULL`;
+      const from = addDays(brtToday(), -365);
+      const { results } = await env.DB.prepare(`SELECT id, date, type, sport, min FROM activities WHERE ${where} ORDER BY date DESC LIMIT ?2`).bind(from, n).all();
+      const left = await env.DB.prepare(`SELECT COUNT(*) n FROM activities WHERE ${where}`).bind(from).first<{ n: number }>();
+      const done = await env.DB.prepare(`SELECT COUNT(*) n FROM activities WHERE z_src = 'fit'`).first<{ n: number }>();
+      return json({ pending: results, left: left?.n ?? 0, done: done?.n ?? 0 });
+    }
+    if (url.pathname === '/api/fit/file' && req.method === 'GET') {
+      const id = url.searchParams.get('id') ?? '';
+      try {
+        const bytes = await fetchActivityFile(env, id);
+        return new Response(bytes, { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'no-store' } });
+      } catch (e) {
+        const st = e instanceof GarminError ? e.status : 500;
+        if (st === 404) await env.DB.prepare("UPDATE activities SET z_src = 'sem_arquivo' WHERE id = ?1").bind(id).run();
+        return json({ error: garminMsg(e), status: st }, st === 429 ? 429 : 502);
+      }
+    }
+    if (url.pathname === '/api/zones/result' && req.method === 'POST') {
+      const b = await req.json<any>().catch(() => ({}));
+      const id = String(b.id ?? '');
+      if (!/^\d+$/.test(id)) return json({ error: 'id_invalido' }, 400);
+      const z = Array.isArray(b.z) && b.z.length === 5 && b.z.every((v: unknown) => typeof v === 'number' && v >= 0 && v < 2000) ? b.z as number[] : null;
+      if (!z) { await env.DB.prepare("UPDATE activities SET z_src = 'sem_fc' WHERE id = ?1").bind(id).run(); return json({ ok: true, skipped: true }); }
+      // guarda as zonas originais da Garmin (para desfazer) e grava as recalculadas
+      await env.DB.prepare(`UPDATE activities SET z_orig = COALESCE(z_orig, json_array(z1, z2, z3, z4, z5)), z1 = ?2, z2 = ?3, z3 = ?4, z4 = ?5, z5 = ?6, z_src = 'fit' WHERE id = ?1`)
+        .bind(id, ...z.map((v) => Math.round(v * 100) / 100)).run();
+      return json({ ok: true });
+    }
+    if (url.pathname === '/api/zones/undo' && req.method === 'POST') {
+      await env.DB.prepare(`UPDATE activities SET z1 = json_extract(z_orig, '$[0]'), z2 = json_extract(z_orig, '$[1]'), z3 = json_extract(z_orig, '$[2]'), z4 = json_extract(z_orig, '$[3]'), z5 = json_extract(z_orig, '$[4]'), z_src = NULL, z_orig = NULL WHERE z_orig IS NOT NULL`).run();
+      await env.DB.prepare(`UPDATE activities SET z_src = NULL WHERE z_src IN ('sem_arquivo', 'sem_fc')`).run();
+      return json({ ok: true });
     }
     if (url.pathname === '/api/garmin/zones' && req.method === 'GET') {
       if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);

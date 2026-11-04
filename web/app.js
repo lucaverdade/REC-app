@@ -4,6 +4,7 @@ import { renderTrain } from './train.js';
 import { renderRace } from './race.js';
 import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
+import { recalcHistory } from './zones.js';
 const TOKEN_KEY = 'rec.token';
 const screen = document.getElementById('screen');
 
@@ -665,6 +666,16 @@ async function renderGarmin() {
     </section>
 
     <section class="block">
+      <h2>Zonas do histórico</h2>
+      <p class="note">Os treinos até 02/11 usam as zonas que estavam no Garmin na época (bike e natação mudaram em 03/11). Isto relê o arquivo de cada treino do último ano (bike, corrida, natação e Hyrox) e refaz o tempo em zona com as suas zonas atuais. Strain, Fitness, Fadiga e Forma mudam junto. Dá para desfazer.</p>
+      <button class="btn ghost" id="zcur" ${st.hasKey ? '' : 'disabled'}>Ver zonas atuais</button>
+      <div id="zcur-out"></div>
+      <button class="btn" id="zrun" ${st.hasKey ? '' : 'disabled'}>Recalcular histórico</button>
+      <button class="btn ghost" id="zundo">Desfazer</button>
+      <p class="progress" id="zrun-out" aria-live="polite"></p>
+    </section>
+
+    <section class="block">
       <h2>Zonas de FC do Garmin</h2>
       <p class="note">FC máxima, de repouso e limiar configurados no seu Garmin. São a base do cálculo de carga padrão do mercado (hrTSS).</p>
       <button class="btn ghost" id="zones" ${st.hasKey ? '' : 'disabled'}>Ver zonas</button>
@@ -675,6 +686,30 @@ async function renderGarmin() {
       <h2>Últimas sincronizações</h2>
       ${st.log.length ? `<ul class="acts">${st.log.map((l) => `<li><span>${esc(new Date(l.at + 'Z').toLocaleString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span><span class="meta">${esc(l.status)}: ${esc(l.detail)}</span></li>`).join('')}</ul>` : '<p class="empty">Nenhuma ainda.</p>'}
     </section>`;
+
+  // zonas do histórico
+  const zout = screen.querySelector('#zrun-out');
+  const SL = { default: 'Padrão (Hyrox e outros)', bike: 'Bike', corrida: 'Corrida', natacao: 'Natação' };
+  screen.querySelector('#zcur').addEventListener('click', async () => {
+    const box = screen.querySelector('#zcur-out'); box.innerHTML = '<p class="progress">Buscando…</p>';
+    try {
+      const { zones } = await api('/api/zones/current');
+      box.innerHTML = `<ul class="acts">${Object.entries(zones).map(([k, z]) => `<li><span>${SL[k] ?? k}</span><span class="meta">Z1 ${z.floors[0]} · Z2 ${z.floors[1]} · Z3 ${z.floors[2]} · Z4 ${z.floors[3]} · Z5 ${z.floors[4]}${z.max ? ` · máx ${z.max}` : ''}</span></li>`).join('')}</ul>`;
+    } catch (e) { box.innerHTML = `<p class="progress">Não leu as zonas: ${esc(e.message)}</p>`; }
+  });
+  screen.querySelector('#zrun').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget; btn.disabled = true; zout.textContent = 'Começando…';
+    try {
+      const r = await recalcHistory(api, { onEach: ({ item, z, error, left }) => {
+        zout.textContent = error ? `${item.date}: pulado (${error})` : `${item.date} ${item.sport}: ${z ? 'zonas refeitas' : 'sem FC no arquivo'}${left != null ? ` · faltam ${Math.max(0, left)}` : ''}`;
+      } });
+      zout.textContent = r.busy ? 'Já está rodando.' : r.stop ?? `Pronto: ${r.done} treinos recalculados.`;
+    } catch (e) { zout.textContent = `Parou: ${e.message}`; }
+    btn.disabled = false;
+  });
+  screen.querySelector('#zundo').addEventListener('click', async () => {
+    try { await api('/api/zones/undo', { method: 'POST' }); zout.textContent = 'Zonas originais da Garmin de volta.'; } catch (e) { zout.textContent = `Falhou: ${e.message}`; }
+  });
 
   screen.querySelector('#hist').addEventListener('click', async (ev) => {
     const btn = ev.currentTarget, out = screen.querySelector('#hist-out');

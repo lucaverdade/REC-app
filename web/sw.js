@@ -1,5 +1,5 @@
 // Cache só do app (HTML/CSS/JS/ícones). Dados de /api nunca ficam em cache.
-const CACHE = 'rec-shell-v59';
+const CACHE = 'rec-shell-v60';
 const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/charts.js', '/trends.js', '/train.js', '/race.js', '/review.js', '/share.js', '/manifest.webmanifest', '/icon-192.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {

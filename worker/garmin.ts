@@ -240,8 +240,38 @@ export async function fetchActivities(env: GarminEnv, from: string, to: string):
 
 export const hasKey = (env: GarminEnv) => !!env.GARMIN_API_KEY;
 
+/** Arquivo original da atividade (ZIP com o .fit). */
+export async function fetchActivityFile(env: GarminEnv, id: string): Promise<Uint8Array> {
+  if (!/^\d+$/.test(id)) throw new GarminError(400, 'id_invalido');
+  const call = async () => fetch((env.GARMIN_BASE_URL ?? BASE) + `/download-service/files/activity/${id}`,
+    { headers: { Accept: 'application/zip, application/x-zip-compressed, application/octet-stream', Authorization: `Bearer ${await token(env)}` } });
+  let r = await call();
+  if (r.status === 401) { cached = null; r = await call(); }
+  if (!r.ok) throw new GarminError(r.status, '/download-service/files');
+  return new Uint8Array(await r.arrayBuffer());
+}
 
-/** Zonas de FC configuradas no Garmin (FC máx., repouso, limiar). Formato ainda não confirmado: devolvido bruto. */
+
+
+/**
+ * Zonas de FC por modalidade, como configuradas no Garmin. Formato do Garmin Connect: lista de
+ * { sport: 'DEFAULT' | 'CYCLING' | 'RUNNING' | 'SWIMMING' | …, zone1Floor … zone5Floor, maxHeartRateUsed, restingHeartRateUsed, trainingMethod }.
+ */
+export function parseHrZones(j: any) {
+  const list: any[] = Array.isArray(j) ? j : Array.isArray(j?.heartRateZones) ? j.heartRateZones : Array.isArray(j?.zones) ? j.zones : [];
+  const out: Record<string, { floors: number[]; max: number | null; rest: number | null; method: string | null }> = {};
+  const map: Record<string, string> = { DEFAULT: 'default', CYCLING: 'bike', RUNNING: 'corrida', SWIMMING: 'natacao', LAP_SWIMMING: 'natacao', OPEN_WATER_SWIMMING: 'natacao' };
+  for (const z of list) {
+    const floors = [1, 2, 3, 4, 5].map((i) => n(z?.[`zone${i}Floor`]));
+    if (floors.some((f) => f == null)) continue;
+    const key = map[String(z?.sport ?? 'DEFAULT').toUpperCase()] ?? null;
+    if (!key || out[key]) continue;
+    out[key] = { floors: floors as number[], max: n(z?.maxHeartRateUsed), rest: n(z?.restingHeartRateUsed), method: typeof z?.trainingMethod === 'string' ? z.trainingMethod : null };
+  }
+  return out;
+}
+
+/** Zonas de FC configuradas no Garmin (bruto). */
 export async function fetchHrZones(env: GarminEnv): Promise<unknown> {
   return get(env, '/biometric-service/heartRateZones/v2');
 }

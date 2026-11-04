@@ -15,7 +15,7 @@ Lista viva do que o Luca pediu para depois.
 - [ ] ~~Indicadores de forma~~ — descartado (03/11): pace e velocidade dependem de elevação, calor, vento e indoor × outdoor. A previsão de prova já mede adaptação na corrida.
 
 - [x] **Zonas de FC por modalidade** (03/11): o Luca criou zonas de ciclismo no Garmin (%HRR; usar FC máx. da bike, ~185–186). Treinos novos já chegam com o tempo em zonas certo.
-- [ ] Opcional: recalcular o histórico de zonas com o arquivo FIT (a Personal API entrega o arquivo original em `/download-service/files/activity/{id}`, ZIP com .fit).
+- [x] **Zonas do histórico recalculadas** (04/11): Garmin → Zonas do histórico → Recalcular. Lê o FIT de cada treino (bike, corrida, natação, Hyrox; último ano, até 02/11) no navegador e refaz o tempo em zona com as zonas atuais por modalidade (`/biometric-service/heartRateZones`). Guarda as zonas originais (`z_orig`) para desfazer; buscas novas na Garmin não sobrescrevem as recalculadas. **Pendente: o Luca rodar e conferir.**
 
 - [x] Strain semanal com faixa (03/11), estilo Relative Effort do Strava: faixa = 0,8–1,3 × média das 3 semanas anteriores; 16 semanas em Tendências.
 
