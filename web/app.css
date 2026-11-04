@@ -984,8 +984,8 @@ body.is-share main { padding-bottom: 0; }
 /* ===== padrão visual (04/11): cartão único, cabeçalho com ícone, ⓘ ===== */
 .card { position: relative; margin: 0 0 12px; padding: 16px; border-radius: 20px; background: var(--card); border: 1px solid var(--line-soft); animation: card-in .45s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-main > .card:nth-of-type(2) { animation-delay: .04s; } main > .card:nth-of-type(3) { animation-delay: .08s; } main > .card:nth-of-type(4) { animation-delay: .12s; }
-main > .card:nth-of-type(5) { animation-delay: .16s; } main > .card:nth-of-type(n+6) { animation-delay: .2s; }
+:is(main, main > .page) > .card:nth-of-type(2) { animation-delay: .04s; } :is(main, main > .page) > .card:nth-of-type(3) { animation-delay: .08s; } :is(main, main > .page) > .card:nth-of-type(4) { animation-delay: .12s; }
+:is(main, main > .page) > .card:nth-of-type(5) { animation-delay: .16s; } :is(main, main > .page) > .card:nth-of-type(n+6) { animation-delay: .2s; }
 @media (prefers-reduced-motion: reduce) { .card { animation: none; } }
 .ch { display: flex; align-items: center; gap: 9px; margin: 0 0 12px; --ic: var(--text-2); }
 .ic { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--ic, currentColor); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -1178,3 +1178,7 @@ main > .card:nth-of-type(5) { animation-delay: .16s; } main > .card:nth-of-type(
 .yd-acts i { width: 8px; height: 8px; border-radius: 50%; }
 .yd-acts em { font-style: normal; font-size: 12px; color: var(--text-2); }
 .yr rect.sel { stroke: var(--text) !important; stroke-width: 1.2 !important; }
+
+/* abas: toque responde na hora (04/11) */
+.tab { touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color .12s; }
+.tab:active { opacity: .6; }

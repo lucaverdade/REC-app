@@ -696,26 +696,43 @@ screen.addEventListener('click', (e) => {
   if (b && !b.disabled) goDay(Number(b.dataset.day), Number(b.dataset.day) > 0 ? 'slide-r' : 'slide-l');
 });
 
+// navegação (04/11): cada troca de aba ganha um número; resposta que chega depois de trocar de aba é descartada
+// (antes, a busca automática da Garmin terminava e redesenhava o Hoje por cima da aba aberta).
+let navSeq = 0, loadSeq = 0, todayCache = null;
+const onHoje = () => (location.hash || '#hoje') === '#hoje';
+const sameDay = (a, b) => { const k = (x) => JSON.stringify({ ...x, lastSync: 0, minsSinceSync: 0, syncIssue: 0 }); return k(a) === k(b); };
 async function load() {
+  const nav = navSeq, my = ++loadSeq;
+  const live = () => nav === navSeq && my === loadSeq && onHoje();
   try {
     const date = addIso(isoToday(), -dayOffset);
+    // mostra na hora o último Hoje desse dia (se houver) e atualiza quando a resposta chegar
+    if (!todayCache) { try { const c = JSON.parse(localStorage.getItem('rec.today') || 'null'); if (c?.date) todayCache = { [c.date]: c }; } catch {} }
+    const shown = todayCache?.[date] ?? null;
+    if (shown) render(shown);
+    else screen.innerHTML = '<header class="top"><h1>Hoje</h1></header><p class="empty">Carregando…</p>';
     const d = await api(`/api/today?date=${date}`);
-    render(d);
+    todayCache = { ...(todayCache ?? {}), [date]: d };
+    if (dayOffset === 0) try { localStorage.setItem('rec.today', JSON.stringify(d)); } catch {}
+    if (!live()) return;
+    if (!shown || !sameDay(d, shown) || JSON.stringify(d.syncIssue) !== JSON.stringify(shown.syncIssue)) render(d);
     const stale = d.minsSinceSync == null || d.minsSinceSync > 15;
     if (dayOffset === 0 && (d.needsSync || stale) && autoTried !== `${d.date}-${Math.floor(Date.now() / 900000)}`) {
       autoTried = `${d.date}-${Math.floor(Date.now() / 900000)}`;
       const sync = screen.querySelector('.sync');
-      sync.disabled = true; sync.textContent = d.needsSync ? 'Buscando a noite na Garmin…' : 'Buscando treinos novos…';
+      if (sync) { sync.disabled = true; sync.textContent = d.needsSync ? 'Buscando a noite na Garmin…' : 'Buscando treinos novos…'; }
       await api('/api/refresh?auto=1', { method: 'POST' }).catch(() => {});
       const d2 = await api(`/api/today?date=${date}`);
-      render(d2);
-      if (d2.needsSync) screen.querySelector('.sync').textContent = 'A noite ainda não chegou à Garmin. Sincronize o relógio e toque aqui.';
-      else { const b = screen.querySelector('.sync'); if (b) { b.disabled = false; b.textContent = 'Atualizado agora'; } }
+      todayCache = { ...todayCache, [date]: d2 };
+      try { localStorage.setItem('rec.today', JSON.stringify(d2)); } catch {}
+      if (!live()) return;
+      if (!sameDay(d2, d)) render(d2);
+      const b = screen.querySelector('.sync');
+      if (b) { if (d2.needsSync) b.textContent = 'A noite ainda não chegou à Garmin. Sincronize o relógio e toque aqui.'; else { b.disabled = false; b.textContent = 'Atualizado agora'; } }
     }
   }
-  catch (e) { if (e.message !== '401') screen.innerHTML = '<p class="comment" style="margin-top:40vh">Sem conexão com o servidor. Abra de novo em instantes.</p>'; }
+  catch (e) { if (e.message !== '401' && live() && !screen.querySelector('.hero')) screen.innerHTML = '<p class="comment" style="margin-top:40vh">Sem conexão com o servidor. Abra de novo em instantes.</p>'; }
 }
-
 
 // ---------- Garmin: estado, teste e histórico ----------
 const HISTORY_FROM = '2025-05-01'; // HRV existe desde set/2025; 4 meses antes dão a base de FC de repouso
@@ -729,8 +746,9 @@ async function renderGarmin() {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   const head = '<header class="top"><h1>Garmin</h1><a class="foot-link" href="#hoje">Voltar</a></header>';
   screen.innerHTML = `${head}<p class="empty">Conferindo…</p>`;
-  let d;
-  try { d = await api('/api/diag'); } catch (e) { if (e.message !== '401') screen.querySelector('.empty').textContent = errText(e); return; }
+  let d; const nav = navSeq;
+  try { d = await api('/api/diag'); } catch (e) { if (e.message !== '401' && nav === navSeq) screen.querySelector('.empty').textContent = errText(e); return; }
+  if (nav !== navSeq) return;
   const n = (v) => (v ?? 0).toLocaleString('pt-BR');
   const fmt = (iso) => (iso ? fmtDate(iso, { day: 'numeric', month: 'short', year: 'numeric' }) : '–');
   const ago = (m) => (m == null ? '' : m < 60 ? `há ${m} min` : m < 48 * 60 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} dias`);
@@ -956,14 +974,17 @@ function route() {
   });
   window.scrollTo(0, 0);
   document.body.classList.remove('is-share');
-  if (h.startsWith('#card/')) renderShare(screen, api, decodeURIComponent(h.slice(6)));
-  else if (h.startsWith('#atv/')) renderActivity(screen, api, decodeURIComponent(h.slice(5)));
+  navSeq++;
+  // telas dos outros módulos escrevem numa página própria: se a resposta chegar depois de trocar de aba, cai numa página que já saiu da tela
+  const page = () => { const pg = document.createElement('div'); pg.className = 'page'; screen.replaceChildren(pg); return pg; };
+  if (h.startsWith('#card/')) renderShare(page(), api, decodeURIComponent(h.slice(6)));
+  else if (h.startsWith('#atv/')) renderActivity(page(), api, decodeURIComponent(h.slice(5)));
   else if (h === '#garmin') renderGarmin();
   else if (h === '#tema') renderTheme();
   else if (h === '#ajustes') renderSettings();
-  else if (h === '#tendencias') renderTrends(screen, api);
-  else if (h === '#treino') renderTrain(screen, api);
-  else if (h === '#prova') renderRace(screen, api);
+  else if (h === '#tendencias') renderTrends(page(), api);
+  else if (h === '#treino') renderTrain(page(), api);
+  else if (h === '#prova') renderRace(page(), api);
   else load();
 }
 window.addEventListener('hashchange', route);
