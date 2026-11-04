@@ -93,6 +93,16 @@ function contribHtml(list) {
   }).join('');
 }
 
+function readyPartsHtml(r) {
+  if (!r) return '';
+  const W = { corpo: 55, carga: 20, ontem: 10, sono: 15 };
+  return `<ul>${r.parts.map((p) => {
+    const w = p.z == null ? 0 : Math.min(Math.abs(p.z) / 2.5, 1) * 50;
+    const bar = p.z == null ? '' : p.z >= 0 ? `<span style="left:50%;width:${w}%"></span>` : `<span class="down" style="right:50%;width:${w}%"></span>`;
+    return `<li><span class="label">${esc(p.label)}</span><span class="value ${p.z == null ? 'missing' : ''}">${W[p.key]}%</span><span class="bar" aria-hidden="true">${bar}</span><span class="base rp-d">${esc(p.detail)}</span></li>`;
+  }).join('')}</ul>${r.cap ? `<p class="comment">${esc(r.cap)}</p>` : ''}<p class="comment rp-note">Cada parte comparada com o seu normal; barra para a direita ajuda, para a esquerda pesa. O número é fixo desde a manhã: o treino de hoje entra na Prontidão de amanhã.</p>`;
+}
+
 const ZN = ['Abaixo da Z1', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
 function actsHtml(acts) {
   if (!acts.length) return '<p class="empty">Nenhum treino registrado.</p>';
@@ -189,16 +199,16 @@ function strainRing(done, t) {
   </div>`;
 }
 
-function ringTile({ id, value, frac = 0, color, label, sub, aria, segments }) {
+function ringTile({ id, value, unit = '', frac = 0, color, label, sub, aria, segments }) {
   const f1 = Math.max(0, Math.min(1, frac)), f2 = Math.max(0, Math.min(1, frac - 1)); // segunda volta (Strain acima de 100%)
-  return `<button type="button" class="rtile" data-ring="${id}" aria-label="${esc(aria)}" ${id === 'rec' ? 'aria-expanded="false" aria-controls="contrib"' : ''}>
+  return `<button type="button" class="rtile" data-ring="${id}" aria-label="${esc(aria)}" ${id === 'ready' ? 'aria-expanded="false" aria-controls="ready-parts"' : ''}>
     <span class="rt-ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         ${segments ?? `<circle cx="50" cy="50" r="40" class="rt-track"/>
         <circle cx="50" cy="50" r="40" class="rt-arc" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f1)}"/>`}
         ${!segments && f2 > 0 ? `<circle cx="50" cy="50" r="40" class="rt-arc rt-lap" style="stroke:${color}" stroke-dasharray="${RC}" stroke-dashoffset="${RC}" data-target="${RC * (1 - f2)}"/>` : ''}
       </svg>
-      <span class="rt-val"><span${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</span></span>
+      <span class="rt-val"><span><span${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</span>${unit ? `<small>${unit}</small>` : ''}</span></span>
     </span>
     <span class="rt-label">${esc(label)}</span>
     <span class="rt-sub">${esc(sub)}</span>
@@ -481,7 +491,7 @@ function formCard(d) {
 
 
 function render(d) {
-  const z = zoneOf(d.rec);
+  const z = zoneOf(d.ready?.score ?? d.rec);
   document.documentElement.style.setProperty('--rec', zoneVar(z));
   const raceTxt = d.race.days > 0 ? `Aracaju em ${d.race.days} dias` : d.race.days === 0 ? 'Dia de prova' : '';
   const todayIso = d.date;
@@ -505,12 +515,23 @@ function render(d) {
 
     ${d.race.raceWeek ? `<a class="race-banner" href="#prova"><span>Semana da prova</span><b>${d.race.days > 1 ? `${d.race.days} dias para Aracaju` : d.race.days === 1 ? 'Amanhã é dia de prova' : d.race.days === 0 ? 'Hoje é dia de prova' : 'Prova feita'}</b><em>Prova ›</em></a>` : ''}
 
-    <section class="rings rings-2" aria-label="Estou pronto hoje?">
-      ${ringTile({ id: 'rec', value: d.rec == null ? '–' : d.rec, segments: recSegments(d.rec),
-        label: 'REC', sub: d.rec == null && d.isToday ? 'a noite ainda não chegou' : d.day?.trend ? `${d.day.trend.dir === 'up' ? '↑' : d.day.trend.dir === 'down' ? '↓' : '→'} ${d.day.trend.txt.replace('REC ', '')}` : '', aria: 'REC. Toque para ver o que compõe o número.' })}
-      ${ringTile({ id: 'forma', value: d.load?.formPct == null ? '–' : `${d.load.formPct > 0 ? '+' : d.load.formPct < 0 ? '−' : ''}${Math.abs(d.load.formPct)}<small>%</small>`,
-        segments: formSegments(d.load?.formPct), label: 'Forma', sub: shortZone(d.load?.zone?.key), aria: 'Forma. Toque para ver as tendências.' })}
+    ${(() => {
+      const r = d.ready, sc = r?.score == null ? null : Math.round(r.score);
+      const fp = d.load?.formPct;
+      return `<section class="hero" aria-label="Estou pronto hoje?">
+      ${ringTile({ id: 'ready', value: sc ?? '–', unit: sc == null ? '' : '%', segments: recSegments(sc), label: 'Prontidão',
+        sub: sc == null && d.isToday ? 'a noite ainda não chegou' : '', aria: 'Prontidão. Toque para ver o que entrou na conta.' })}
+      <div class="hero-mini">
+        <button type="button" class="mini" data-ring="rec" aria-expanded="false" aria-controls="contrib" aria-label="REC. Toque para ver o que compõe o número.">
+          <span class="mini-l">REC</span><b style="color:${d.rec == null ? 'var(--text-3)' : zoneVar(zoneOf(d.rec))}">${d.rec ?? '–'}</b>
+          <span class="mini-s">${d.day?.trend ? `${d.day.trend.dir === 'up' ? '↑' : d.day.trend.dir === 'down' ? '↓' : '→'} ${esc(d.day.trend.txt.replace('REC ', ''))}` : '&nbsp;'}</span></button>
+        <button type="button" class="mini" data-ring="forma" aria-label="Forma. Toque para ver as tendências.">
+          <span class="mini-l">Forma</span><b>${fp == null ? '–' : `${fp > 0 ? '+' : fp < 0 ? '−' : ''}${Math.abs(fp)}<small>%</small>`}</b>
+          <span class="mini-s">${esc(shortZone(d.load?.zone?.key))}</span></button>
+      </div>
     </section>
+    <div class="contrib" id="ready-parts"><div>${readyPartsHtml(r)}</div></div>`;
+    })()}
 
     ${d.day?.summary ? `<p class="day-summary s-${zoneOf(d.rec)}">${esc(d.day.summary)}</p>` : ''}
 
@@ -577,6 +598,9 @@ function render(d) {
   recBtn.addEventListener('click', toggle);
   screen.querySelector('.chips')?.addEventListener('click', toggle);
   screen.querySelector('[data-ring="forma"]').addEventListener('click', () => { location.hash = '#tendencias'; });
+  // Prontidão: abre as quatro partes
+  const rp = screen.querySelector('#ready-parts'), rBtn = screen.querySelector('[data-ring="ready"]');
+  rBtn.addEventListener('click', () => { const open = rp.classList.toggle('is-open'); rBtn.setAttribute('aria-expanded', String(open)); });
 
   // nota opcional
   const feel = screen.querySelector('.feel');

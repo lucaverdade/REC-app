@@ -133,6 +133,21 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - **Aviso da véspera** (Whoop): a partir das 17 h, sessões de amanhã (plano) e a meta de sono/horário de deitar.
 - **Idade fitness e VO2máx**: valores da Garmin (`/fitnessage-service/fitnessage/v2/{data}`, mensal; `vO2MaxValue` das atividades).
 
+## 8g. Prontidão (04/11) — `src/readiness.ts`
+"Quão pronto acordei para hoje." Anel grande do Hoje; REC e Forma ficam como números menores embaixo. Fixa desde a manhã (usa dados até ontem; o treino de hoje entra na de amanhã). O REC não muda.
+
+| Parte | Peso | Como vira nota (z: + ajuda, − pesa) |
+|---|---|---|
+| Corpo | 55% | z do próprio REC (Φ⁻¹(REC/100)) |
+| Carga de 7 dias | 20% | Strain de 7 dias ÷ sua média semanal de 28 dias, contra a distribuição dessa razão nos seus últimos 180 dias |
+| Treino de ontem | 10% | Strain de ontem contra os seus dias de treino dos últimos 120 dias; descanso = +0,5 |
+| Sono acumulado | 15% | dívida de 14 dias contra a sua dívida típica dos últimos 120 dias |
+
+Prontidão = 100 × Φ(1,3 × z médio ponderado). O 1,3 devolve a dispersão do REC (média de partes pouco correlacionadas encolhe a escala). Tetos: no máximo REC + 15 (REC baixo com semana leve costuma ser doença ou estresse, não prontidão; backtest mostrou REC 25 → 64 na semana doente de jan/26 sem esse teto); ontem ≥ 2 DP acima do seu treino típico → no máximo 60. Sem REC → traço.
+
+Backtest 03/11/2025–03/11/2026 (354 dias): REC média 50, DP 24; Prontidão média 48, DP 22; correlação 0,88. Maiores quedas em relação ao REC: dias depois de treinos de Strain 230–300 (ex.: 12/02 REC 63 → 31).
+Inspiração: Whoop (Recovery separado do Strain), Oura Readiness (atividade de ontem, balanço de 2 semanas, sono de 2 semanas), Garmin Training Readiness (carga aguda, tempo de recuperação, sono de 3 noites). Pesos são ponto de partida; recalibrar depois da prova com "Como me sinto".
+
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)
 - Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.

@@ -14,6 +14,7 @@ import { ARACAJU, climatology, parseForecast, type HourRow } from '../src/weathe
 import { longTrend } from '../src/longtrend.ts';
 import { dailySummary, recTrend } from '../src/daily.ts';
 import { strainTargetV2 } from '../src/target.ts';
+import { readiness } from '../src/readiness.ts';
 import { recoveryVerdict } from '../src/verdict.ts';
 import { fetchActivities, fetchActivityFile, fetchFitnessAge, fetchIntraday, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
@@ -700,7 +701,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
       { zoneKey: ln.zone?.key ?? null, fatigueAboveDays: 0, hrvBase: null, rhrBase: null, sleepNeed: 7.5 });
   })();
   const { results: nights } = await env.DB.prepare('SELECT date, sleep_h, nap_h, sleep_start, sleep_end FROM daily_metrics WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
-    .bind(addDays(date, -95), date).all<SleepNight>();
+    .bind(addDays(date, -140), date).all<SleepNight>();
   const sb = await sleepBase(env, date);
   const need = sb.hours;
   const heavy = ln.zone?.key === 'produtivo' || ln.zone?.key === 'risco';
@@ -743,6 +744,13 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     feel: feel?.value ?? null,
     habits: { defs: HABITS, on: tagRows.map((t) => t.tag) },
     load: ln,
+    ready: await (async () => {
+      // Prontidão: REC + carga de 7 dias + treino de ontem + sono acumulado, contra o seu normal; dados até ontem
+      const ls = (await dailyLoads(env, addDays(date, -400), addDays(date, -1))).map((x) => x.load);
+      const dh: number[] = [];
+      for (let x = addDays(date, -120); x < date; x = addDays(x, 1)) { const v = sleepDebt(nights, need, x); if (v != null) dh.push(v); }
+      return readiness(t.rec, ls, debt, dh);
+    })(),
     day: (() => {
       const recR = t.rec == null ? null : Math.round(t.rec);
       return {

@@ -1135,3 +1135,23 @@ main > .card:nth-of-type(5) { animation-delay: .16s; } main > .card:nth-of-type(
 .day-top .daynav h1 { white-space: nowrap; }
 .day-top .top-r { gap: 8px; }
 .day-top .race { font-size: 13px; }
+
+/* Prontidão no topo (04/11): anel grande + REC e Forma pequenos */
+.hero { display: grid; justify-items: center; margin: 18px 0 14px; }
+.hero .rt-ring { width: 184px; }
+.hero .rt-val > span { font-size: 56px; font-weight: 200; }
+.hero .rt-val small { font-size: 20px; margin-left: 1px; color: var(--text-2); }
+.hero .rt-seg { stroke-width: 6.5; }
+.hero .rt-mark { r: 5.5; }
+.hero .rt-label { font-size: 15px; margin-top: 10px; }
+.hero-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 16px; }
+.mini { display: grid; justify-items: center; gap: 1px; padding: 12px 8px; border-radius: 16px; background: var(--card); border: 1px solid var(--line-soft); color: var(--text); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mini-l { font-size: 13px; color: var(--text-2); }
+.mini b { font: 300 28px/1.15 var(--font-display); letter-spacing: -.01em; }
+.mini b small { font-size: 15px; color: var(--text-2); }
+.mini-s { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.mini[aria-expanded="true"] { border-color: var(--line); }
+#ready-parts .rp-d { white-space: normal; text-align: left; }
+#ready-parts .rp-note { font-size: 13px; color: var(--text-3); }
+#ready-parts li { grid-template-areas: "label value" "bar bar" "base base"; }
+#ready-parts .value { color: var(--text-3); font-size: 13px; }
