@@ -53,7 +53,7 @@ export function debtLevel(debt: number | null) {
 export function sleepNeedTonight(need: number, debt: number | null, strainToday: number | null, napToday: number | null, heavyLoad = false) {
   let fromLoad = heavyLoad ? 0.5 : 0;
   let fromDebt = Math.min(0.5, (debt ?? 0) / 4);
-  let fromStrain = Math.min(0.5, Math.max(0, ((strainToday ?? 0) - 100) / 400));
+  let fromStrain = Math.min(0.5, Math.max(0, ((strainToday ?? 0) - 25) / 100)); // Strain v3 (escala Strava): +30 min a partir de ~75
   const add = fromLoad + fromDebt + fromStrain;
   if (add > 1) { const k = 1 / add; fromLoad *= k; fromDebt *= k; fromStrain *= k; }
   const nap = Math.min(napToday ?? 0, need);

@@ -195,7 +195,7 @@ function strainRing(done, t) {
       <span class="${over > target * 0.15 ? 'st-hi' : ''}">${status}</span>
       ${t.plan != null ? `<small>Plano de hoje previa ${t.plan}${t.planNote === 'acima' ? ', acima da meta' : t.planNote === 'abaixo' ? ', bem abaixo da meta' : ''}.</small>` : ''}
       <details class="st-why"><summary>Como a meta foi calculada</summary><ul>${why.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>
-        <p>A meta é quanto Strain cabe hoje sem pesar demais, olhando REC, semana e carga recente. Strain não tem teto: é a soma de minutos × zona. Modo sombra: o plano do treinador manda.</p></details>
+        <p>A meta é quanto Strain cabe hoje sem pesar demais, olhando REC, semana e carga recente. Strain não tem teto: cresce com a duração e muito com a FC (mesma régua do Relative Effort do Strava). Modo sombra: o plano do treinador manda.</p></details>
     </div>
   </div>`;
 }

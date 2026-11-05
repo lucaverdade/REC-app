@@ -133,6 +133,12 @@ Faixas de Joe Friel, adaptadas em % pelo intervals.icu. **Ganho real**: o Fitnes
 - **Aviso da véspera** (Whoop): a partir das 17 h, sessões de amanhã (plano) e a meta de sono/horário de deitar.
 - **Idade fitness e VO2máx**: valores da Garmin (`/fitnessage-service/fitnessage/v2/{data}`, mensal; `vO2MaxValue` das atividades).
 
+## 8h. Strain v3 (05/11) — na régua do Strava
+O Luca comparou com o Relative Effort do Strava: no Strain v1/v2 (minutos × zona do Garmin, Z1 = 1 … Z5 = 5) a bike leve de 05/11 deu o mesmo que um Hyrox pesado (115 × 114; Strava 13 × 57). Causas: peso linear dava muito valor à duração em zona baixa, e as zonas por modalidade do Garmin (bike e natação mudaram em 03/11) empurravam a bike para cima.
+**Conta nova:** reserva = (FC média − 35) / (194 − 35); Strain = 0,0223 × minutos × reserva × e^(5,75 × reserva). Uma régua só para todos os esportes, sem depender das zonas.
+**Ajuste:** 160 treinos de jun–nov/2026 com Relative Effort do Strava (bike 48, academia 31, corrida 28, Hyrox 26, natação 24): correlação 0,98, erro médio 6 pontos. Conta antiga contra o Strava: correlação 0,40. Exemplos: bike 2 h 50 FC 141 → 117 (Strava 113); Hyrox 41 min FC 150 → 43 (53); corrida 41 min FC 147 → 37 (35); rolo 30 min FC 104 → 4 (4).
+**Efeitos:** todo o histórico foi recalculado (coluna `trimp`); Fitness/Fadiga/Forma, faixas semanais, meta do dia, Prontidão e previsões usam a escala nova (números ~4–5× menores). Sem FC média, cai para a conta antiga × 0,2. As zonas continuam valendo só para "Zonas de treino" e distribuição de intensidade.
+
 ## 8g. Prontidão (04/11) — `src/readiness.ts`
 "Quão pronto acordei para hoje." Anel grande do Hoje; REC e Forma ficam como números menores embaixo. Fixa desde a manhã (usa dados até ontem; o treino de hoje entra na de amanhã). O REC não muda.
 

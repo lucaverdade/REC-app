@@ -13,3 +13,10 @@ ok(h.score! <= 60, `ontem muito pesado limita a 60 (${h.score})`);
 const light = [...steady.slice(0, -7), 0, 0, 30, 0, 0, 20, 0];
 ok(readiness(30, light, 0, Array(60).fill(2)).score! <= 45, 'REC baixo + semana leve: no máximo REC + 15');
 console.log('OK: prontidão');
+// Strain v3 (escala do Strava): bike de 2 h 50 com FC média 141 ≈ 113 no Strava; Hyrox 41 min FC 150 ≈ 53
+import { strainHR } from '../src/load.ts';
+const sb = strainHR(170.3, 141), sh = strainHR(41.3, 150);
+ok(sb! > 100 && sb! < 135, `Strain v3 bike longa (${sb})`);
+ok(sh! > 35 && sh! < 60, `Strain v3 Hyrox (${sh})`);
+ok(strainHR(60, null) === null, 'sem FC → null');
+console.log('OK: Strain v3');

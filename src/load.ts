@@ -1,5 +1,13 @@
 // Strain (carga do treino), Fitness, Fadiga e Forma.
 //
+// v3 (05/11): Strain = TRIMP exponencial pela FC média, na escala do Relative Effort do Strava.
+//   reserva = (FC média − 35) / (194 − 35); Strain = 0,0223 × minutos × reserva × e^(5,75 × reserva)
+//   Ajustado nos 160 treinos de jun–nov/2026 com Relative Effort do Strava: correlação 0,98, erro médio 6 pontos
+//   (bike, corrida, natação, Hyrox e academia na mesma régua). Não depende das zonas do Garmin por modalidade,
+//   que mudaram em 03/11 e inflavam a bike (Hyrox e bike leve davam o mesmo Strain).
+//   Sem FC média: cai para a conta antiga por zonas × 0,2 (mesma escala).
+//
+// Histórico (v1/v2):
 // Strain = TRIMP de Edwards: minutos em cada zona de FC do Garmin × peso da zona (Z1 = 1 … Z5 = 5),
 // mais 0,5 por minuto abaixo da Z1 (rodagem regenerativa, academia), para não zerar treino leve.
 // Cresce com a duração e com a intensidade. Substituiu a carga do Garmin (EPOC), que quase não cresce
@@ -13,6 +21,14 @@
 export const FITNESS_DAYS = 42;
 export const FATIGUE_DAYS = 7;
 export const ZONE_WEIGHTS = [1, 2, 3, 4, 5];
+export const HR_REST = 35, HR_MAX = 194, TRIMP_K = 5.75, TRIMP_A = 0.0223, ZONE_FALLBACK = 0.2;
+
+/** Strain v3 de uma atividade: minutos × reserva de FC × e^(k × reserva), escala do Strava. null sem FC. */
+export function strainHR(min: number | null | undefined, avgHr: number | null | undefined): number | null {
+  if (!min || !avgHr || avgHr <= 0) return null;
+  const r = Math.max(0, (avgHr - HR_REST) / (HR_MAX - HR_REST));
+  return Math.round(TRIMP_A * min * r * Math.exp(TRIMP_K * r) * 10) / 10;
+}
 
 /** Strain de uma atividade a partir dos minutos por zona. null se o relógio não registrou zonas. */
 export function strainOf(zoneMinutes: (number | null | undefined)[], totalMin: number | null = null): number | null {

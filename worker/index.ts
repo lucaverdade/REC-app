@@ -2,7 +2,7 @@
 import { computeRec, type Contributor, type DailyInput } from '../src/rec.ts';
 import { alerts, comment, contributors, type RecRow } from '../src/today.ts';
 import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
-import { acwr, formZone, pmc } from '../src/load.ts';
+import { acwr, formZone, pmc, strainHR, ZONE_FALLBACK } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
 import { bedtimeTarget, debtLevel, irregularNights, regularity, regularityScore, responseNeed, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
 import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
@@ -80,6 +80,16 @@ async function ensureSchema(env: Env) {
   for (const q of ['ALTER TABLE daily_metrics ADD COLUMN sleep_start TEXT', 'ALTER TABLE daily_metrics ADD COLUMN sleep_end TEXT', 'ALTER TABLE daily_metrics ADD COLUMN nap_h REAL', 'DROP TABLE IF EXISTS activity_fit', 'ALTER TABLE daily_metrics ADD COLUMN spo2_avg REAL', 'ALTER TABLE daily_metrics ADD COLUMN spo2_low REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_wake REAL', 'ALTER TABLE daily_metrics ADD COLUMN bb_high REAL', 'ALTER TABLE activities ADD COLUMN z_orig TEXT', 'ALTER TABLE activities ADD COLUMN te_label TEXT', 'ALTER TABLE activities ADD COLUMN z_err TEXT', 'ALTER TABLE activities ADD COLUMN vo2 REAL', 'ALTER TABLE activities ADD COLUMN z_src TEXT', 'ALTER TABLE activities ADD COLUMN name TEXT', 'ALTER TABLE activities ADD COLUMN kcal REAL', 'ALTER TABLE activities ADD COLUMN kcal_bmr REAL', 'ALTER TABLE activities ADD COLUMN elev REAL', 'ALTER TABLE activities ADD COLUMN speed REAL', 'ALTER TABLE activities ADD COLUMN maxspeed REAL', 'ALTER TABLE activities ADD COLUMN power REAL', 'ALTER TABLE activities ADD COLUMN te_ana REAL', 'ALTER TABLE activities ADD COLUMN cadence REAL']) {
     try { await env.DB.prepare(q).run(); } catch { /* já existe */ }
   }
+  try { await env.DB.prepare('ALTER TABLE activities ADD COLUMN trimp REAL').run(); } catch { /* já existe */ }
+  // Strain v3: calcula a coluna trimp de todas as atividades uma vez
+  const sv = await env.DB.prepare("SELECT value FROM settings WHERE key = 'strain_v'").first<{ value: string }>();
+  if (sv?.value !== '3') {
+    const { results } = await env.DB.prepare('SELECT id, min, avghr FROM activities').all<{ id: string; min: number | null; avghr: number | null }>();
+    const up = env.DB.prepare('UPDATE activities SET trimp = ?2 WHERE id = ?1');
+    for (let i = 0; i < results.length; i += 400) await env.DB.batch(results.slice(i, i + 400).map((r) => up.bind(r.id, strainHR(r.min, r.avghr))));
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('strain_v', '3') ON CONFLICT(key) DO UPDATE SET value = '3'").run();
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('data_ver', '1') ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)").run();
+  }
   schemaReady = true;
 }
 
@@ -130,10 +140,12 @@ async function writeActivities(env: Env, acts: GarminActivity[]) {
        z5 = CASE WHEN activities.z_src = 'fit' THEN activities.z5 ELSE excluded.z5 END`,
   );
   if (!acts.length) return 0;
+  const trimpSt = env.DB.prepare('UPDATE activities SET trimp = ?2 WHERE id = ?1');
   await env.DB.batch(acts.flatMap((a) => [
     del.bind(a.date, a.time, a.type, a.id),
     delCsv.bind(a.date, a.type, a.id, a.min ?? 0, Number(a.time.slice(0, 2)) * 60 + Number(a.time.slice(3, 5))),
     st.bind(a.id, a.date, a.time, a.type, sportOf(a.type), a.min, a.km, a.avghr, a.maxhr, a.load, a.te_aer, a.rpe, a.feel, ...a.z),
+    trimpSt.bind(a.id, strainHR(a.min, a.avghr)),
     ...(a.extra ? [ex.bind(a.id, a.extra.name, a.extra.kcal, a.extra.kcal_bmr, a.extra.elev, a.extra.speed, a.extra.maxspeed, a.extra.power, a.extra.te_ana, a.extra.cadence, a.extra.te_label, a.extra.vo2)] : []),
   ]));
   return acts.length;
@@ -202,9 +214,11 @@ async function garminCheck(env: Env, days: number) {
 
 
 // --- Strain: minutos por zona de FC × peso da zona (ver src/load.ts) ---
-const STRAIN_SQL = `CASE WHEN z1 IS NULL AND z2 IS NULL AND z3 IS NULL AND z4 IS NULL AND z5 IS NULL THEN NULL
-  ELSE 0.5 * MAX(0, COALESCE(min,0) - (COALESCE(z1,0)+COALESCE(z2,0)+COALESCE(z3,0)+COALESCE(z4,0)+COALESCE(z5,0)))
-     + COALESCE(z1,0)*1 + COALESCE(z2,0)*2 + COALESCE(z3,0)*3 + COALESCE(z4,0)*4 + COALESCE(z5,0)*5 END`;
+// Strain v3 (05/11): coluna trimp (FC média, escala do Strava, ver src/load.ts); sem FC, zonas × 0,2
+const STRAIN_SQL = `CASE WHEN trimp IS NOT NULL THEN trimp
+  WHEN z1 IS NULL AND z2 IS NULL AND z3 IS NULL AND z4 IS NULL AND z5 IS NULL THEN NULL
+  ELSE ${ZONE_FALLBACK} * (0.5 * MAX(0, COALESCE(min,0) - (COALESCE(z1,0)+COALESCE(z2,0)+COALESCE(z3,0)+COALESCE(z4,0)+COALESCE(z5,0)))
+     + COALESCE(z1,0)*1 + COALESCE(z2,0)*2 + COALESCE(z3,0)*3 + COALESCE(z4,0)*4 + COALESCE(z5,0)*5) END`;
 
 const SPORTS: Sport[] = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
 const mondayOf = (d: string) => addDays(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7));
@@ -489,7 +503,7 @@ async function coachReport(env: Env, req: Request) {
       ...day.executed.filter((e: any) => !e.matched).map((e: any) => `${e.label} ${Math.round(e.min ?? 0)}′ fora do plano (Strain ${e.strain ?? '–'})`)];
     if (items.length) L.push(`- ${day.date.slice(8)}/${day.date.slice(5, 7)}: ${items.join('; ')}`);
   }
-  L.push('', '---', 'Prontidão = REC (55%) + carga de 7 dias × média de 4 semanas (20%) + treino de ontem (10%) + dívida de sono (15%), tudo contra o normal do Luca; fixa desde a manhã. REC = HRV, FC de repouso, sono, respiração e estresse do dia anterior contra as bases. Strain = minutos × zona de FC (Z1 = 1 … Z5 = 5; 0,5/min abaixo da Z1).');
+  L.push('', '---', 'Prontidão = REC (55%) + carga de 7 dias × média de 4 semanas (20%) + treino de ontem (10%) + dívida de sono (15%), tudo contra o normal do Luca; fixa desde a manhã. REC = HRV, FC de repouso, sono, respiração e estresse do dia anterior contra as bases. Strain (v3, desde 05/11) = minutos × FC média em escala exponencial, na mesma régua do Relative Effort do Strava (um Strain 50 do REC ≈ um Relative Effort 50).');
   return L.join('\n') + '\n';
 }
 async function ghPut(env: Env, path: string, text: string, msg: string) {
@@ -669,7 +683,7 @@ async function readPlan(env: Env, req: Request, monday: string): Promise<Plan | 
  *    O histórico vence o "strain" escrito no plano: em 03/11 o plano previa 60–72 para bike/natação leves
  *    e o feito costuma ficar em 30–40 (medido nas suas sessões).
  * 2) Sem histórico suficiente: o "strain" do plano, se houver.
- * 3) Senão: minutos × peso médio da zona (Z1 = 1 … Z5 = 5; sem zona = 2).
+ * 3) Senão: minutos × Strain/min típico da zona (v3: Z1 0,15 … Z5 1,8; sem zona = Z2).
  */
 type Rates = Map<string, number[]>;
 async function strainRates(env: Env, today: string): Promise<Rates> {
@@ -701,7 +715,8 @@ function plannedStrainEst(p: PlanSession, rates?: Rates): { v: number | null; sr
     if (pool.length >= 3) return { v: Math.round(p.minutos * median(pool)), src: 'historico', n: pool.length };
   }
   if (typeof p.strain === 'number') return { v: Math.round(p.strain), src: 'plano' };
-  const w = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : 2;
+  // Strain/min típico por zona na escala v3 (Z1 0,15 … Z5 1,8)
+  const PER = [0.15, 0.3, 0.6, 1.1, 1.8], w = zs.length ? zs.reduce((a, b) => a + PER[b - 1], 0) / zs.length : PER[1];
   return { v: Math.round(p.minutos * w), src: 'zona' };
 }
 const range = (a: number, b: number) => { const lo = Math.min(a, b), hi = Math.max(a, b); return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i); };

@@ -86,6 +86,9 @@ Marque a sessão com `"calor": true` (ou título começando com "Calor", ex.: "C
 O campo `fase` da semana aparece na aba Hoje, logo abaixo da data.
 
 
+## Strain na escala nova (05/11)
+O Strain do REC agora usa a mesma régua do **Relative Effort do Strava** (FC média em escala exponencial). Se o plano trouxer `strain` por sessão, use essa escala: rolo leve de 1 h ≈ 10–15, longão de bike de 3 h ≈ 110–120, Hyrox ≈ 40–60, corrida de 40 min em Z2 ≈ 30–40. O app prefere o Strain previsto pelo histórico do Luca; o do plano só entra quando não há histórico parecido.
+
 ## Relatório do REC para o chat de treino (04/11)
 O app publica no mesmo repositório **`relatorio/ultimo.md`** (sempre o mais recente) e **`relatorio/AAAA-MM-DD.md`** (histórico), duas vezes por dia: assim que a noite chega da Garmin e às 20 h. Conteúdo: Prontidão (com as 4 partes), REC e sinais contra a base, sono e dívida, Fitness/Fadiga/Forma, status de treino, alertas, "como me sinto", tabela dos últimos 14 dias (Prontidão, REC, HRV, FC de repouso, sono, Strain, treinos com RPE, diário) e a semana atual planejado × feito.
 **Antes de montar ou ajustar treinos, leia `relatorio/ultimo.md`.** O relatório só traz números e fatos; a decisão do treino é do chat de treino.
