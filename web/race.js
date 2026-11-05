@@ -10,6 +10,8 @@ export const tfmt = (m) => {
 const recVar = (r) => (r == null ? 'var(--text-3)' : r <= 33 ? 'var(--rec-red)' : r <= 66 ? 'var(--rec-yellow)' : 'var(--rec-green)');
 const dayTxt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
 
+// Prova em duas partes (05/11): "Até lá" (como estou chegando) e "No dia" (o que fazer na prova). A 2 dias da prova abre em "No dia".
+const prTab = (n) => { try { const v = localStorage.getItem('rec.prtab'); if (v) return v; } catch {} return n <= 2 ? 'dia' : 'ate'; };
 export async function renderRace(screen, api) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   screen.innerHTML = '<header class="top"><h1>Prova</h1></header><p class="empty">Carregando…</p>';
@@ -36,31 +38,35 @@ export async function renderRace(screen, api) {
       </div>
     </section>
 
+    <div class="seg pr-seg" role="tablist">${[['ate', 'Até lá'], ['dia', 'No dia']].map(([k, l]) => `<button role="tab" data-pr="${k}" aria-selected="${k === prTab(n)}">${l}</button>`).join('')}</div>
+    <div data-pane="ate" ${prTab(n) === 'ate' ? '' : 'hidden'}>
     ${n < 0 ? `<a class="card rr-link" href="#relatorio/${r.date}">${cardHead('flag', 'Relatório da prova', { right: '›' })}<p class="note">Etapas, transições, o plano e quantos dias o corpo levou para voltar à base.</p></a>` : ''}
     ${finalHtml(d.final)}
     ${taperHtml(d.taper)}
     ${projHtml(d.projection, r.date)}
-
-    <section class="card">${cardHead('stopwatch', 'Previsões de corrida', { color: 'var(--pred)' })}<div id="pred"></div></section>
-
     ${heatHtml(d.heat)}
-
-    <section class="card" id="wx">${cardHead('sun', 'Clima em Aracaju no dia', { color: '#ffb547' })}<p class="empty">Carregando…</p></section>
-
     <section class="card" id="chk"></section>
-
-    <section class="card" id="carbo">${cardHead('fork', 'Carbo por dia', { color: 'var(--good)', info: 'Publicado pelo chat de treino em prova.json. Toque num dia para ver o que fazer.' })}
-      ${d.carbo?.length ? carboHtml(d.carbo) : '<p class="empty">Ainda não publicado pelo chat de treino.</p>'}
-    </section>
-
+    </div>
+    <div data-pane="dia" ${prTab(n) === 'dia' ? '' : 'hidden'}>
+    <section class="card" id="wx">${cardHead('sun', 'Clima em Aracaju no dia', { color: '#ffb547' })}<p class="empty">Carregando…</p></section>
     <section class="card">${cardHead('route', 'Plano de prova', { info: d.notas ? esc(d.notas) : '' })}
       ${d.pace ? `<div class="legs">${[['natacao', 'Natação', 'swim'], ['bike', 'Bike', 'bike'], ['corrida', 'Corrida', 'run'], ['nutricao', 'Nutrição', 'gel']]
         .filter(([k]) => d.pace[k]).map(([k, l, ic]) => `<div class="leg" style="--c:var(--${k === 'nutricao' ? 'good' : k})"><div class="leg-h">${ICON[ic]}<b>${l}</b></div><p>${esc(d.pace[k])}</p></div>`).join('')}</div>`
         : '<p class="empty">Ainda não publicado pelo chat de treino.</p>'}
       ${d.halfPrediction ? `<p class="card-foot">Meia isolada hoje: <b>${tfmt(d.halfPrediction)}</b>. No 70.3 a corrida vem depois de 90 km de bike.</p>` : ''}
-    </section>`;
+
+    <section class="card" id="carbo">${cardHead('fork', 'Carbo por dia', { info: 'Publicado pelo chat de treino em prova.json. Toque num dia para ver o que fazer.' })}
+      ${d.carbo?.length ? carboHtml(d.carbo) : '<p class="empty">Ainda não publicado pelo chat de treino.</p>'}
+    </section>
+    <section class="card">${cardHead('stopwatch', 'Previsões de corrida', { color: 'var(--pred)' })}<div id="pred"></div></section>
+    </div>    </section>`;
 
   bindTaper(screen);
+  screen.querySelectorAll('[data-pr]').forEach((b) => b.addEventListener('click', () => {
+    try { localStorage.setItem('rec.prtab', b.dataset.pr); } catch {}
+    screen.querySelectorAll('[data-pr]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    screen.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.pr; });
+  }));
   renderChecklist(screen.querySelector('#chk'), d.items, api);
   renderWeather(screen.querySelector('#wx'), api);
   predictions(screen, api);

@@ -493,6 +493,89 @@ function formCard(d) {
 }
 
 
+// ---------- Hoje v3 (05/11): uma frase, três portas (Sono, Strain, Corpo), carga em uma linha ----------
+function oneThingHtml(d) {
+  const t = d.day?.target?.target;
+  const lines = [...(d.alerts ?? []).map((a) => a.text), t != null && d.isToday ? `Meta de Strain do dia: ${t}.` : null].filter(Boolean);
+  if (!d.day?.summary && !lines.length) return '';
+  return `<section class="one-thing"><b>${esc(d.day?.summary ?? 'Dia sem resumo ainda.')}</b>${lines.map((l) => `<span>${esc(l)}</span>`).join('')}</section>`;
+}
+const hcomp = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`; };
+function triHtml(d) {
+  const s = d.sleep, n = s?.night, l = d.load, t = d.day?.target?.target, st = l?.strain ?? 0;
+  const pl = d.planned?.length ?? 0;
+  const tr = d.day?.trend;
+  return `<div class="tri">
+    <a class="tile" href="#sono/${d.date}"><span class="tk">Sono<i>›</i></span><b style="color:var(--sleep)">${hcomp(n?.hours)}</b><small>base ${hcomp(s?.personalNeed)}${s?.debt >= 1 / 6 ? `<br>dívida ${hcomp(s.debt)}` : ''}</small></a>
+    <a class="tile" href="#strain/${d.date}"><span class="tk">Strain<i>›</i></span><b style="color:var(--strain)">${st}${t != null ? `<small class="of">/${t}</small>` : ''}</b>${t ? `<span class="tbar"><i style="width:${Math.min(100, (st / t) * 100)}%"></i></span>` : ''}<small>${pl ? `${pl} ${pl === 1 ? 'treino previsto' : 'treinos previstos'}` : esc(strainCat(l))}</small></a>
+    <a class="tile" href="#rec/${d.date}"><span class="tk">Corpo<i>›</i></span><b style="color:${d.rec == null ? 'var(--text-3)' : readyColor(d.rec)}">${d.rec ?? '–'}</b><small>REC${tr ? `<br>${tr.dir === 'up' ? '↑' : tr.dir === 'down' ? '↓' : '→'} ${esc(tr.txt.replace('REC ', ''))}` : ''}</small></a>
+  </div>`;
+}
+function loadLine(l, date) {
+  const sg = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}`;
+  const dv = l.fatigueVsYesterday, f4 = l.fitness4w;
+  return `<a class="load-line" href="#strain/${date}" aria-label="Fitness, Fadiga e Forma">
+    <span><small>Fitness</small><b>${l.fitness}</b>${f4 != null ? `<em>${sg(f4)}% 4 sem.</em>` : ''}</span>
+    <span><small>Fadiga</small><b>${l.fatigue}</b>${dv != null ? `<em>${dv === 0 ? '= ontem' : `${sg(dv)} desde ontem`}</em>` : ''}</span>
+    <span><small>Forma</small><b>${l.formPct == null ? '–' : `${sg(l.formPct)}%`}</b><em>${esc(shortZone(l.zone?.key))}</em></span>
+  </a>`;
+}
+// planejado × feito numa lista só
+function sessionsHtml(pl, acts) {
+  const used = new Set();
+  const rows = pl.map((p) => {
+    const a = acts.find((x, i) => !used.has(i) && x.sport === p.sport && used.add(i));
+    return { p, a };
+  });
+  acts.forEach((a, i) => { if (!used.has(i)) rows.push({ p: null, a }); });
+  if (!rows.length) return '<p class="empty">Sem treino planejado nem feito.</p>';
+  const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${String(Math.round(m % 60)).padStart(2, '0')}` : `${Math.round(m)} min`);
+  return `<ul class="ses-list">${rows.map(({ p, a }) => {
+    const sport = a?.sport ?? p.sport, title = p ? (p.titulo || p.label) : a.label;
+    const sub = a ? [dur(a.min), a.km >= 0.5 ? `${String(Math.round(a.km * 10) / 10).replace('.', ',')} km` : null, a.avghr ? `FC ${Math.round(a.avghr)}` : null].filter(Boolean).join(' · ')
+      : [p.minutos ? `${p.minutos} min` : null, p.zona].filter(Boolean).join(' · ');
+    const right = a ? `<b>${a.strain ?? '–'}</b><small>${p?.strain != null ? `previsto ${p.strain}` : p ? 'feito' : 'fora do plano'}</small>` : `<span class="pill">previsto ${p.strain ?? '–'}</span>`;
+    const inner = `<i class="sesc" style="background:var(--${esc(sport)})"></i><span class="st"><b>${esc(title)}</b><small>${esc(sub)}</small></span><span class="sr">${right}</span>`;
+    return `<li>${a?.id ? `<a href="#atv/${encodeURIComponent(a.id)}">${inner}</a>` : `<div>${inner}</div>`}</li>`;
+  }).join('')}</ul>`;
+}
+
+// detalhe do Corpo (REC): sinais, comentário e a semana
+async function renderRecDetail(date) {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  const nav = navSeq;
+  screen.innerHTML = '<header class="top"><a class="back-link" href="#hoje">‹ Hoje</a></header><p class="empty">Carregando…</p>';
+  let d; try { d = todayCache?.[date] ?? await api(`/api/today?date=${date}`); } catch (e) { if (nav === navSeq) screen.querySelector('.empty').textContent = errText(e); return; }
+  if (nav !== navSeq) return;
+  screen.innerHTML = `<header class="top"><a class="back-link" href="#hoje">‹ Hoje</a></header>
+    <h1 class="td-title">Corpo</h1><p class="td-sub">${esc(cap(fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })))}</p>
+    <div class="b-big"><b style="color:${d.rec == null ? 'var(--text-3)' : readyColor(d.rec)}">${d.rec ?? '–'}</b><small>REC${d.day?.trend ? ` · ${esc(d.day.trend.txt.replace('REC ', ''))}` : ''}</small></div>
+    <p class="comment">${esc(d.comment)}</p>
+    <section class="card contrib is-open"><div><ul>${contribHtml(d.contributors)}</ul></div></section>
+    <section class="card">${cardHead('clock', 'Últimos 7 dias')}
+      <ol class="week">${d.week.map((w) => `<li class="${w.date === date ? 'is-today' : ''}"><i style="background:${w.rec == null ? 'var(--line)' : readyColor(w.rec)}"></i>${esc(fmtDate(w.date, { weekday: 'narrow' }))}<small>${w.rec ?? '–'}</small></li>`).join('')}</ol>
+      ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}</section>
+    <a class="b-link" href="#tendencias">Tendências do corpo ›</a>`;
+}
+
+// detalhe do Strain: meta, treinos, carga e a curva do dia
+async function renderStrainDetail(date) {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  const nav = navSeq;
+  screen.innerHTML = '<header class="top"><a class="back-link" href="#hoje">‹ Hoje</a></header><p class="empty">Carregando…</p>';
+  let d; try { d = todayCache?.[date] ?? await api(`/api/today?date=${date}`); } catch (e) { if (nav === navSeq) screen.querySelector('.empty').textContent = errText(e); return; }
+  if (nav !== navSeq) return;
+  screen.innerHTML = `<header class="top"><a class="back-link" href="#hoje">‹ Hoje</a></header>
+    <h1 class="td-title">Strain</h1><p class="td-sub">${esc(cap(fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })))}</p>
+    <section class="card">${d.day?.target ? strainRing(d.load?.strain ?? 0, d.day.target) : `<div class="b-big"><b style="color:var(--strain)">${d.load?.strain ?? 0}</b><small>Strain do dia</small></div>`}
+      ${d.planned?.length ? plannedHtml(d.planned, d.activities) : ''}</section>
+    <section class="card">${cardHead('bolt', 'Treinos', { color: 'var(--strain)' })}${actsHtml(d.activities)}</section>
+    <section class="card">${cardHead('trend', 'Carga')}${d.load ? loadStrip(d.load) : ''}</section>
+    <section class="card tl" id="tl">${cardHead('clock', d.isToday ? 'Seu dia' : 'O dia')}<p class="empty">Carregando…</p></section>`;
+  api(`/api/timeline?date=${date}`).then((t) => { const el = screen.querySelector('#tl'); if (el && nav === navSeq) { el.innerHTML = timelineHtml(t, d.isToday); bindTimeline(screen, t); } }).catch(() => screen.querySelector('#tl')?.remove());
+  countUp(screen);
+}
+
 function render(d) {
   const z = zoneOf(d.rec);
   document.documentElement.style.setProperty('--rec', d.ready?.score != null ? readyColor(d.ready.score) : zoneVar(z));
@@ -527,65 +610,26 @@ function render(d) {
       return `<section class="hero${wait != null ? ' is-wait' : ''}" aria-label="Estou pronto hoje?">
       ${ringTile({ id: 'ready', value: shownV ?? '–', unit: shownV == null ? '' : '%', frac: (shownV ?? 0) / 100, color: readyColor(shownV), valColor: shownV == null ? '' : readyColor(shownV), label: 'Prontidão',
         sub: wait != null ? 'de ontem · esperando a noite de hoje' : sc == null && d.isToday ? 'a noite ainda não chegou' : '', aria: wait != null ? `Prontidão de ontem, ${wait}%. A noite de hoje ainda não chegou.` : 'Prontidão. Toque para ver o que entrou na conta.' })}
-      <div class="hero-mini">
-        <button type="button" class="mini" data-ring="rec" aria-expanded="false" aria-controls="contrib" aria-label="REC. Toque para ver o que compõe o número.">
-          <span class="mini-l">REC</span><b style="color:${d.rec == null ? 'var(--text-3)' : zoneVar(zoneOf(d.rec))}">${d.rec ?? '–'}</b>
-          <span class="mini-s">${d.day?.trend ? `${d.day.trend.dir === 'up' ? '↑' : d.day.trend.dir === 'down' ? '↓' : '→'} ${esc(d.day.trend.txt.replace('REC ', ''))}` : '&nbsp;'}</span></button>
-        <button type="button" class="mini" data-ring="forma" aria-label="Forma. Toque para ver as tendências.">
-          <span class="mini-l">Forma</span><b>${fp == null ? '–' : `${fp > 0 ? '+' : fp < 0 ? '−' : ''}${Math.abs(fp)}<small>%</small>`}</b>
-          <span class="mini-s">${esc(shortZone(d.load?.zone?.key))}</span></button>
-      </div>
     </section>
     <div class="contrib" id="ready-parts"><div>${readyPartsHtml(r)}</div></div>`;
     })()}
 
-    ${d.day?.summary ? `<p class="day-summary s-${zoneOf(d.rec)}">${esc(d.day.summary)}</p>` : ''}
-
-    ${d.load ? loadStrip(d.load) : ''}
-
-    <div class="chips" role="list" aria-label="O que puxou o REC">${chipsHtml(d.contributors)}</div>
-
-    <div class="contrib" id="contrib"><div>
-      <p class="comment">${esc(d.comment)}</p>
-      <ul>${contribHtml(d.contributors)}</ul>
-      <ol class="week" aria-label="REC nos últimos 7 dias">
-        ${d.week.map((w) => `
-          <li class="${w.date === todayIso ? 'is-today' : ''}" title="${w.rec ?? '–'}">
-            <i style="background:${w.rec == null ? 'var(--line)' : zoneVar(zoneOf(w.rec))}"></i>
-            ${esc(fmtDate(w.date, { weekday: 'narrow' }))}
-          </li>`).join('')}
-      </ol>
-      ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}
-    </div></div>
-
-    ${d.alerts.map((a) => `<p class="alert" role="status">${esc(a.text)}</p>`).join('')}
+    ${oneThingHtml(d)}
+    ${triHtml(d)}
+    ${d.load ? loadLine(d.load, todayIso) : ''}
     ${d.needsHistory ? '<p class="alert">O histórico ainda não foi carregado, então o REC não tem base. <a href="#garmin">Puxar histórico da Garmin</a></p>' : ''}
-    ${d.sleep ? sleepCard(d) : ''}
 
     <section class="card">
-      ${cardHead('bolt', d.isToday ? 'Treino de hoje' : 'Treinos do dia', { color: 'var(--strain)' })}
-      ${d.day?.target ? strainRing(d.load?.strain ?? 0, d.day.target) : ''}
-      ${d.planned?.length ? plannedHtml(d.planned, d.activities) : ''}
-      ${actsHtml(d.activities)}
+      ${cardHead('bolt', d.isToday ? 'Treinos de hoje' : 'Treinos do dia', { color: 'var(--strain)', right: (d.planned?.length || d.activities.length) ? `Strain ${d.load?.strain ?? 0}${d.planned?.length ? ` de ${d.planned.reduce((x, p) => x + (p.strain ?? 0), 0)} previsto` : ''}` : '' })}
+      ${sessionsHtml(d.planned ?? [], d.activities)}
     </section>
 
-
-
-    <section class="card tl" id="tl">${cardHead('clock', d.isToday ? 'Seu dia' : 'O dia', { color: 'var(--fatigue)' })}<p class="empty">Carregando…</p></section>
-
-    <section class="card feel ${d.feel == null ? 'unset' : ''}">
-      <header class="ch" style="--ic:var(--accent)">${ICON.smile}<h2 id="feel-label">Como me sinto</h2></header>
-      <div class="feel-row">
-        <input type="range" min="1" max="10" step="1" value="${d.feel ?? 5}" aria-labelledby="feel-label">
-        <output class="${d.feel == null ? 'unset' : ''}">${d.feel ?? '–'}</output>
-      </div>
+    <section class="card reg">
+      ${cardHead('smile', d.isToday ? 'Registro do dia' : 'Registro', { color: 'var(--accent)', info: 'Como me sinto (1 a 10) e o diário do dia. Marque à noite o que aconteceu: conta para o REC de amanhã; o efeito de cada hábito aparece em Corpo → O que mexe no meu REC.' })}
+      <div class="feel-dots" role="radiogroup" aria-label="Como me sinto, de 1 a 10">${Array.from({ length: 10 }, (_, i) => i + 1).map((v) => `<button type="button" role="radio" data-feel="${v}" aria-checked="${d.feel === v}">${v}</button>`).join('')}</div>
       <span class="saved" aria-live="polite"></span>
+      ${d.habits ? `<div class="hb-list">${[...d.habits.defs].sort((a, b) => d.habits.on.includes(b.key) - d.habits.on.includes(a.key)).map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>` : ''}
     </section>
-
-    ${d.habits ? `<section class="card habits">
-      ${cardHead('book', d.isToday ? 'Diário de hoje' : 'Diário do dia', { color: 'var(--accent)', info: 'Marque à noite o que aconteceu no dia. Conta para o REC de amanhã; o efeito de cada hábito aparece em Tendências → Corpo → O que mexe no meu REC.' })}
-      <div class="hb-list">${[...d.habits.defs].sort((a, b) => d.habits.on.includes(b.key) - d.habits.on.includes(a.key)).map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>
-    </section>` : ''}
 
     <div class="foot">
       <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
@@ -597,32 +641,17 @@ function render(d) {
     screen.querySelectorAll('.rt-arc').forEach((a) => { a.style.strokeDashoffset = a.dataset.target; });
   }));
 
-  // REC: abre os contribuintes; Forma: Tendências; Strain: treinos do dia
-  const contrib = screen.querySelector('#contrib');
-  const recBtn = screen.querySelector('[data-ring="rec"]');
-  const toggle = () => { const open = contrib.classList.toggle('is-open'); recBtn.setAttribute('aria-expanded', String(open)); };
-  recBtn.addEventListener('click', toggle);
-  screen.querySelector('.chips')?.addEventListener('click', toggle);
-  screen.querySelector('[data-ring="forma"]').addEventListener('click', () => { location.hash = '#tendencias'; });
   // Prontidão: abre as quatro partes
   const rp = screen.querySelector('#ready-parts'), rBtn = screen.querySelector('[data-ring="ready"]');
   rBtn.addEventListener('click', () => { const open = rp.classList.toggle('is-open'); rBtn.setAttribute('aria-expanded', String(open)); });
 
-  // nota opcional
-  const feel = screen.querySelector('.feel');
-  const range = feel.querySelector('input');
-  const out = feel.querySelector('output');
-  const saved = feel.querySelector('.saved');
-  range.addEventListener('input', () => { out.textContent = range.value; out.classList.remove('unset'); feel.classList.remove('unset'); });
-  range.addEventListener('change', async () => {
-    try {
-      await api('/api/feel', { method: 'POST', body: JSON.stringify({ date: todayIso, value: Number(range.value) }) });
-      saved.textContent = 'Nota salva.';
-    } catch { saved.textContent = 'Não salvou. Tente de novo.'; }
-  });
-
-  // linha do tempo do dia (carrega depois da tela)
-  api(`/api/timeline?date=${todayIso}`).then((t) => { const el = screen.querySelector('#tl'); if (el) el.innerHTML = timelineHtml(t, d.isToday); bindTimeline(screen, t); }).catch(() => { const el = screen.querySelector('#tl'); if (el) el.remove(); });
+  // como me sinto: um toque
+  const saved = screen.querySelector('.reg .saved');
+  screen.querySelectorAll('[data-feel]').forEach((b) => b.addEventListener('click', async () => {
+    screen.querySelectorAll('[data-feel]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+    try { await api('/api/feel', { method: 'POST', body: JSON.stringify({ date: todayIso, value: Number(b.dataset.feel) }) }); saved.textContent = 'Nota salva.'; }
+    catch { saved.textContent = 'Não salvou. Tente de novo.'; }
+  }));
 
   // relatório da manhã: fechar até amanhã
   screen.querySelector('.mr-close')?.addEventListener('click', () => { ls.set('rec.morning', todayIso); screen.querySelector('.morning')?.remove(); });
@@ -1030,7 +1059,7 @@ function renderTheme() {
 function route() {
   const h = location.hash || '#hoje';
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') ? '#treino' : h.startsWith('#sono/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h === '#treinador' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') ? '#treino' : h.startsWith('#sono/') || h.startsWith('#rec/') || h.startsWith('#strain/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h === '#treinador' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -1052,6 +1081,8 @@ function route() {
   else if (h.startsWith('#relatorio/')) renderReport(page(), api, h.slice(11));
   else if (h.startsWith('#tend/')) renderTrendDetail(page(), api, h.slice(6));
   else if (h.startsWith('#sono/')) renderSleep(page(), api, h.slice(6));
+  else if (h.startsWith('#rec/')) renderRecDetail(h.slice(5));
+  else if (h.startsWith('#strain/')) renderStrainDetail(h.slice(8));
   else if (h.startsWith('#semana/')) renderWeekReview(page(), api, h.slice(8));
   else load();
 }

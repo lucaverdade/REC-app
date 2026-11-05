@@ -1343,3 +1343,51 @@ body.is-share main { padding-bottom: 0; }
 .sp-v { text-align: right; } .sp-v b { font: 400 20px var(--font-display); }
 .sp-bars li.on .sp-t { outline: 1px solid var(--text-2); }
 .co-md { white-space: pre-wrap; word-break: break-word; font: 11px/1.45 ui-monospace, SFMono-Regular, monospace; color: var(--text-2); margin: 0; max-height: 60vh; overflow: auto; }
+
+/* Hoje v3 (05/11) */
+.hero .rt-label { margin-top: 10px; }
+.one-thing { margin: 14px 0 12px; padding: 14px 16px; border-radius: 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--rec) 14%, transparent), color-mix(in srgb, var(--rec) 4%, transparent)); border: 1px solid color-mix(in srgb, var(--rec) 24%, transparent); }
+.one-thing b { display: block; font: 600 17px/1.35 var(--font); }
+.one-thing span { display: block; margin-top: 5px; font-size: 14px; line-height: 1.4; color: var(--text-2); }
+.tri { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tile { display: grid; align-content: start; gap: 3px; padding: 12px; border-radius: 18px; background: var(--card); border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; min-width: 0; }
+.tile .tk { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); }
+.tile .tk i { font-style: normal; color: var(--text-3); }
+.tile b { font: 300 30px/1.1 var(--font-display); letter-spacing: -.01em; white-space: nowrap; }
+.tile b .of { font-size: 14px; color: var(--text-2); }
+.tile small { font-size: 12px; line-height: 1.35; color: var(--text-2); }
+.tile .tbar { display: block; height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; margin: 3px 0 2px; }
+.tile .tbar i { display: block; height: 100%; background: var(--strain); border-radius: 3px; }
+.tile:active { opacity: .7; }
+.load-line { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; padding: 12px 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; }
+.load-line span { display: grid; gap: 1px; min-width: 0; }
+.load-line small { font-size: 12px; color: var(--text-2); }
+.load-line b { font: 400 20px/1.15 var(--font-display); }
+.load-line em { font-style: normal; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ses-list { list-style: none; margin: 0; padding: 0; }
+.ses-list li { border-top: 1px solid var(--line-soft); }
+.ses-list li:first-child { border-top: 0; }
+.ses-list a, .ses-list li > div { display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; color: var(--text); text-decoration: none; }
+.ses-list .sesc { width: 4px; height: 36px; border-radius: 2px; }
+.ses-list .st { display: grid; gap: 2px; min-width: 0; }
+.ses-list .st b { font-size: 16px; font-weight: 600; }
+.ses-list .st small { font-size: 13px; color: var(--text-2); }
+.ses-list .sr { text-align: right; display: grid; justify-items: end; }
+.ses-list .sr b { font: 300 22px/1.1 var(--font-display); }
+.ses-list .sr small { font-size: 12px; color: var(--text-2); }
+.pill { display: inline-block; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); }
+.feel-dots { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; margin: 2px 0 4px; }
+.feel-dots button { aspect-ratio: 1; max-width: 34px; justify-self: center; width: 100%; border: 0; border-radius: 50%; background: var(--card-2); color: var(--text-2); font: 500 13px var(--font); cursor: pointer; }
+.feel-dots button[aria-checked="true"] { background: var(--rec); color: #000; }
+.reg .saved { display: block; min-height: 1.2em; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
+.week li small { display: block; font-size: 11px; color: var(--text-2); }
+
+/* Sistema de cores (05/11): cor só com significado. Prontidão/REC = brasa → gelo; Strain = ciano; Sono = lilás;
+   modalidades = cores próprias. Fitness, Fadiga, HRV, FC de repouso e carbo viram branco e cinza. */
+:root { --fitness: #e9e9ee; --fatigue: #8d8d95; --hrv: #d9d9df; --rhr: #a9a9b0; }
+.cb-bar i { background: linear-gradient(180deg, #e9e9ee, #6d6d74); }
+/* texto mínimo e mais contraste */
+:root { --text-2: #a8a8af; --text-3: #6e6e75; }
+.rt-sub, .mini-s, .ls-note, .yr-leg, .tl-ticks, .mo-w, .fs-b em { font-size: 12px; }
+.note, .card-info, .t-why { font-size: 14px; }
+.pr-seg { margin: 14px 0 4px; }

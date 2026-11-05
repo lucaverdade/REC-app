@@ -59,6 +59,7 @@ export async function renderSleep(screen, api, date) {
       <b class="sl-total">${hm(n?.h)}</b>
       <p class="sl-meta">${start != null && end != null ? `${clock(start)} → ${clock(end)} · ` : ''}base ${hm(d.need)}${n?.score != null ? ` · score Garmin ${n.score}` : ''}${a.h != null ? ` · média de 14 noites ${hm(a.h)}` : ''}</p>
     </section>
+    <section class="card" id="sl-tonight" hidden></section>
     <section class="card">${cardHead('moon', 'Fases', { color: 'var(--sleep)', info: 'Fases e FC da noite vindas da Garmin. A comparação usa as 14 noites anteriores com fases registradas.' })}
       ${s ? `${hyp}<ul class="sl-st">${stageRows}</ul>` : '<p class="empty">Sem fases desta noite. As fases passam a ser guardadas a partir de hoje; para noites antigas, Ajustes → Garmin → Avançado → Buscar de novo os últimos 90 dias.</p>'}
     </section>
@@ -70,6 +71,19 @@ export async function renderSleep(screen, api, date) {
         ${n?.nap ? `<div><small>Cochilo do dia</small><b>${mm(n.nap * 60)}</b><em></em></div>` : ''}
       </div>
     </section>`;
+  // noite de hoje: meta, horário de deitar, dívida e regularidade (vem do Hoje)
+  const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  if (date === today) api(`/api/today?date=${date}`).then((t) => {
+    const box = screen.querySelector('#sl-tonight'), sl = t.sleep; if (!box || !sl) return;
+    const ex = [sl.need.fromLoad >= 1 / 60 ? `carga +${Math.round(sl.need.fromLoad * 60)} min` : null, sl.need.fromDebt >= 1 / 60 ? `dívida +${Math.round(sl.need.fromDebt * 60)} min` : null,
+      sl.need.fromStrain >= 1 / 60 ? `treino +${Math.round(sl.need.fromStrain * 60)} min` : null, sl.need.nap >= 1 / 60 ? `cochilo −${Math.round(sl.need.nap * 60)} min` : null].filter(Boolean);
+    box.innerHTML = `${cardHead('clock', 'Hoje à noite', { color: 'var(--sleep)' })}
+      <div class="fs-grid fs-2"><div><small>Meta</small><b>${hm(sl.need.total)}</b><em>base ${hm(sl.personalNeed)}${ex.length ? ` + ${ex.join(', ')}` : ''}</em></div>
+        <div><small>Deitar até</small><b style="color:var(--sleep)">${sl.bedtime ? esc(sl.bedtime.bedtime) : '–'}</b><em>${sl.bedtime ? `para acordar ~${esc(sl.bedtime.wake)}` : ''}</em></div>
+        <div><small>Dívida (14 dias)</small><b>${sl.debt == null ? '–' : sl.debt < 1 / 6 ? 'nenhuma' : hm(sl.debt)}</b><em>${sl.level && sl.level.key !== 'nenhuma' ? esc(sl.level.label) : ''}</em></div>
+        <div><small>Regularidade</small><b>${sl.regularityScore ?? '–'}</b><em>${sl.regularity ? `deita ~${sl.regularity.bedtime}, acorda ~${sl.regularity.wake}` : ''}</em></div></div>`;
+    box.hidden = false;
+  }).catch(() => {});
 }
 
 // ---------- revisão da semana (tela própria) ----------
