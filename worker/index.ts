@@ -663,7 +663,7 @@ async function trendsPayload(env: Env, unit: Unit, offset: number) {
 
 
 // --- aba Treino: semana (seg–dom) planejada × executada ---
-interface PlanSession { modalidade: string; titulo?: string; minutos?: number; zona?: string; detalhe?: string; chave?: boolean; strain?: number }
+interface PlanSession { modalidade: string; titulo?: string; minutos?: number; zona?: string; detalhe?: string; chave?: boolean; strain?: number; esforco?: number } // esforco = Strain previsto na escala v3 (Relative Effort do Strava)
 interface Plan { semana: string; fase?: string; notas?: string; dias?: Record<string, PlanSession[]> }
 
 async function readPlan(env: Env, req: Request, monday: string): Promise<Plan | null> {
@@ -706,7 +706,7 @@ async function strainRates(env: Env, today: string): Promise<Rates> {
 }
 const median = (v: number[]) => { const s = [...v].sort((a, b) => a - b), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
 function plannedStrainEst(p: PlanSession, rates?: Rates): { v: number | null; src: 'plano' | 'historico' | 'zona' | null; n?: number } {
-  if (!p.minutos) return typeof p.strain === 'number' ? { v: Math.round(p.strain), src: 'plano' } : { v: null, src: null };
+  if (!p.minutos) return typeof p.esforco === 'number' ? { v: Math.round(p.esforco), src: 'plano' } : { v: null, src: null };
   const zs = [...String(p.zona ?? '').matchAll(/[1-5]/g)].map((m) => Number(m[0]));
   const sport = normSport(p.modalidade);
   if (rates) {
@@ -714,8 +714,12 @@ function plannedStrainEst(p: PlanSession, rates?: Rates): { v: number | null; sr
     const pool = ks.flatMap((k) => rates.get(`${sport}:${k}`) ?? []);
     if (pool.length >= 3) return { v: Math.round(p.minutos * median(pool)), src: 'historico', n: pool.length };
   }
-  if (typeof p.strain === 'number') return { v: Math.round(p.strain), src: 'plano' };
-  // Strain/min típico por zona na escala v3 (Z1 0,15 … Z5 1,8)
+  // "esforco" do plano (escala v3/Strava) vale; o "strain" antigo ficou fora (escala v1, 4–5× maior)
+  if (typeof p.esforco === 'number') return { v: Math.round(p.esforco), src: 'plano' };
+  // sem histórico daquela zona: Strain/min mediano da modalidade (qualquer zona) × fator da zona (Z2 = 1); sem nada, tabela fixa
+  const F = [0.6, 1, 1.6, 2.4, 3.2], fz = zs.length ? zs.reduce((a, b) => a + F[b - 1], 0) / zs.length : 1;
+  const all = rates ? [1, 2, 3, 4, 5].flatMap((k) => rates.get(`${sport}:${k}`) ?? []) : [];
+  if (all.length >= 5) return { v: Math.round(p.minutos * median(all) * fz), src: 'zona' };
   const PER = [0.15, 0.3, 0.6, 1.1, 1.8], w = zs.length ? zs.reduce((a, b) => a + PER[b - 1], 0) / zs.length : PER[1];
   return { v: Math.round(p.minutos * w), src: 'zona' };
 }

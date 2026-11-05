@@ -222,7 +222,7 @@ async function stressSec(box, api) {
   const ST = { ok: ['no normal', ''], atencao: ['atenção', 'c-warn'], pesando: ['pesando', 'c-bad'], sem: ['sem dados', ''] };
   sec.innerHTML = `
     <p class="headline">Estresse acumulado <b class="sx-${d.level}">${esc(d.label.toLowerCase())}</b> nos últimos 31 dias.</p>
-    <ul class="acts">${d.contributors.map((c) => `<li><span>${esc(c.label)}</span><span class="meta ${ST[c.state][1]}">${ST[c.state][0]}${c.k === 'reg' && c.pct != null ? ` · ${c.pct}% das noites irregulares` : ''}${c.k === 'carga' ? ` · ${c.days} de 31 dias` : ''}</span></li>`).join('')}</ul>
+    <div class="sx-grid">${d.contributors.map((c) => `<span class="sx-c sx-${c.state}"><b>${esc(c.label.replace(' (Garmin)', '').replace(' (Fadiga acima do Fitness)', ''))}</b><small>${ST[c.state][0]}${c.k === 'reg' && c.pct != null ? ` · ${c.pct}% irregulares` : ''}${c.k === 'carga' ? ` · ${c.days} de 31 dias` : ''}</small></span>`).join('')}</div>
     <details class="explain"><summary>Como é calculado</summary>
       <p>Inspirado no "Estresse acumulado" da Oura: olha o mês inteiro, não o dia. Junta a média de 31 dias de HRV, sono, estresse da Garmin e FC de repouso contra o seu normal (os mesmos sinais do REC), o aumento de noites com horário irregular e os dias com Fadiga acima do Fitness.</p>
       <p>Baixo: o mês está no seu normal. Moderado: algum sinal pesando há semanas. Alto: vários sinais abaixo do normal por muito tempo, quando o risco de desgaste e de ficar doente sobe.</p>

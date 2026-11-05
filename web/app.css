@@ -1391,3 +1391,42 @@ body.is-share main { padding-bottom: 0; }
 .rt-sub, .mini-s, .ls-note, .yr-leg, .tl-ticks, .mo-w, .fs-b em { font-size: 12px; }
 .note, .card-info, .t-why { font-size: 14px; }
 .pr-seg { margin: 14px 0 4px; }
+
+/* transições entre telas (05/11) */
+#screen.nav-push { animation: nav-push .32s cubic-bezier(.2,.8,.2,1); }
+#screen.nav-pop { animation: nav-pop .32s cubic-bezier(.2,.8,.2,1); }
+#screen.nav-fade { animation: nav-fade .22s ease; }
+@keyframes nav-push { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes nav-pop { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+@keyframes nav-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #screen.nav-push, #screen.nav-pop, #screen.nav-fade { animation: none; } }
+/* esqueleto */
+.empty.sk { position: relative; color: transparent !important; min-height: 64px; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(var(--card-2), var(--card-2)) 0 4px / 70% 14px no-repeat, linear-gradient(var(--card-2), var(--card-2)) 0 28px / 92% 14px no-repeat, linear-gradient(var(--card-2), var(--card-2)) 0 52px / 55% 12px no-repeat; }
+.empty.sk::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.06) 45%, transparent 70%); animation: sk 1.3s linear infinite; }
+@keyframes sk { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .empty.sk::after { animation: none; } }
+
+/* cartões sem aninhamento (05/11): dentro de um cartão, blocos viram faixas com divisória, sem fundo e sem borda própria */
+.card .ss, .card .act-card, .card .leg, .card .st-card, .card .load-strip, .card .sw-card {
+  background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; padding-left: 0; padding-right: 0; margin: 0; }
+.card .ss + .ss, .card .act-card + .act-card, .card .leg + .leg { border-top: 1px solid var(--line-soft) !important; }
+.card .ss { padding-left: 14px; }
+.card .ss::before { left: 0 !important; }
+.card .leg { border-left: 3px solid var(--c) !important; padding-left: 12px; margin: 10px 0; }
+.card .act-card { padding-top: 10px; padding-bottom: 10px; }
+.card .sw-card { padding-top: 4px; }
+.cz-list { list-style: none; padding: 4px 16px; margin: 0 0 14px; }
+.cz-list li { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.cz-list li:first-child { border-top: 0; }
+.cz-list label { display: flex; align-items: center; gap: 12px; font-size: 16px; }
+.cz-list input { width: 20px; height: 20px; accent-color: #b3a7e6; }
+.cz-mv { display: flex; gap: 6px; }
+.cz-mv button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: none; color: var(--text); font-size: 15px; }
+.cz-mv button[disabled] { opacity: .3; }
+/* Corpo: estresse acumulado em grade compacta */
+.sx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+.sx-c { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); }
+.sx-c b { font-size: 14px; font-weight: 600; } .sx-c small { font-size: 12px; color: var(--text-2); }
+.sx-c.sx-pesando small { color: var(--bad); } .sx-c.sx-atencao small { color: var(--warn); }
+.card .act-card { padding-left: 12px; }

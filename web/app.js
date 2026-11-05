@@ -493,6 +493,17 @@ function formCard(d) {
 }
 
 
+// ordem e visibilidade dos blocos do Hoje (Ajustes → Personalizar o Hoje; guardado neste aparelho)
+const HOJE_BLOCKS = [['frase', 'Frase do dia'], ['portas', 'Sono · Strain · Corpo'], ['carga', 'Fitness · Fadiga · Forma'], ['treinos', 'Treinos de hoje'], ['registro', 'Registro do dia']];
+function hojePrefs() {
+  let p = null; try { p = JSON.parse(localStorage.getItem('rec.hoje') || 'null'); } catch {}
+  const known = HOJE_BLOCKS.map((x) => x[0]);
+  const list = Array.isArray(p) ? p.filter((x) => known.includes(x.k)) : [];
+  for (const k of known) if (!list.some((x) => x.k === k)) list.push({ k, on: true });
+  return list;
+}
+const hojeOrder = () => hojePrefs().filter((x) => x.on).map((x) => x.k);
+
 // ---------- Hoje v3 (05/11): uma frase, três portas (Sono, Strain, Corpo), carga em uma linha ----------
 function oneThingHtml(d) {
   const t = d.day?.target?.target;
@@ -614,22 +625,22 @@ function render(d) {
     <div class="contrib" id="ready-parts"><div>${readyPartsHtml(r)}</div></div>`;
     })()}
 
-    ${oneThingHtml(d)}
-    ${triHtml(d)}
-    ${d.load ? loadLine(d.load, todayIso) : ''}
     ${d.needsHistory ? '<p class="alert">O histórico ainda não foi carregado, então o REC não tem base. <a href="#garmin">Puxar histórico da Garmin</a></p>' : ''}
-
-    <section class="card">
+    ${hojeOrder().map((k) => ({
+      frase: oneThingHtml(d),
+      portas: triHtml(d),
+      carga: d.load ? loadLine(d.load, todayIso) : '',
+      treinos: `<section class="card">
       ${cardHead('bolt', d.isToday ? 'Treinos de hoje' : 'Treinos do dia', { color: 'var(--strain)', right: (d.planned?.length || d.activities.length) ? `Strain ${d.load?.strain ?? 0}${d.planned?.length ? ` de ${d.planned.reduce((x, p) => x + (p.strain ?? 0), 0)} previsto` : ''}` : '' })}
       ${sessionsHtml(d.planned ?? [], d.activities)}
-    </section>
-
-    <section class="card reg">
+    </section>`,
+      registro: `<section class="card reg">
       ${cardHead('smile', d.isToday ? 'Registro do dia' : 'Registro', { color: 'var(--accent)', info: 'Como me sinto (1 a 10) e o diário do dia. Marque à noite o que aconteceu: conta para o REC de amanhã; o efeito de cada hábito aparece em Corpo → O que mexe no meu REC.' })}
       <div class="feel-dots" role="radiogroup" aria-label="Como me sinto, de 1 a 10">${Array.from({ length: 10 }, (_, i) => i + 1).map((v) => `<button type="button" role="radio" data-feel="${v}" aria-checked="${d.feel === v}">${v}</button>`).join('')}</div>
       <span class="saved" aria-live="polite"></span>
       ${d.habits ? `<div class="hb-list">${[...d.habits.defs].sort((a, b) => d.habits.on.includes(b.key) - d.habits.on.includes(a.key)).map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>` : ''}
-    </section>
+    </section>`,
+    }[k] ?? '')).join('\n')}
 
     <div class="foot">
       <button class="sync" type="button" ${d.isToday ? '' : 'hidden'}>Atualizar dados</button>
@@ -955,6 +966,7 @@ function renderSettings() {
     <header class="top"><h1>Ajustes</h1><a class="foot-link" href="#hoje">Voltar</a></header>
     <nav class="card set-list">
       <a href="#garmin">${ICON.heart}<span><b>Garmin</b><small id="set-garmin">Dados, conexão e o que falta completar</small></span><em>›</em></a>
+      <a href="#personalizar">${ICON.check}<span><b>Personalizar o Hoje</b><small>Quais blocos aparecem e em que ordem</small></span><em>›</em></a>
       <a href="#tema">${ICON.sun}<span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
       <a href="#tend/calib">${ICON.smile}<span><b>O REC acerta?</b><small>Calibração: REC e Prontidão × como me sinto</small></span><em>›</em></a>
       <a href="#treinador">${ICON.book}<span><b>Relatório do treinador</b><small id="set-coach">Publicado no GitHub para o chat de treino</small></span><em>›</em></a>
@@ -964,6 +976,26 @@ function renderSettings() {
     const miss = [d.dias.falta, d.horarios.falta, d.treinos.falta, d.zonas.states.pendente, d.zonas.states.erro, d.rec.falta].filter((x) => x > 0).length;
     const el = screen.querySelector('#set-garmin'); if (el && miss) el.textContent = `${miss} ${miss === 1 ? 'parte' : 'partes'} para completar`;
   }).catch(() => {});
+}
+
+// --- personalizar o Hoje: mostrar/ocultar e mudar a ordem (guardado neste aparelho) ---
+function renderCustomize() {
+  document.documentElement.style.setProperty('--rec', 'var(--text-3)');
+  const draw = () => {
+    const list = hojePrefs(), name = Object.fromEntries(HOJE_BLOCKS);
+    screen.innerHTML = `<header class="top"><h1>Personalizar o Hoje</h1><a class="foot-link" href="#ajustes">Voltar</a></header>
+      <p class="note">O anel da Prontidão fica sempre no topo. Escolha o que aparece embaixo dele e em que ordem.</p>
+      <ul class="card cz-list">${list.map((x, i) => `<li>
+        <label><input type="checkbox" data-on="${x.k}" ${x.on ? 'checked' : ''}><span>${esc(name[x.k])}</span></label>
+        <span class="cz-mv"><button type="button" data-up="${i}" aria-label="Subir" ${i === 0 ? 'disabled' : ''}>↑</button><button type="button" data-dn="${i}" aria-label="Descer" ${i === list.length - 1 ? 'disabled' : ''}>↓</button></span></li>`).join('')}</ul>
+      <button class="btn ghost" id="cz-reset">Voltar ao padrão</button>`;
+    const save = (l) => { try { localStorage.setItem('rec.hoje', JSON.stringify(l)); } catch {} draw(); };
+    screen.querySelectorAll('[data-on]').forEach((c) => c.addEventListener('change', () => save(list.map((x) => (x.k === c.dataset.on ? { ...x, on: c.checked } : x)))));
+    screen.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => { const i = Number(b.dataset.up), l = [...list]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; save(l); }));
+    screen.querySelectorAll('[data-dn]').forEach((b) => b.addEventListener('click', () => { const i = Number(b.dataset.dn), l = [...list]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; save(l); }));
+    screen.querySelector('#cz-reset').addEventListener('click', () => { try { localStorage.removeItem('rec.hoje'); } catch {} draw(); });
+  };
+  draw();
 }
 
 // --- relatório do treinador: prévia, status e enviar agora ---
@@ -1056,10 +1088,29 @@ function renderTheme() {
   }));
 }
 
+// transições (05/11): tela de detalhe entra da direita, voltar entra da esquerda, troca de aba com fade
+const TAB_H = new Set(['#hoje', '#treino', '#prova', '#tendencias']);
+const SET2 = new Set(['#garmin', '#tema', '#widget', '#treinador', '#tend/calib', '#personalizar']);
+const depthOf = (h) => (TAB_H.has(h) ? 0 : SET2.has(h) ? 2 : 1);
+let lastDepth = null;
+function navAnim(h) {
+  const dep = depthOf(h), cls = lastDepth == null ? null : dep > lastDepth ? 'nav-push' : dep < lastDepth ? 'nav-pop' : 'nav-fade';
+  lastDepth = dep;
+  if (!cls) return;
+  screen.classList.remove('nav-push', 'nav-pop', 'nav-fade', 'slide-l', 'slide-r'); void screen.offsetWidth; screen.classList.add(cls);
+}
+screen.addEventListener('animationend', (e) => { if (e.target === screen) screen.classList.remove('nav-push', 'nav-pop', 'nav-fade'); });
+
+// esqueleto de carregamento: todo "Carregando…" vira faixas que brilham; some quando o texto muda (erro) ou o bloco é trocado
+const markSk = (root) => root.querySelectorAll?.('.empty').forEach((el) => el.classList.toggle('sk', el.textContent.trim() === 'Carregando…'));
+new MutationObserver((ms) => { for (const m of ms) { const t = m.target.nodeType === 1 ? m.target : m.target.parentElement; if (t) { if (t.classList?.contains('sk') && t.textContent.trim() !== 'Carregando…') t.classList.remove('sk'); markSk(t); } } })
+  .observe(screen, { childList: true, subtree: true, characterData: true });
+
 function route() {
   const h = location.hash || '#hoje';
+  navAnim(h);
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') ? '#treino' : h.startsWith('#sono/') || h.startsWith('#rec/') || h.startsWith('#strain/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h === '#treinador' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') ? '#treino' : h.startsWith('#sono/') || h.startsWith('#rec/') || h.startsWith('#strain/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h === '#treinador' || h === '#personalizar' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -1075,6 +1126,7 @@ function route() {
   else if (h === '#ajustes') renderSettings();
   else if (h === '#widget') renderWidgetHelp();
   else if (h === '#treinador') renderCoach();
+  else if (h === '#personalizar') renderCustomize();
   else if (h === '#tendencias') renderTrends(page(), api);
   else if (h === '#treino') renderTrain(page(), api);
   else if (h === '#prova') renderRace(page(), api);
