@@ -154,6 +154,9 @@ Prontidão = 100 × Φ(1,3 × z médio ponderado). O 1,3 devolve a dispersão do
 Backtest 03/11/2025–03/11/2026 (354 dias): REC média 50, DP 24; Prontidão média 48, DP 22; correlação 0,88. Maiores quedas em relação ao REC: dias depois de treinos de Strain 230–300 (ex.: 12/02 REC 63 → 31).
 Inspiração: Whoop (Recovery separado do Strain), Oura Readiness (atividade de ontem, balanço de 2 semanas, sono de 2 semanas), Garmin Training Readiness (carga aguda, tempo de recuperação, sono de 3 noites). Pesos são ponto de partida; recalibrar depois da prova com "Como me sinto".
 
+## 8i. Frase do dia (05/11) — `src/headline.ts`
+Título: faixa da Prontidão (0–20, 21–40, 41–60, 61–80, 81–100) × situação do dia (sessão-chave, treino, folga no plano, sem plano), com 2–3 versões por caso; a versão sai de um hash da data (o mesmo dia mostra sempre a mesma frase). Embaixo, até 3 porquês: a parte da Prontidão que mais puxou (para baixo nas faixas baixas, para cima nas altas, a que mais destoou no meio; só se |z| ≥ 0,4), uma segunda parte com z ≤ −1, a direção do REC (2+ dias) se sobrar espaço e a meta de Strain (fora em dia de folga). Prioridade: dia de prova, véspera, alerta de doença. Sem Prontidão: a frase antiga REC × Forma.
+
 ## 9. Previsões de prova (corrida)
 (`src/predict.ts`)
 - Regras do Strava: só corridas ao ar livre, janela de 24 semanas, mínimo 10 corridas, recentes pesam mais, percurso plano.

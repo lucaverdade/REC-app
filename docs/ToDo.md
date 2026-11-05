@@ -24,6 +24,8 @@ Lista viva do que o Luca pediu para depois.
 - [x] **Meta de Strain do dia v2** (03/11, `src/target.ts`; ver Guia 8b). Itens (c) e (d) entraram como "ontem pesado" e comparação com o plano. Pedido original: Hoje: Fitness (carga de 42 dias) × fator do REC (que já usa bases de 60–120 dias) × ajuste da Forma. Melhorar com: (a) quanto ainda cabe na **faixa semanal** (0,8–1,3 × média de 3 semanas) dividido pelos dias que faltam; (b) razão aguda/crônica e tendência da Fadiga; (c) dias desde o último dia pesado; (d) Strain previsto da sessão do plano; (e) a resposta de recuperação de 7 dias, não só o REC do dia. Validar contra o histórico: dias em que o Strain passou da meta deveriam ser seguidos de REC mais baixo.
 
 ## Abas e telas
+- [x] Frase do dia v2 (05/11): título por Prontidão × situação, variações por data, até 3 porquês.
+- [ ] Nome novo para a Prontidão (opções em discussão).
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.
 - [ ] Aba Nutrição: registro em dois toques (carbo total, barriga).
