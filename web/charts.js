@@ -124,7 +124,7 @@ export function lineChart(wrap, series, opts) {
       if (v == null) { pen = false; return; }
       d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true;
     });
-    el('path', { d, class: `ln ${s.cls ?? 'l1'}` }, svg);
+    el('path', { d, class: `ln bl-draw ${s.cls ?? 'l1'}`, pathLength: 1 }, svg);
     if (opts.dots) s.values.forEach((v, i) => { if (v != null) { const c = opts.dots(i, v); if (c) el('circle', { cx: x(i), cy: y(v), r: n > 60 ? 2 : 3.5, style: `fill:${c}` }, svg); } });
     // rótulo direto no fim da linha
     if (s.label) {

@@ -78,6 +78,20 @@ export async function renderTrends(screen, api) {
   }));
   bodyCharts(screen, api);
   stressSec(screen, api); habits(screen, api); yearSec(screen, api);
+  foldNotes(screen);
+}
+
+// explicações técnicas (p.note) ficam guardadas em "Como ler", fechadas; as seções chegam aos poucos, então observa o container
+export function foldNotes(root) {
+  const fold = () => root.querySelectorAll('.card p.note:not(.how p)').forEach((n) => {
+    // nota que é o único conteúdo do bloco (ex.: "sem dados") fica à vista
+    if (![...n.parentElement.children].some((c) => !c.matches('p.note, details.how-note, .ch, .card-info, h2, h3'))) return;
+    const prev = n.previousElementSibling;
+    if (prev?.matches('details.how-note')) { prev.append(n); return; }
+    const d = document.createElement('details'); d.className = 'how how-note'; d.innerHTML = '<summary>Como ler</summary>';
+    n.replaceWith(d); d.append(n);
+  });
+  fold(); new MutationObserver(fold).observe(root, { childList: true, subtree: true });
 }
 
 async function bodyCharts(screen, api) {
@@ -97,7 +111,7 @@ async function bodyCharts(screen, api) {
         sub: `média · ${per}${aRec != null ? ` · REC ${Math.round(aRec)}` : ''}` })}
     </div>
     ${v ? `<div class="bh-txt rise" style="--i:1"><p class="b-ans">${esc(v.answer)}</p><p class="b-trend">${arrow} ${esc(v.trendTxt)}</p>
-      ${v.reasons.length ? `<ul class="v-sig">${v.reasons.slice(0, 3).map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.txt)}</li>`).join('')}</ul>` : ''}</div>`
+      ${v.reasons.length ? `<details class="how"><summary>Por quê</summary><ul class="v-sig">${v.reasons.slice(0, 3).map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.txt)}</li>`).join('')}</ul></details>` : ''}</div>`
       : '<p class="empty">Ainda sem dados suficientes.</p>'}`;
   const share = (xs, ok) => { const v2 = xs.filter((x) => ok(x) != null); return v2.length ? v2.filter((x) => ok(x)).length / v2.length : null; };
   const pHrv = share(days, (x) => (x.hrv == null || x.hrvLo == null ? null : x.hrv >= x.hrvLo));
@@ -140,7 +154,8 @@ async function bodyCharts(screen, api) {
 
 // ---------- Treino → Evolução (04/11): tudo de treino em cartões abertos ----------
 export async function renderEvolution(box, api) {
-  const C = (id, icon, title, color) => `<section class="card">${cardHead(icon, title, { color })}<div class="block" id="${id}"></div></section>`;
+  let ci = 0; const C = (id, icon, title, color) => `<section class="card rise" style="--i:${ci++}">${cardHead(icon, title, { color })}<div class="block" id="${id}"></div></section>`;
+  foldNotes(box);
   box.innerHTML = `
     ${C('sw', 'bolt', 'Strain semanal', 'var(--strain)')}
     ${C('evo', 'trend', 'Fitness, Fadiga e Forma', 'var(--fitness)')}
@@ -806,9 +821,9 @@ async function strainWeeks(box, api) {
     <div class="sw-card sw-${w.status ?? 'none'}">
       <div class="sw-head">
         <span class="meta">${w.current ? 'Esta semana, ' : ''}${fmtDay(w.start)} – ${fmtDay(end)}</span>
-        <b class="sw-total">${nf(w.total)}</b>
-        ${st ? `<span class="sw-status">${st.label}</span>` : ''}
-        <p class="sw-txt">${st ? st.txt : ''} Faixa: <b>${nf(w.lo)}–${nf(w.hi)}</b> (média das 3 semanas anteriores: ${nf(w.avg3)}).${left != null ? ` Até ${nf(w.hi)} fica dentro da faixa: faltam ${nf(left)}.` : ''}</p>
+        <div class="sw-ring">${heroRing({ frac: w.hi ? w.total / w.hi : 0, text: nf(w.total), count: w.total, color: 'var(--strain)', size: 'sm', sub: st ? `<span class="sw-status">${st.label}</span>` : '' })}</div>
+        <p class="sw-txt">${st ? st.txt : ''}</p>
+        <p class="note">Faixa: ${nf(w.lo)}–${nf(w.hi)} (média das 3 semanas anteriores: ${nf(w.avg3)}).${left != null ? ` Até ${nf(w.hi)} fica dentro da faixa: faltam ${nf(left)}.` : ''} O anel fecha no teto da faixa.</p>
       </div>
       <div class="sw-days">${w.days.map((v, k) => `<div><span class="sw-bar" style="height:${v ? Math.max(4, (v / maxDay) * 100) : 0}%" title="${v ?? '–'}"></span><small>${wd[k]}</small></div>`).join('')}</div>
     </div>
@@ -821,6 +836,7 @@ async function strainWeeks(box, api) {
     <div class="chart-wrap" id="ch-sw"></div>
     <p class="note">Toque num ponto para ver a semana e os treinos. A faixa sombreada é 0,8 a 1,3 vezes a média das 3 semanas anteriores: subir dentro dela é progressão gradual; acima dela, a carga cresceu rápido.</p>`;
 
+  animateRings(sec); countUp(sec);
   // gráfico: faixa (área entre lo e hi) + pontos semanais
   const svgW = 340, h = 120;
   const vals = ws.flatMap((x) => [x.total, x.hi]);

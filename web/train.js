@@ -30,15 +30,16 @@ function sessionCard({ sport, title, sub, status, key, planned, done, detail, ex
   const pct = planned && done != null ? Math.round((done / planned) * 100) : null;
   const cls = pct == null ? '' : pct >= 80 && pct <= 120 ? 'ok' : pct < 80 ? 'low' : 'high';
   const facts = ex ? [ex.km >= 0.5 ? `${nf(ex.km, 1)} km` : null, ex.avghr ? `FC média ${Math.round(ex.avghr)}` : null, ex.rpe != null ? `RPE ${nf(ex.rpe)}` : null].filter(Boolean) : [];
-  return `<li class="ss s-${esc(sport)}-bar">
+  // anelzinho: feito contra o previsto (sem previsto: cheio; só previsto: tracejado)
+  const C = 2 * Math.PI * 21, f = planned && done != null ? Math.min(1, done / planned) : done != null ? 1 : 0;
+  const ring = planned == null && done == null ? '' : `<span class="ss-ring"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="21" class="ssr-t"/>
+      ${f ? `<circle cx="25" cy="25" r="21" class="ssr-a" stroke-dasharray="${(C * f).toFixed(1)} ${C.toFixed(1)}"/>` : ''}</svg>
+      <span><b>${done ?? planned}</b><small>${done != null && planned ? `de ${planned}` : done != null ? 'Strain' : 'previsto'}</small></span></span>`;
+  return `<li class="ss s-${esc(sport)}-bar${done == null ? ' is-plan' : ''}" style="--c:var(--${esc(sport)}, var(--strain))">
     <div class="ss-top">
-      <div class="ss-name"><b>${esc(title)}</b>${key ? '<span class="key">chave</span>' : ''}<span class="ss-sub">${sub}</span></div>
-      ${status ? `<span class="ss-st st-${status}">${STATUS[status]}</span>` : ''}
-    </div>
-    <div class="ss-strain">
-      ${planned != null ? `<div><span class="lab">Previsto</span><span class="num">${planned}</span></div>` : ''}
-      ${done != null ? `<div><span class="lab">Feito</span><span class="num c-strain">${done}</span></div>` : ''}
-      ${pct != null ? `<div><span class="lab">do previsto</span><span class="num pct ${cls}">${pct}%</span></div>` : ''}
+      <div class="ss-name"><b>${esc(title)}</b>${key ? '<span class="key">chave</span>' : ''}<span class="ss-sub">${sub}</span>
+        ${status ? `<span class="ss-st st-${status}">${STATUS[status]}${pct != null ? ` · ${pct}%` : ''}</span>` : ''}</div>
+      ${ring}
     </div>
     ${ex?.zones || facts.length || detail ? `<details class="ss-more"><summary>Detalhes</summary>
       ${facts.length ? `<p class="ss-facts">${facts.join(' · ')}</p>` : ''}

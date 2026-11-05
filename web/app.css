@@ -1595,3 +1595,32 @@ div.hring { cursor: default; }
 .chart .bl-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.3s .25s cubic-bezier(.4, 0, .2, 1) forwards; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .rise { animation: none; } .chart .bl-draw { animation: none; stroke-dashoffset: 0; } }
+
+/* "Como ler" / "Por quê": detalhes técnicos escondidos */
+details.how { margin-top: 10px; }
+details.how > summary { list-style: none; cursor: pointer; font-size: 13px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
+details.how > summary::-webkit-details-marker { display: none; }
+details.how > summary::after { content: '›'; transition: transform .2s; }
+details.how[open] > summary::after { transform: rotate(90deg); }
+details.how[open] > :not(summary) { animation: rise .35s ease both; }
+.bh details.how { display: grid; justify-items: center; }
+/* sessões da semana: cartão tingido pela modalidade + anelzinho */
+.ss { border: 0; background: linear-gradient(100deg, color-mix(in srgb, var(--c) 13%, transparent), color-mix(in srgb, var(--c) 4%, transparent)); border-radius: 18px; }
+.ss.is-plan { background: color-mix(in srgb, var(--c) 6%, transparent); }
+.ss::before { background: var(--c); width: 3px; }
+.ss-top { align-items: center; }
+.ss-name .ss-st { display: inline-block; margin-top: 8px; }
+.ss-ring { position: relative; flex: none; width: 58px; height: 58px; }
+.ss-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ss-ring circle { fill: none; stroke-width: 4; }
+.ssr-t { stroke: color-mix(in srgb, var(--c) 22%, transparent); }
+.is-plan .ssr-t { stroke-dasharray: 2 3; }
+.ssr-a { stroke: var(--c); stroke-linecap: round; animation: ssr 1s .2s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes ssr { from { stroke-dasharray: 0 200; } }
+.ss-ring > span { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
+.ss-ring b { font: 300 18px var(--font-display); }
+.ss-ring small { font-size: 9.5px; color: var(--text-2); margin-top: 2px; }
+.ss-strain { display: none; }
+.sw-ring { display: grid; justify-items: center; margin: 8px 0 4px; }
+.sw-ring .sw-status { font-size: 15px; }
+.sw-head .sw-txt { text-align: center; color: var(--text-2); }
