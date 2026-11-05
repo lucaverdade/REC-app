@@ -1,5 +1,5 @@
 // REC — desenho do widget (Scriptable). Baixado pelo script "REC" a cada atualização: mudanças aqui chegam sozinhas no iPhone.
-// module.exports = async (APP, family) => ListWidget
+// exporta: (APP, family) => ListWidget
 
 const STOPS = ['#e2614f', '#d98aa6', '#b3a7e6', '#86c3f2', '#74e6ff'].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
 const hex = (c) => '#' + c.map((n) => Math.round(n).toString(16).padStart(2, '0')).join('');
