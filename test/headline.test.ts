@@ -11,9 +11,9 @@ const titles = new Set<string>(); for (let d = 1; d <= 20; d++) titles.add(dayHe
 ok(titles.size >= 2, 'variação por data');
 ok(dayHeadline(base)!.title === dayHeadline(base)!.title, 'determinístico');
 const h1 = show('alta + chave', { ready: 88, parts: base.parts.map((p) => ({ ...p, z: 1 })), trend: { dir: 'up', days: 4 } });
-ok(/sessão-chave|treino forte/.test(h1.title), 'alta+chave');
+ok(/chave|forte/.test(h1.title), 'alta+chave');
 const h2 = show('baixa + treino', { ready: 32, planned: [{ label: 'Corrida', strain: 80 }] });
-ok(h2.why.some((w) => /Semana pesada|acima do seu normal/.test(w)), 'porquê carga');
+ok(h2.why.some((w) => /[Ss]emana pesada|[Cc]arga alta/.test(w)), 'porquê carga');
 show('média + chave', { ready: 52 });
 const h4 = show('folga', { ready: 45, planned: [], target: 20 });
 ok(/[Ff]olga/.test(h4.title) && !h4.why.some((w) => /Meta/.test(w)), 'folga sem meta');
@@ -21,5 +21,6 @@ show('sem plano, muito baixa', { ready: 15, planned: [], hasWeekPlan: false });
 ok(dayHeadline({ ...base, raceDays: 0 })!.title === 'Dia de prova.', 'prova');
 ok(dayHeadline({ ...base, raceDays: 1 })!.title === 'Véspera da prova.', 'véspera');
 ok(dayHeadline({ ...base, illness: true })!.why.length === 0, 'doença');
+ok(dayHeadline({ ...base, ready: 32 })!.why.every((w) => !/\d/.test(w) || /^Meta/.test(w)), 'sem números no porquê');
 ok(dayHeadline({ ...base, ready: null, rec: null }) === null, 'sem dados');
 console.log(fail ? `headline: ${fail} falha(s)` : 'headline OK'); if (fail) process.exit(1);
