@@ -32,7 +32,8 @@ export interface SleepStages {
 
 /** Fases do sono do JSON do dailySleep (campos do Garmin Connect: sleepLevels, sleepHeartRate, *SleepSeconds). */
 export function parseStages(j: any): SleepStages | null {
-  const dto = j?.dailySleepDTO ?? {};
+  // a chave pessoal manda os campos do sono soltos no topo (sem dailySleepDTO); o Connect manda dentro do DTO
+  const dto = j?.dailySleepDTO ?? j ?? {};
   const m = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v / 60) : null);
   const deep = m(dto.deepSleepSeconds), light = m(dto.lightSleepSeconds), rem = m(dto.remSleepSeconds), awake = m(dto.awakeSleepSeconds);
   const off = typeof dto.sleepStartTimestampLocal === 'number' && typeof dto.sleepStartTimestampGMT === 'number' ? dto.sleepStartTimestampLocal - dto.sleepStartTimestampGMT : -3 * 3600e3;
@@ -330,6 +331,9 @@ export async function fetchFitnessAge(env: GarminEnv, date: string) {
     fitnessAge: first(j?.fitnessAge) ?? findNum(j, (k) => /^fitnessAge$/i.test(k)),
     chronologicalAge: first(j?.chronologicalAge) ?? findNum(j, (k) => /chronological/i.test(k)),
     achievable: first(j?.achievableFitnessAge) ?? findNum(j, (k) => /achievable/i.test(k)),
+    previous: first(j?.previousFitnessAge),
+    // o VO2máx usado na idade fitness vem nos componentes (ex.: components.vo2Max.value)
+    vo2: first(j?.components?.vo2Max?.value, j?.components?.vo2max?.value) ?? findNum(j?.components, (k) => /vo2/i.test(k)),
   };
 }
 
@@ -368,7 +372,7 @@ export async function probeGarmin(env: GarminEnv, date: string, from: string) {
   if (sl) out.sono = {
     blocos: keys(sl), dto: keys(sl.dailySleepDTO).filter((k) => /sleep|second|level|stage/i.test(k)),
     sleepLevels: Array.isArray(sl.sleepLevels) ? sl.sleepLevels.length : null, sleepHeartRate: Array.isArray(sl.sleepHeartRate) ? sl.sleepHeartRate.length : null,
-    profundo_s: n(sl.dailySleepDTO?.deepSleepSeconds), rem_s: n(sl.dailySleepDTO?.remSleepSeconds),
+    profundo_s: n((sl.dailySleepDTO ?? sl).deepSleepSeconds), rem_s: n((sl.dailySleepDTO ?? sl).remSleepSeconds),
     fases_lidas: (() => { const st = parseStages(sl); return st ? { trechos: st.levels.length, fc: st.hr.length, profundo: st.deep } : null; })(),
   };
   const ss = await tryGet('sono_resumo', '/sleep-service/sleep/dailySleepSummariesByDate', { startDate: date, endDate: date });
@@ -386,6 +390,6 @@ export async function probeGarmin(env: GarminEnv, date: string, from: string) {
     const j = await tryGet(k, path); if (j) out[k] = { tipo: Array.isArray(j) ? `lista de ${j.length}` : 'objeto', campos: keys(Array.isArray(j) ? j[0] : j).slice(0, 20) };
   }
   const fa = await tryGet('idade_fitness', `/fitnessage-service/fitnessage/v2/${date}`);
-  if (fa) out.idade_fitness = { campos: keys(fa).slice(0, 20) };
+  if (fa) out.idade_fitness = { campos: keys(fa).slice(0, 20), componentes: keys(fa.components), vo2: findNum(fa.components, (k) => /vo2/i.test(k)) };
   return out;
 }

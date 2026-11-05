@@ -1386,10 +1386,11 @@ async function diagPayload(env: Env) {
 // --- I6: idade fitness (Garmin, cache mensal) e VO2máx das atividades ---
 async function fitnessAgePayload(env: Env) {
   const today = brtToday();
-  type FA = { month: string; fitnessAge: number | null; chronologicalAge: number | null; achievable: number | null; error?: string; at?: number };
+  type FA = { month: string; fitnessAge: number | null; chronologicalAge: number | null; achievable: number | null; previous?: number | null; vo2?: number | null; error?: string; at?: number };
   let fa = await getSetting<FA>(env, 'fitness_age');
-  if (!fa || fa.month !== today.slice(0, 7) || (fa.error && Date.now() - (fa.at ?? 0) > 864e5)) {
-    try { fa = { month: today.slice(0, 7), ...(await fetchFitnessAge(env, today)) }; }
+  // erro: tenta de novo depois de 1 h; sem erro: atualiza uma vez por dia (o VO2máx dos componentes muda com os treinos)
+  if (!fa || fa.month !== today.slice(0, 7) || (fa.error && Date.now() - (fa.at ?? 0) > 3600e3) || (!fa.error && Date.now() - (fa.at ?? 0) > 864e5)) {
+    try { fa = { month: today.slice(0, 7), ...(await fetchFitnessAge(env, today)), at: Date.now() }; }
     catch (e) { fa = { month: today.slice(0, 7), fitnessAge: null, chronologicalAge: null, achievable: null, error: garminMsg(e), at: Date.now() }; }
     await setSetting(env, 'fitness_age', fa);
   }
@@ -1399,7 +1400,10 @@ async function fitnessAgePayload(env: Env) {
   type VH = Record<string, { run: number | null; bike: number | null }>;
   const hist = (await getSetting<VH>(env, 'vo2_hist')) ?? {};
   if (!hist[today] && hasKey(env)) {
-    try { const v = await fetchProfileVo2(env); if (v.run != null || v.bike != null) { hist[today] = v; await setSetting(env, 'vo2_hist', hist); } } catch { /* sem perfil: fica só o que veio das atividades */ }
+    let v: { run: number | null; bike: number | null } = { run: null, bike: null };
+    try { v = await fetchProfileVo2(env); } catch { /* sem perfil */ }
+    if (v.run == null && fa?.vo2 != null) v.run = fa.vo2; // VO2máx da idade fitness (o mesmo da corrida no Garmin Connect)
+    if (v.run != null || v.bike != null) { hist[today] = v; await setSetting(env, 'vo2_hist', hist); }
   }
   const fromHist = (k: 'run' | 'bike') => Object.entries(hist).filter(([, v]) => v[k] != null).sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, vo2: v[k] as number }));
   const series = (sp: Sport, k: 'run' | 'bike') => { const a = results.filter((r) => r.sport === sp).map((r) => ({ date: r.date, vo2: r.vo2 })); return a.length ? a : fromHist(k); };
