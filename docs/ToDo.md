@@ -25,7 +25,7 @@ Lista viva do que o Luca pediu para depois.
 
 ## Abas e telas
 - [x] Frase do dia v2 (05/11): título por Prontidão × situação, variações por data, até 3 porquês.
-- [ ] Nome novo para a Prontidão (opções em discussão).
+- [x] Anel principal sem nome (05/11): degradê, brilho, animação; tile Corpo → Recuperação.
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.
 - [x] Aba Treino (03/11): semana seg–dom, planejado × executado, REC do dia seguinte. Plano em `web/plan/<segunda>.json` (ver `Formato_Plano.md`). Falta: o chat de treino começar a publicar.
 - [ ] Aba Nutrição: registro em dois toques (carbo total, barriga).
