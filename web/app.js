@@ -216,6 +216,23 @@ function ringTile({ id, value, unit = '', frac = 0, color, valColor = '', label,
   </button>`;
 }
 
+// anel principal (05/11): sem nome; arco em degradê pelas cores da escala até o valor do dia, ponta luminosa,
+// brilho que respira devagar e número que conta. Animação via --p (CSS @property).
+function heroRing(v, { sub = '', aria = '' } = {}) {
+  const f = v == null ? 0 : Math.max(0.015, Math.min(1, v / 100));
+  const stops = [0, 0.25, 0.5, 0.75, 1].map((k) => `${readyColor(v == null ? 0 : v * k)} calc(var(--p) * ${k} * 1turn)`).join(', ');
+  const end = v == null ? 'var(--text-3)' : readyColor(v);
+  return `<button type="button" class="hring${v == null ? ' is-empty' : ''}" data-ring="ready" data-p="${f}" aria-label="${esc(aria)}" aria-expanded="false" aria-controls="ready-parts"
+    style="--grad: conic-gradient(${stops}, transparent 0); --end: ${end}">
+    <span class="hr-ring">
+      <span class="hr-glow"></span><span class="hr-track"></span><span class="hr-arc"></span>
+      ${v == null ? '' : '<span class="hr-cap"></span><span class="hr-start"></span>'}
+      <span class="hr-val"><span><span${typeof v === 'number' ? ` data-count="${v}"` : ''}>${v ?? '–'}</span>${v == null ? '' : '<small>%</small>'}</span></span>
+    </span>
+    ${sub ? `<span class="rt-sub">${esc(sub)}</span>` : ''}
+  </button>`;
+}
+
 // linha curta embaixo de cada anel
 function recSub(d) {
   const prev = d.week.filter((w) => w.date < d.date && w.rec != null).map((w) => w.rec);
@@ -384,7 +401,7 @@ function morningHtml(d) {
     <div class="mr-hero">
       <div class="mr-rec">${ring}<b>${rd}<small>%</small></b></div>
       <div class="mr-hero-txt">
-        <span class="mr-lab">Prontidão · REC ${d.rec ?? '–'}${d.day?.trend ? ` (${esc(d.day.trend.txt.replace('REC ', ''))})` : ''}</span>
+        <span class="mr-lab">Recuperação ${d.rec ?? '–'}${d.day?.trend ? ` (${esc(d.day.trend.txt.replace('REC ', ''))})` : ''}</span>
         ${d.day?.summary ? `<p class="mr-phrase">${esc(d.day.summary)}</p>` : ''}
       </div>
     </div>
@@ -508,7 +525,7 @@ const hojeOrder = () => hojePrefs().filter((x) => x.on).map((x) => x.k);
 function oneThingHtml(d) {
   const t = d.day?.target?.target, why = d.day?.why;
   // frase nova (título + porquês) já traz a meta de Strain; o servidor antigo não
-  const lines = [...(why ?? []), ...(d.alerts ?? []).map((a) => a.text), !why && t != null && d.isToday ? `Meta de Strain do dia: ${t}.` : null].filter(Boolean);
+  const lines = [...(why ?? []), ...(d.alerts ?? []).filter((a) => !why || a.kind !== 'carga').map((a) => a.text), !why && t != null && d.isToday ? `Meta de Strain do dia: ${t}.` : null].filter(Boolean);
   if (!d.day?.summary && !lines.length) return '';
   return `<section class="one-thing"><b>${esc(d.day?.summary ?? 'Dia sem resumo ainda.')}</b>${lines.map((l) => `<span>${esc(l)}</span>`).join('')}</section>`;
 }
@@ -520,7 +537,7 @@ function triHtml(d) {
   return `<div class="tri">
     <a class="tile" href="#sono/${d.date}"><span class="tk">Sono<i>›</i></span><b style="color:var(--sleep)">${hcomp(n?.hours)}</b><small>base ${hcomp(s?.personalNeed)}${s?.debt >= 1 / 6 ? `<br>dívida ${hcomp(s.debt)}` : ''}</small></a>
     <a class="tile" href="#strain/${d.date}"><span class="tk">Strain<i>›</i></span><b style="color:var(--strain)">${st}${t != null ? `<small class="of">/${t}</small>` : ''}</b>${t ? `<span class="tbar"><i style="width:${Math.min(100, (st / t) * 100)}%"></i></span>` : ''}<small>${pl ? `${pl} ${pl === 1 ? 'treino previsto' : 'treinos previstos'}` : esc(strainCat(l))}</small></a>
-    <a class="tile" href="#rec/${d.date}"><span class="tk">Corpo<i>›</i></span><b style="color:${d.rec == null ? 'var(--text-3)' : readyColor(d.rec)}">${d.rec ?? '–'}</b><small>REC${tr ? `<br>${tr.dir === 'up' ? '↑' : tr.dir === 'down' ? '↓' : '→'} ${esc(tr.txt.replace('REC ', ''))}` : ''}</small></a>
+    <a class="tile" href="#rec/${d.date}"><span class="tk">Recuperação<i>›</i></span><b style="color:${d.rec == null ? 'var(--text-3)' : readyColor(d.rec)}">${d.rec ?? '–'}</b><small>REC${tr ? `<br>${tr.dir === 'up' ? '↑' : tr.dir === 'down' ? '↓' : '→'} ${esc(tr.txt.replace('REC ', ''))}` : ''}</small></a>
   </div>`;
 }
 function loadLine(l, date) {
@@ -620,8 +637,9 @@ function render(d) {
       const wait = sc == null && d.isToday && d.readyPrev != null ? Math.round(d.readyPrev) : null;
       const shownV = sc ?? wait;
       return `<section class="hero${wait != null ? ' is-wait' : ''}" aria-label="Estou pronto hoje?">
-      ${ringTile({ id: 'ready', value: shownV ?? '–', unit: shownV == null ? '' : '%', frac: (shownV ?? 0) / 100, color: readyColor(shownV), valColor: shownV == null ? '' : readyColor(shownV), label: 'Prontidão',
-        sub: wait != null ? 'de ontem · esperando a noite de hoje' : sc == null && d.isToday ? 'a noite ainda não chegou' : '', aria: wait != null ? `Prontidão de ontem, ${wait}%. A noite de hoje ainda não chegou.` : 'Prontidão. Toque para ver o que entrou na conta.' })}
+      ${heroRing(shownV, {
+        sub: wait != null ? 'de ontem · esperando a noite' : sc == null && d.isToday ? 'a noite ainda não chegou' : '',
+        aria: wait != null ? `Ontem, ${wait}%. A noite de hoje ainda não chegou.` : shownV == null ? 'Sem número hoje.' : `${shownV}% pronto para hoje. Toque para ver o que entrou na conta.` })}
     </section>
     <div class="contrib" id="ready-parts"><div>${readyPartsHtml(r)}</div></div>`;
     })()}
@@ -651,6 +669,7 @@ function render(d) {
   // anéis: animação única ao abrir
   requestAnimationFrame(() => requestAnimationFrame(() => {
     screen.querySelectorAll('.rt-arc').forEach((a) => { a.style.strokeDashoffset = a.dataset.target; });
+    screen.querySelectorAll('.hring').forEach((h) => { h.style.setProperty('--p', h.dataset.p); });
   }));
 
   // Prontidão: abre as quatro partes
@@ -971,7 +990,7 @@ function renderSettings() {
       <a href="#tema">${ICON.sun}<span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
       <a href="#tend/calib">${ICON.smile}<span><b>O REC acerta?</b><small>Calibração: REC e Prontidão × como me sinto</small></span><em>›</em></a>
       <a href="#treinador">${ICON.book}<span><b>Relatório do treinador</b><small id="set-coach">Publicado no GitHub para o chat de treino</small></span><em>›</em></a>
-      <a href="#widget">${ICON.check}<span><b>Widget do iPhone</b><small>Prontidão na tela inicial</small></span><em>›</em></a>
+      <a href="#widget">${ICON.check}<span><b>Widget do iPhone</b><small>O número do dia na tela inicial</small></span><em>›</em></a>
     </nav>`;
   api('/api/diag').then((d) => {
     const miss = [d.dias.falta, d.horarios.falta, d.treinos.falta, d.zonas.states.pendente, d.zonas.states.erro, d.rec.falta].filter((x) => x > 0).length;
@@ -1040,7 +1059,7 @@ function renderWidgetHelp() {
       </ol>
       <button class="btn dg-go" id="wg-copy">Copiar código</button>
       <p class="progress" id="wg-out" aria-live="polite"></p>
-      <p class="note">O widget se atualiza sozinho mais ou menos a cada 30 minutos (o iPhone decide o momento exato). Pequeno: só o anel da Prontidão. Médio: anel + REC, Forma, Strain, treino do dia, horário de deitar e dias até Aracaju.</p>
+      <p class="note">O widget se atualiza sozinho mais ou menos a cada 30 minutos (o iPhone decide o momento exato). Pequeno: o anel do dia. Médio: anel + REC, Forma, Strain e treino do dia.</p>
     </section>`;
   // código completo (desenho + execução) já com o endereço deste app: é só colar no Scriptable
   const fullCode = async () => {

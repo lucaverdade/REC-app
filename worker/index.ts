@@ -985,7 +985,7 @@ async function loadAlerts(env: Env, date: string) {
       SUM(CASE WHEN date < ?1 THEN COALESCE(km,0) ELSE 0 END) / 4.0 avg4
     FROM activities WHERE sport = 'corrida' AND date BETWEEN ?2 AND ?3`).bind(mon, addDays(mon, -28), date).first<{ now: number | null; avg4: number | null }>();
   if (run?.avg4 && run.now && run.now > run.avg4 * 1.15)
-    out.push({ kind: 'corrida', text: `Corrida desta semana: ${run.now.toFixed(1).replace('.', ',')} km, ${Math.round((run.now / run.avg4 - 1) * 100)}% acima da média das últimas 4 semanas (${run.avg4.toFixed(1).replace('.', ',')} km).` });
+    out.push({ kind: 'corrida', text: 'Volume de corrida da semana acima do normal.' });
   return out;
 }
 

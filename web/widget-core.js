@@ -9,28 +9,28 @@ function rgb(v) {
   return STOPS[i].map((a, j) => a + (STOPS[i + 1][j] - a) * k);
 }
 const col = (c, a = 1) => new Color(hex(c), a);
-const word = (v) => (v == null ? '' : v <= 33 ? 'Baixa' : v <= 66 ? 'Média' : 'Alta');
 
 // anel: trilho tingido, arco grosso com ponta redonda, número grande com % ao lado
 function ring(v, c, dim, S) {
   const W = S * 0.1, dc = new DrawContext();
   dc.size = new Size(S, S); dc.opaque = false; dc.respectScreenScale = true;
   const r = (S - W) / 2 - 2, cx = S / 2, cy = S / 2;
-  const arc = (to, color) => {
+  const arc = (to, colorAt) => {
     const steps = Math.max(2, Math.ceil(to * 160));
     for (let s = 0; s < steps; s++) {
       const a1 = -Math.PI / 2 + 2 * Math.PI * to * (s / steps), a2 = -Math.PI / 2 + 2 * Math.PI * to * ((s + 1) / steps);
       const p = new Path(); p.move(new Point(cx + r * Math.cos(a1), cy + r * Math.sin(a1))); p.addLine(new Point(cx + r * Math.cos(a2), cy + r * Math.sin(a2)));
-      dc.addPath(p); dc.setStrokeColor(color); dc.setLineWidth(W); dc.strokePath();
+      dc.addPath(p); dc.setStrokeColor(colorAt(s / steps)); dc.setLineWidth(W); dc.strokePath();
     }
     // pontas redondas
     for (const t of [0, to]) {
       const a = -Math.PI / 2 + 2 * Math.PI * t;
-      dc.setFillColor(color); dc.fillEllipse(new Rect(cx + r * Math.cos(a) - W / 2, cy + r * Math.sin(a) - W / 2, W, W));
+      dc.setFillColor(colorAt(t / to)); dc.fillEllipse(new Rect(cx + r * Math.cos(a) - W / 2, cy + r * Math.sin(a) - W / 2, W, W));
     }
   };
-  arc(1, col(c, 0.16));
-  if (v != null) arc(Math.max(0.02, v / 100), col(c, dim ? 0.45 : 1));
+  arc(1, () => col(c, 0.16));
+  // arco em degradê pela escala de cores, do 0 até o valor do dia (igual ao app)
+  if (v != null) arc(Math.max(0.02, v / 100), (k) => col(rgb(v * k), dim ? 0.45 : 1));
   const txt = v == null ? '–' : String(v), fs = S * 0.34, w = txt.length * fs * 0.56;
   dc.setFont(Font.semiboldRoundedSystemFont(fs)); dc.setTextColor(dim ? new Color('#ffffff', 0.5) : Color.white());
   dc.drawText(txt, new Point(cx - (w + fs * 0.32) / 2, cy - fs * 0.62));
@@ -59,12 +59,11 @@ module.exports = async (APP, family) => {
 
   if (family === 'small') {
     w.setPadding(12, 12, 12, 12);
-    const top = w.addStack(); top.centerAlignContent();
-    top.addSpacer(); label(top, 'PRONTIDÃO', 11, col(c, 0.95), 'bold'); top.addSpacer();
+    w.addSpacer();
+    centered(w, (s) => { const im = s.addImage(ring(v, c, wait, 200)); im.imageSize = new Size(104, 104); });
     w.addSpacer(4);
-    centered(w, (s) => { const im = s.addImage(ring(v, c, wait, 200)); im.imageSize = new Size(92, 92); });
-    w.addSpacer(4);
-    centered(w, (s) => label(s, wait ? 'ontem · esperando a noite' : `${word(v)} · REC ${d.rec ?? '–'}`, 12, wait ? grey : white));
+    centered(w, (s) => label(s, wait ? 'ontem · esperando a noite' : `REC ${d.rec ?? '–'}`, 12, grey));
+    w.addSpacer();
     return w;
   }
 
@@ -72,9 +71,8 @@ module.exports = async (APP, family) => {
   w.setPadding(14, 16, 14, 16);
   const row = w.addStack(); row.centerAlignContent();
   const left = row.addStack(); left.layoutVertically(); left.centerAlignContent();
-  const im = left.addImage(ring(v, c, wait, 220)); im.imageSize = new Size(104, 104);
-  left.addSpacer(4);
-  const lb = left.addStack(); lb.size = new Size(104, 0); lb.addSpacer(); label(lb, wait ? 'Prontidão · ontem' : `Prontidão ${word(v).toLowerCase()}`, 11, col(c, 0.95), 'bold'); lb.addSpacer();
+  const im = left.addImage(ring(v, c, wait, 240)); im.imageSize = new Size(118, 118);
+  if (wait) { left.addSpacer(2); const lb = left.addStack(); lb.size = new Size(118, 0); lb.addSpacer(); label(lb, 'ontem', 11, grey, 'regular'); lb.addSpacer(); }
 
   row.addSpacer(16);
   const right = row.addStack(); right.layoutVertically();
