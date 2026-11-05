@@ -1065,7 +1065,7 @@ function renderWidgetHelp() {
   const fullCode = async () => {
     const core = await (await fetch('/widget-core.js', { cache: 'no-store' })).text();
     return `// REC — widget do iPhone (Scriptable). Código completo; para atualizar, copie de novo em Ajustes → Widget do iPhone.\nconst APP = '${location.origin}';\n\n`
-      + core.replace(/^module\.exports = async \(APP, family\) =>/m, 'const draw = async (APP, family) =>')
+      + core.replace(/^if \(typeof module.*$/m, '')
       + `\nconst widget = await draw(APP, config.runsInWidget ? config.widgetFamily : 'medium');\nif (config.runsInWidget) Script.setWidget(widget); else await widget.presentMedium();\nScript.complete();\n`;
   };
   screen.querySelector('#wg-copy').addEventListener('click', async () => {

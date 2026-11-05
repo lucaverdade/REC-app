@@ -44,7 +44,7 @@ function label(stack, t, size, color, weight = 'semibold') {
   x.textColor = color; x.lineLimit = 1; x.minimumScaleFactor = 0.7; return x;
 }
 
-module.exports = async (APP, family) => {
+const draw = async (APP, family) => {
   let d = null;
   try { d = await new Request(`${APP}/api/widget`).loadJSON(); } catch (e) { d = null; }
   const w = new ListWidget();
@@ -90,3 +90,4 @@ module.exports = async (APP, family) => {
   for (const p of pl.slice(0, 2)) { const s = right.addStack(); label(s, `${p.label}${p.min ? ` · ${p.min} min` : ''}`, 13, white); right.addSpacer(1); }
   return w;
 };
+if (typeof module !== 'undefined') module.exports = draw; // modo carregador (importModule)
