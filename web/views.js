@@ -56,7 +56,7 @@ export async function renderSleep(screen, api, date) {
       <span class="sl-nav">${prev ? `<a href="#sono/${prev}" aria-label="Noite anterior">‹</a>` : ''}${next ? `<a href="#sono/${next}" aria-label="Noite seguinte">›</a>` : ''}</span></header>
     <section class="sl-hero">
       <p class="sl-date">Noite de ${esc(fmtDate(addIso(date, -1), { weekday: 'long', day: 'numeric', month: 'long' }).toLowerCase())} para ${esc(fmtDate(date, { weekday: 'long' }).toLowerCase())}</p>
-      ${heroRing({ frac: n?.h && d.need ? n.h / d.need : 0, text: n?.h == null ? '–' : hm(n.h).replace(/ /g, ''), color: 'var(--sleep)', stops: ['#5d4fd1', '#9d8cff', '#cfc6ff'], size: 'md', empty: n?.h == null })}
+      ${heroRing({ frac: n?.h && d.need ? n.h / d.need : 0, text: n?.h == null ? '–' : hm(n.h).replace(/\s/g, ''), color: 'var(--sleep)', stops: ['#5d4fd1', '#9d8cff', '#cfc6ff'], size: 'md', empty: n?.h == null })}
       <p class="sl-meta">${start != null && end != null ? `${clock(start)} → ${clock(end)} · ` : ''}base ${hm(d.need)}${n?.score != null ? ` · score Garmin ${n.score}` : ''}${a.h != null ? ` · média de 14 noites ${hm(a.h)}` : ''}</p>
     </section>
     <section class="card" id="sl-tonight" hidden></section>

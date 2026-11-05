@@ -1574,3 +1574,24 @@ div.hring { cursor: default; }
 .tmr-night b { display: block; margin-top: 3px; font: 200 26px/1.1 var(--font-display); color: var(--sleep); }
 .tmr-night small { font-size: 12px; color: var(--text-2); }
 @media (prefers-reduced-motion: reduce) { .mr-aura, .tmr-sky, .tmr-sky::after, .morning [style*="--i"], .tmr [style*="--i"] { animation: none; } .mr-bar i, .mr-mbar i { animation: none; width: var(--w); } }
+
+/* Corpo (05/11): anel do período, três anéis pequenos, cartões que sobem em cascata, linha que se desenha */
+.bh { display: grid; justify-items: center; text-align: center; margin: 4px 0 6px; }
+.bh .b-ans { font-size: 19px; margin-top: 2px; }
+.bh .v-sig { text-align: left; margin: 10px auto 0; max-width: 340px; }
+.bh-txt { width: 100%; }
+.b-minis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 18px 0 18px; }
+.b-mini { display: grid; justify-items: center; gap: 2px; padding: 14px 6px 12px; border-radius: 20px; text-decoration: none; color: var(--text);
+  background: color-mix(in srgb, var(--text) 4.5%, var(--bg)); }
+.b-mini b { font-weight: 500; font-size: 13px; margin-top: 8px; }
+.b-mini small { font-size: 11.5px; color: var(--text-2); }
+.b-mini:active { transform: scale(.97); }
+.hring--xs .hr-ring { width: 84px; }
+.hring--xs { --w: 6px; }
+.hring--xs .hr-val > span { font-size: 21px; font-weight: 300; }
+.hring--xs .hr-val small { font-size: 10px; margin-left: 1px; }
+.hring--xs .hr-glow { filter: blur(12px); opacity: .35; }
+.rise { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 80ms); }
+.chart .bl-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.3s .25s cubic-bezier(.4, 0, .2, 1) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } .chart .bl-draw { animation: none; stroke-dashoffset: 0; } }

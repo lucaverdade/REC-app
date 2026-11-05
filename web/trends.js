@@ -1,7 +1,7 @@
 // Aba Tendências: períodos de calendário (semana seg–dom, mês, 3 e 6 meses, 1 ano) com navegação.
 import { fmtDay, lineChart, nf } from './charts.js';
 import { projHtml, heatHtml } from './race.js';
-import { ICON, cardHead, readyColor } from './ui.js';
+import { ICON, cardHead, readyColor, heroRing, animateRings, readyStops, countUp } from './ui.js';
 
 const UNITS = [['semana', 'Semana'], ['mes', 'Mês'], ['3m', '3 meses'], ['6m', '6 meses'], ['ano', '1 ano']];
 const SPORTS = ['bike', 'corrida', 'natacao', 'hyrox', 'academia', 'outro'];
@@ -62,14 +62,15 @@ export async function renderTrends(screen, api) {
   screen.innerHTML = `
     <header class="top"><h1>Corpo</h1></header>
     <div class="seg body-per" role="tablist">${BODY_PER.map(([d, l]) => `<button role="tab" data-bd="${d}" aria-selected="${d === bodyDays}">${l}</button>`).join('')}</div>
-    <section class="card" id="b-sum"><p class="empty">Carregando…</p></section>
-    <section class="card" id="b-ready"></section>
-    <section class="card" id="b-hrv"></section>
-    <section class="card" id="b-rhr"></section>
-    <section class="card" id="b-sleep"></section>
-    <section class="card">${cardHead('moon', 'Estresse acumulado', { color: 'var(--warn)' })}<div class="block" id="stress31"></div></section>
-    <section class="card">${cardHead('book', 'O que mexe no meu REC', { color: 'var(--accent)' })}<div class="block" id="habs"></div></section>
-    <section class="card">${cardHead('clock', 'O ano em quadradinhos', { color: 'var(--accent)' })}<div class="block" id="year"></div></section>`;
+    <section class="bh" id="b-sum"><p class="empty">Carregando…</p></section>
+    <div class="b-minis" id="b-minis"></div>
+    <section class="card rise" style="--i:2" id="b-ready"></section>
+    <section class="card rise" style="--i:3" id="b-hrv"></section>
+    <section class="card rise" style="--i:4" id="b-rhr"></section>
+    <section class="card rise" style="--i:5" id="b-sleep"></section>
+    <section class="card rise" style="--i:6">${cardHead('moon', 'Estresse acumulado', { color: 'var(--warn)' })}<div class="block" id="stress31"></div></section>
+    <section class="card rise" style="--i:7">${cardHead('book', 'O que mexe no meu REC', { color: 'var(--accent)' })}<div class="block" id="habs"></div></section>
+    <section class="card rise" style="--i:8">${cardHead('clock', 'O ano em quadradinhos', { color: 'var(--accent)' })}<div class="block" id="year"></div></section>`;
   screen.querySelectorAll('[data-bd]').forEach((b) => b.addEventListener('click', () => {
     bodyDays = Number(b.dataset.bd); try { localStorage.setItem('rec.bodyDays', String(bodyDays)); } catch {}
     screen.querySelectorAll('[data-bd]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
@@ -89,18 +90,35 @@ async function bodyCharts(screen, api) {
   const rd = rs.days, rDates = rd.map((x) => x.date);
   const aR = avg(rd.map((x) => x.ready)), aRec = avg(rd.map((x) => x.rec));
   const v = t.verdict;
-  screen.querySelector('#b-sum').innerHTML = v ? `${cardHead('heart', 'Meu corpo está recuperando?', { color: 'var(--rec-green)' })}
-    <p class="b-ans">${esc(v.answer)}</p><p class="b-trend">${v.trend === 'melhorando' ? '↑' : v.trend === 'piorando' ? '↓' : '→'} ${esc(v.trendTxt)}</p>
-    ${v.reasons.length ? `<ul class="v-sig">${v.reasons.slice(0, 3).map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.txt)}</li>`).join('')}</ul>` : ''}`
-    : `${cardHead('heart', 'Meu corpo está recuperando?')}<p class="empty">Ainda sem dados suficientes.</p>`;
+  // topo (05/11): anel da nota média do período + o veredito; embaixo, três anéis = quanto do período ficou no seu normal
+  const arrow = v ? (v.trend === 'melhorando' ? '↑' : v.trend === 'piorando' ? '↓' : '→') : '';
+  screen.querySelector('#b-sum').innerHTML = `<div class="bh-row rise" style="--i:0">
+      ${heroRing({ frac: (aR ?? 0) / 100, text: aR == null ? '–' : Math.round(aR), count: aR == null ? null : Math.round(aR), unit: '%', stops: aR == null ? ['var(--text-3)', 'var(--text-3)'] : readyStops(aR), size: 'md', empty: aR == null,
+        sub: `média · ${per}${aRec != null ? ` · REC ${Math.round(aRec)}` : ''}` })}
+    </div>
+    ${v ? `<div class="bh-txt rise" style="--i:1"><p class="b-ans">${esc(v.answer)}</p><p class="b-trend">${arrow} ${esc(v.trendTxt)}</p>
+      ${v.reasons.length ? `<ul class="v-sig">${v.reasons.slice(0, 3).map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.txt)}</li>`).join('')}</ul>` : ''}</div>`
+      : '<p class="empty">Ainda sem dados suficientes.</p>'}`;
+  const share = (xs, ok) => { const v2 = xs.filter((x) => ok(x) != null); return v2.length ? v2.filter((x) => ok(x)).length / v2.length : null; };
+  const pHrv = share(days, (x) => (x.hrv == null || x.hrvLo == null ? null : x.hrv >= x.hrvLo));
+  const pRhr = share(days, (x) => (x.rhr == null || x.rhrHi == null ? null : x.rhr <= x.rhrHi));
+  const pSl = share(days, (x) => (x.sleep == null ? null : x.sleep >= need - 0.5));
+  const mean = (k) => avg(days.map((x) => x[k]));
+  const mini = (id, lab, val, unit, f, color, stops) => `<a class="b-mini rise" style="--i:1" href="#${id}" data-jump="${id}">${heroRing({ frac: f ?? 0, text: val, unit, color, stops, size: 'xs', empty: f == null })}
+    <b>${lab}</b><small>${f == null ? 'sem dados' : `${Math.round(f * 100)}% no normal`}</small></a>`;
+  screen.querySelector('#b-minis').innerHTML =
+    mini('b-hrv', 'HRV', mean('hrv') == null ? '–' : Math.round(mean('hrv')), 'ms', pHrv, 'var(--hrv)')
+    + mini('b-rhr', 'FC repouso', mean('rhr') == null ? '–' : nf(mean('rhr'), 0), 'bpm', pRhr, 'var(--rhr)')
+    + mini('b-sleep', 'Sono', hm(mean('sleep')).replace(/\s/g, ''), '', pSl, 'var(--sleep)', ['#5d4fd1', '#9d8cff', '#cfc6ff']);
+  screen.querySelectorAll('[data-jump]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); screen.querySelector(`#${a.dataset.jump}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
 
   const head = (sel, icon, title, color, big, sub) => `${cardHead(icon, title, { color })}<div class="b-big"><b>${big}</b><small>${sub}</small></div><div class="b-chart"></div>`;
   const box = (id) => screen.querySelector(id);
-  box('#b-ready').innerHTML = head('#b-ready', 'bolt', 'Prontidão e REC', aR == null ? 'var(--text-2)' : readyColor(aR), aR == null ? '–' : `${Math.round(aR)}<i>%</i>`, `Prontidão média · ${per}${aRec != null ? ` · REC médio ${Math.round(aRec)}` : ''}`);
+  box('#b-ready').innerHTML = `${cardHead('bolt', 'Nota do dia e REC', { color: aR == null ? 'var(--text-2)' : readyColor(aR) })}<div class="b-chart"></div>`;
   bandLine(box('#b-ready .b-chart'), { dates: rDates, values: rd.map((x) => x.ready), color: 'rgba(179,167,230,.9)', min: 0, max: 100, height: 120, axes: 'x',
-    dots: (val) => readyColor(val), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.28)', width: 1 }], label: 'Prontidão',
-    tip: (i) => row('Prontidão', rd[i].ready == null ? '–' : `${rd[i].ready}%`) + row('REC', rd[i].rec ?? '–') + row('Strain', rd[i].strain) });
-  box('#b-ready').insertAdjacentHTML('beforeend', '<p class="b-leg"><span><i style="background:#b3a7e6"></i>Prontidão</span><span><i style="background:rgba(255,255,255,.35)"></i>REC</span></p>');
+    dots: (val) => readyColor(val), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.28)', width: 1 }], label: 'Nota do dia',
+    tip: (i) => row('Nota do dia', rd[i].ready == null ? '–' : `${rd[i].ready}%`) + row('REC', rd[i].rec ?? '–') + row('Strain', rd[i].strain) });
+  box('#b-ready').insertAdjacentHTML('beforeend', '<p class="b-leg"><span><i style="background:#b3a7e6"></i>Nota do dia</span><span><i style="background:rgba(255,255,255,.35)"></i>REC</span></p>');
 
   const hv = avg(days.map((x) => x.hrv)), hb = avg(days.map((x) => x.hrvBase));
   box('#b-hrv').innerHTML = head('#b-hrv', 'heart', 'HRV', 'var(--hrv)', hv == null ? '–' : `${Math.round(hv)}<i> ms</i>`, `média · ${per}${hb ? ` · base ${Math.round(hb)} ms` : ''}${h?.label ? ` · ${h.label.toLowerCase()}` : ''}`);
@@ -117,6 +135,7 @@ async function bodyCharts(screen, api) {
   bandLine(box('#b-sleep .b-chart'), { dates, values: days.map((x) => x.sleep), bars: true, color: 'var(--sleep)', min: 0, ref: need, refLabel: hm(need), height: 110, axes: 'x', label: 'Sono',
     barColor: (val) => (val < need - 0.5 ? 'color-mix(in srgb, var(--sleep) 45%, #000)' : 'var(--sleep)'), tip: (i) => row('Sono', hm(days[i].sleep)) });
   box('#b-sleep').insertAdjacentHTML('beforeend', `<a class="b-link" href="#sono/${new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)}">Ver a última noite em detalhe ›</a>`);
+  animateRings(screen); countUp(screen);
 }
 
 // ---------- Treino → Evolução (04/11): tudo de treino em cartões abertos ----------
@@ -473,7 +492,7 @@ function bandLine(wrap, o) {
       svg += `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${o.color};stop-opacity:.32"/><stop offset="1" style="stop-color:${o.color};stop-opacity:0"/></linearGradient></defs>`;
       if (fi >= 0) svg += `<path d="${path(o.values.map((v, i) => (i < fi || i > la ? null : v ?? o.values.slice(0, i).reverse().find((z) => z != null))))} L${x(la).toFixed(1)},${H} L${x(fi).toFixed(1)},${H} Z" style="fill:url(#${gid})"/>`;
     }
-    svg += `<path d="${path(o.values)}" class="bl-line" style="stroke:${o.color}"/>`;
+    svg += `<path d="${path(o.values)}" class="bl-line bl-draw" pathLength="1" style="stroke:${o.color}"/>`;
   }
   for (const e of o.extra ?? []) svg += `<path d="${path(e.values)}" class="bl-line" style="stroke:${e.color};stroke-width:${e.width ?? 1.6}"/>`;
   if (o.dots) o.values.forEach((v, i) => { if (v != null) { const c = o.dots(v, i); if (c) svg += `<circle cx="${x(i)}" cy="${y(v)}" r="${n > 120 ? 1.6 : 2.6}" style="fill:${c}"/>`; } });
