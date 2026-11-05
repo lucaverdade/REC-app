@@ -17,7 +17,7 @@ import { dayHeadline } from '../src/headline.ts';
 import { strainTargetV2 } from '../src/target.ts';
 import { readiness } from '../src/readiness.ts';
 import { recoveryVerdict } from '../src/verdict.ts';
-import { fetchActivities, fetchActivityFile, fetchFitnessAge, fetchIntraday, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
+import { fetchActivities, fetchActivityFile, fetchFitnessAge, fetchProfileVo2, probeGarmin, fetchIntraday, fetchDays, fetchHrZones, GarminError, hasKey, parseHrZones, type GarminActivity, type GarminDay } from './garmin.ts';
 import SCHEMA from './schema.sql';
 
 export interface Env {
@@ -1394,8 +1394,16 @@ async function fitnessAgePayload(env: Env) {
     await setSetting(env, 'fitness_age', fa);
   }
   const { results } = await env.DB.prepare(`SELECT date, sport, vo2 FROM activities WHERE vo2 IS NOT NULL AND date >= ?1 ORDER BY date`).bind(addDays(today, -365)).all<{ date: string; sport: Sport; vo2: number }>();
-  const series = (sp: Sport) => results.filter((r) => r.sport === sp).map((r) => ({ date: r.date, vo2: r.vo2 }));
-  return { fitnessAge: fa, vo2: { corrida: series('corrida'), bike: series('bike') } };
+  // reserva (05/11): a lista de atividades da chave pessoal pode não trazer VO2máx; o perfil traz o valor atual.
+  // Guarda um ponto por dia (vo2_hist) para a série crescer com o tempo.
+  type VH = Record<string, { run: number | null; bike: number | null }>;
+  const hist = (await getSetting<VH>(env, 'vo2_hist')) ?? {};
+  if (!hist[today] && hasKey(env)) {
+    try { const v = await fetchProfileVo2(env); if (v.run != null || v.bike != null) { hist[today] = v; await setSetting(env, 'vo2_hist', hist); } } catch { /* sem perfil: fica só o que veio das atividades */ }
+  }
+  const fromHist = (k: 'run' | 'bike') => Object.entries(hist).filter(([, v]) => v[k] != null).sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, vo2: v[k] as number }));
+  const series = (sp: Sport, k: 'run' | 'bike') => { const a = results.filter((r) => r.sport === sp).map((r) => ({ date: r.date, vo2: r.vo2 })); return a.length ? a : fromHist(k); };
+  return { fitnessAge: fa, vo2: { corrida: series('corrida', 'run'), bike: series('bike', 'bike') } };
 }
 
 // --- linha do tempo do dia: sono, treinos e curvas de FC/estresse (Garmin, guardadas por dia) ---
@@ -1840,6 +1848,11 @@ async function handle(req: Request, env: Env): Promise<Response> {
       return json({ hasKey: hasKey(env), dias: agg, recs: recs?.n ?? 0, atividades: acts, log: log.results, hoje: brtToday() });
     }
     if (url.pathname === '/api/diag' && req.method === 'GET') return json(await diagPayload(env));
+    if (url.pathname === '/api/garmin/probe' && req.method === 'GET') {
+      if (!hasKey(env)) return json({ error: 'sem_chave' }, 400);
+      const d = url.searchParams.get('date'), day = isDate(d) ? d : brtToday();
+      return json(await probeGarmin(env, day, addDays(day, -14)));
+    }
     if (url.pathname === '/api/zones/retry' && req.method === 'POST') {
       await env.DB.prepare("UPDATE activities SET z_src = NULL, z_err = NULL WHERE z_src = 'erro'").run();
       return json({ ok: true });

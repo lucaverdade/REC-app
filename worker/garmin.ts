@@ -349,3 +349,43 @@ export async function fetchIntraday(env: GarminEnv, date: string) {
 export async function fetchHrZones(env: GarminEnv): Promise<unknown> {
   return get(env, '/biometric-service/heartRateZones/v2');
 }
+
+/** VO2máx atual do perfil (Garmin Connect guarda em userData.vo2MaxRunning / vo2MaxCycling). */
+export async function fetchProfileVo2(env: GarminEnv) {
+  const j = await get(env, '/userprofile-service/userprofile/settings');
+  const u = j?.userData ?? j ?? {};
+  return { run: first(u.vo2MaxRunning) ?? findNum(j, (k) => /vo2max.*run/i.test(k)), bike: first(u.vo2MaxCycling) ?? findNum(j, (k) => /vo2max.*cycl/i.test(k)) };
+}
+
+/** Diagnóstico (05/11): quais campos de fases do sono e de VO2máx a chave pessoal entrega. Só nomes de campos e contagens. */
+export async function probeGarmin(env: GarminEnv, date: string, from: string) {
+  const out: Record<string, unknown> = {};
+  const keys = (o: any) => (o && typeof o === 'object' ? Object.keys(o).sort() : []);
+  const tryGet = async (k: string, path: string, params?: Record<string, string | number>) => {
+    try { const j = await get(env, path, params); return j; } catch (e) { out[k] = { erro: e instanceof GarminError ? e.status : String(e).slice(0, 80) }; return null; }
+  };
+  const sl = await tryGet('sono', '/sleep-service/sleep/dailySleep', { date });
+  if (sl) out.sono = {
+    blocos: keys(sl), dto: keys(sl.dailySleepDTO).filter((k) => /sleep|second|level|stage/i.test(k)),
+    sleepLevels: Array.isArray(sl.sleepLevels) ? sl.sleepLevels.length : null, sleepHeartRate: Array.isArray(sl.sleepHeartRate) ? sl.sleepHeartRate.length : null,
+    profundo_s: n(sl.dailySleepDTO?.deepSleepSeconds), rem_s: n(sl.dailySleepDTO?.remSleepSeconds),
+    fases_lidas: (() => { const st = parseStages(sl); return st ? { trechos: st.levels.length, fc: st.hr.length, profundo: st.deep } : null; })(),
+  };
+  const ss = await tryGet('sono_resumo', '/sleep-service/sleep/dailySleepSummariesByDate', { startDate: date, endDate: date });
+  if (ss) out.sono_resumo = { tipo: Array.isArray(ss) ? `lista de ${ss.length}` : 'objeto', campos: keys(Array.isArray(ss) ? ss[0] : ss).slice(0, 40) };
+  const pr = await tryGet('perfil', '/userprofile-service/userprofile/settings');
+  if (pr) out.perfil = { vo2: Object.fromEntries(Object.entries(pr.userData ?? {}).filter(([k]) => /vo2|fitness|lactate/i.test(k))) };
+  const acts = await tryGet('atividades', '/activitylist-service/activities/search/activities', { start: 0, limit: 1, startDate: from, endDate: date });
+  const a = Array.isArray(acts) ? acts[0] : null;
+  if (a) {
+    out.atividade_lista = { tipo: a.activityType?.typeKey ?? null, vo2: Object.fromEntries(Object.entries(a).filter(([k]) => /vo2/i.test(k))) };
+    const det = await tryGet('atividade_detalhe', `/activity-service/activity/${a.activityId}`);
+    if (det) out.atividade_detalhe = { vo2: Object.fromEntries(Object.entries({ ...det, ...(det.summaryDTO ?? {}) }).filter(([k]) => /vo2/i.test(k))) };
+  }
+  for (const [k, path] of [['maxmet_ultimo', `/metrics-service/metrics/maxmet/latest/${date}`], ['maxmet_dias', `/metrics-service/metrics/maxmet/daily/${from}/${date}`]] as const) {
+    const j = await tryGet(k, path); if (j) out[k] = { tipo: Array.isArray(j) ? `lista de ${j.length}` : 'objeto', campos: keys(Array.isArray(j) ? j[0] : j).slice(0, 20) };
+  }
+  const fa = await tryGet('idade_fitness', `/fitnessage-service/fitnessage/v2/${date}`);
+  if (fa) out.idade_fitness = { campos: keys(fa).slice(0, 20) };
+  return out;
+}

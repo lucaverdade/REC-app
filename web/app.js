@@ -885,6 +885,7 @@ async function renderGarmin() {
         <button class="btn ghost" id="ztest" ${d.hasKey ? '' : 'disabled'}>Testar zonas com 1 treino</button>
         <button class="btn ghost" id="refill" ${d.hasKey ? '' : 'disabled'}>Buscar de novo os últimos 90 dias</button>
         <button class="btn ghost" id="zundo">Voltar às zonas originais</button>
+        <button class="btn ghost" id="probe" ${d.hasKey ? '' : 'disabled'}>Testar fases do sono e VO2máx</button>
       </div>
       <div id="adv-out" class="dg-out" aria-live="polite"></div>
       <h3 class="dg-h3">Últimas buscas</h3>
@@ -964,6 +965,17 @@ async function renderGarmin() {
   tool('#zcur', async () => {
     const { zones } = await api('/api/zones/current');
     adv.innerHTML = `<ul class="acts">${Object.entries(zones).map(([k, z]) => `<li><span>${SL[k] ?? k}</span><span class="meta">Z1 ${z.floors[0]} · Z2 ${z.floors[1]} · Z3 ${z.floors[2]} · Z4 ${z.floors[3]} · Z5 ${z.floors[4]}${z.max ? ` · máx ${z.max}` : ''}</span></li>`).join('')}</ul>`;
+  });
+  tool('#probe', async () => {
+    const r = await api('/api/garmin/probe');
+    const f = r.sono?.fases_lidas, v = r.perfil?.vo2 ?? {};
+    const lines = [
+      `Fases do sono: ${r.sono?.erro ? `erro ${r.sono.erro}` : f?.trechos ? `chegam (${f.trechos} trechos)` : r.sono?.profundo_s != null ? 'só os totais por fase' : 'não chegam pela chave pessoal'}`,
+      `VO2máx no perfil: ${r.perfil?.erro ? `erro ${r.perfil.erro}` : Object.keys(v).length ? Object.entries(v).map(([k, x]) => `${k} ${x}`).join(' · ') : 'não vem'}`,
+      `VO2máx nos treinos: ${Object.keys(r.atividade_lista?.vo2 ?? {}).length || Object.keys(r.atividade_detalhe?.vo2 ?? {}).length ? 'vem' : 'não vem'}`,
+    ];
+    adv.innerHTML = `<ul class="acts">${lines.map((l) => `<li><span>${esc(l)}</span></li>`).join('')}</ul>
+      <details class="raw" open><summary>Detalhes técnicos (me mande print)</summary><pre>${esc(JSON.stringify(r, null, 1))}</pre></details>`;
   });
   tool('#ztest', async () => { adv.innerHTML = `<p class="progress">${(await testOne(api)).map((x) => esc(x)).join('<br>')}</p>`; });
   tool('#refill', async () => {
