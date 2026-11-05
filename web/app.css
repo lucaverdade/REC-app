@@ -1430,3 +1430,19 @@ body.is-share main { padding-bottom: 0; }
 .sx-c b { font-size: 14px; font-weight: 600; } .sx-c small { font-size: 12px; color: var(--text-2); }
 .sx-c.sx-pesando small { color: var(--bad); } .sx-c.sx-atencao small { color: var(--warn); }
 .card .act-card { padding-left: 12px; }
+
+/* Fitness e Fadiga com cor de volta (pedido do Luca, 05/11): azul e rosa só neste par */
+:root { --fitness: #4c9dff; --fatigue: #ff5f8f; }
+.evo-sub { margin: 14px 0 4px; } .evo-sub small { font-weight: 400; color: var(--text-2); font-size: 12px; }
+/* Volume repaginado */
+.vo-big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+.vo-big b { font: 300 36px/1 var(--font-display); }
+.vo-big span { font-size: 13px; color: var(--text-2); }
+.vo-sports { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 12px; }
+.vo-sports li { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: center; }
+.vo-l { font-size: 15px; font-weight: 500; white-space: nowrap; }
+.vo-t { height: 12px; border-radius: 6px; background: var(--card-2); overflow: hidden; }
+.vo-t i { display: block; height: 100%; border-radius: 6px; }
+.vo-v { text-align: right; display: grid; } .vo-v b { font: 400 17px var(--font-display); } .vo-v small { font-size: 11px; color: var(--text-2); white-space: nowrap; }
+.vo-int { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 2px 0 10px; }
+.vo-int b { display: block; font: 300 26px/1.1 var(--font-display); } .vo-int small { font-size: 12px; color: var(--text-2); }

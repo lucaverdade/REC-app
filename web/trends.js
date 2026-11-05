@@ -517,23 +517,39 @@ async function evolve(box, api) {
       <span><i class="dot" style="background:var(--fatigue)"></i>Fadiga <b class="c-fat">${nf(sm.fatigue)}</b></span>
     </div>
     <div class="chart-wrap" id="ch-evo"></div>
+    <h3 class="sub evo-sub">Forma por dia <small>(Fitness − Fadiga) ÷ Fitness</small></h3>
+    <div class="chart-wrap" id="ch-form"></div>
     <div class="legend form-legend">${FORM_ZONES.map((f) => `<span><i class="dot" style="background:var(--z-${f.key})"></i>${f.label}</span>`).join('')}</div>
     ${winSeg(evoWin, 'ew')}
     <details class="explain">
       <summary>Como ler</summary>
       <p><b>Fitness</b> (área azul): quanto treino seu corpo está acostumado a fazer, a média do seu Strain nas últimas 6 semanas. Subindo devagar = você está aumentando a carga de forma sustentável.</p>
       <p><b>Fadiga</b> (linha rosa): a mesma conta para a última semana. Quando fica acima do Fitness, você está treinando mais que o seu normal.</p>
-      <p><b>Faixa colorida</b> embaixo: a Forma de cada dia, (Fitness − Fadiga) ÷ Fitness. Âmbar é bloco de treino, cinza equilibrado, azul descansado; rosa é cansaço demais. Antes de uma prova, o objetivo é terminar no azul.</p>
-      <p><b>Strain</b>: minutos em cada zona de FC × peso da zona (Z1 vale 1, Z5 vale 5). Método do TrainingPeaks e do Strava; compare você com você mesmo.</p>
+      <p><b>Forma por dia</b> (barras embaixo): (Fitness − Fadiga) ÷ Fitness. Abaixo de zero você está carregando mais que o normal; a faixa verde (+5% a +20%, descansado) é onde se quer chegar no dia da prova.</p>
+      <p><b>Strain</b>: minutos × FC média em escala exponencial, a mesma régua do Relative Effort do Strava.</p>
     </details>`;
   const days = t.days;
   bandLine(sec.querySelector('#ch-evo'), {
-    dates: days.map((x) => x.date), values: days.map((x) => x.fitness), color: 'var(--fitness)', area: true, height: 130, label: 'Fitness e fadiga',
-    extra: [{ values: days.map((x) => x.fatigue), color: 'var(--fatigue)' }],
-    strip: days.map((x) => (x.formPct == null ? null : `var(--z-${zoneOfPct(x.formPct).key})`)),
+    dates: days.map((x) => x.date), values: days.map((x) => x.fitness), color: 'var(--fitness)', area: true, height: 150, label: 'Fitness e Fadiga',
+    extra: [{ values: days.map((x) => x.fatigue), color: 'var(--fatigue)', width: 2 }],
     tip: (i) => row('Fitness', nf(days[i].fitness)) + row('Fadiga', nf(days[i].fatigue)) + row('Forma', days[i].formPct == null ? '–' : `${signed(days[i].formPct)}%`),
   });
+  formBars(sec.querySelector('#ch-form'), days);
   sec.querySelectorAll('[data-ew]').forEach((b) => b.addEventListener('click', () => { evoWin = Number(b.dataset.ew); evolve(box, api); }));
+}
+
+// Forma em barras: uma por dia, cor da faixa, linha do zero e a faixa de prova (+5 a +20%) sombreada
+function formBars(wrap, days) {
+  const v = days.map((x) => x.formPct), ok = v.filter((x) => x != null); if (!ok.length) { wrap.innerHTML = ''; return; }
+  const W = 340, H = 90, lo = Math.min(-40, ...ok), hi = Math.max(25, ...ok), y = (x) => ((hi - x) / (hi - lo)) * H, n = v.length, bw = Math.max(1.2, (W - 30) / n - 1);
+  const X = (i) => (i / Math.max(1, n - 1)) * (W - 30 - bw);
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H + 16}" class="chart" role="img" aria-label="Forma por dia">
+    <rect x="0" width="${W - 30}" y="${y(20)}" height="${y(5) - y(20)}" fill="rgba(79,209,154,.12)"/>
+    <line x1="0" x2="${W - 30}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)"/>
+    ${v.map((x, i) => (x == null ? '' : `<rect x="${X(i).toFixed(1)}" width="${bw.toFixed(1)}" y="${Math.min(y(0), y(x)).toFixed(1)}" height="${Math.max(1, Math.abs(y(x) - y(0))).toFixed(1)}" rx="1" fill="var(--z-${zoneOfPct(x).key})"/>`)).join('')}
+    <text x="${W}" y="${y(0) + 3}" class="ax" text-anchor="end">0%</text><text x="${W}" y="${y(20) - 2}" class="ax" text-anchor="end">prova</text>
+    <text x="0" y="${H + 13}" class="ax">${fmtDay(days[0].date)}</text><text x="${W - 30}" y="${H + 13}" class="ax" text-anchor="end">${fmtDay(days[n - 1].date)}</text>
+  </svg>`;
 }
 
 // ---------- Como treinei? (período de calendário) ----------
@@ -554,18 +570,15 @@ async function volume(box, api) {
       <span>${esc(periodTitle(d))}</span>
       <button type="button" data-step="-1" aria-label="Próximo período" ${offset === 0 ? 'disabled' : ''}>›</button>
     </div>
-    <p class="headline">${d.totals.length ? `${multi ? `${hm(perWeek)} por semana` : `${hm(d.total.hours)} ${unit === 'semana' ? 'na semana' : 'até agora'}`}, ${nf(d.total.sessions)} sessões.` : 'Sem treinos neste período.'}</p>
-    ${d.totals.length ? `<ul class="acts sports">
-      <li class="head"><span>Modalidade</span><span>Horas</span><span>${multi ? '/semana' : 'Sessões'}</span><span>Strain</span></li>
-      ${d.totals.map((t) => `<li><span><i class="dot s-${t.sport}"></i>${esc(t.label)}</span><span>${hm(t.hours)}</span><span>${multi ? hm(t.perWeek) : t.sessions}</span><span>${nf(t.strain)}</span></li>`).join('')}
-      <li class="total"><span>Total</span><span>${hm(d.total.hours)}</span><span>${multi ? hm(perWeek) : d.total.sessions}</span><span>${nf(d.total.strain)}</span></li>
-    </ul>` : ''}
-    ${zt ? `<h3 class="sub">Tempo em zonas</h3>
-      <div class="zstack">${d.zones.map((z) => (z.hours ? `<i class="zc-${z.zone}" style="flex:${z.hours}"></i>` : '')).join('')}</div>
-      <ul class="zlist">${d.zones.filter((z) => z.hours > 0).map((z) => `<li><i class="zc-${z.zone}"></i><span>${ZSHORT[z.zone]}</span><b>${hm(z.hours)}</b><em>${Math.round(((z.hours ?? 0) / zt) * 100)}%</em></li>`).join('')}</ul>
-      <h3 class="sub">Intensidade (referência 80/20)</h3>
+    ${d.totals.length ? `<div class="vo-big"><b>${hm(multi ? perWeek : d.total.hours)}</b><span>${multi ? 'por semana' : unit === 'semana' ? 'na semana' : 'até agora'} · ${nf(d.total.sessions)} sessões · Strain ${nf(d.total.strain)}</span></div>
+    <ul class="vo-sports">${(() => { const mx = Math.max(...d.totals.map((t) => t.hours), 0.01); return d.totals.map((t) => `<li>
+      <span class="vo-l"><i class="dot s-${t.sport}"></i>${esc(t.label)}</span>
+      <span class="vo-t"><i style="width:${(t.hours / mx) * 100}%;background:var(--${t.sport})"></i></span>
+      <span class="vo-v"><b>${hm(multi ? t.perWeek : t.hours)}</b><small>${t.sessions} ${t.sessions === 1 ? 'sessão' : 'sessões'} · Strain ${nf(t.strain)}</small></span></li>`).join(''); })()}</ul>` : '<p class="empty">Sem treinos neste período.</p>'}
+    ${zt ? `<h3 class="sub">Intensidade</h3>
+      <div class="vo-int"><div><b>${easy}%</b><small>leve (até Z2)</small></div><div><b>${mid}%</b><small>média (Z3)</small></div><div><b>${hard}%</b><small>alta (Z4–Z5)</small></div></div>
       ${distBar({ low: easy, mid, high: hard })}
-      <p class="note">Bike, corrida, natação e Hyrox (academia fora). Zonas do seu Garmin. Leve = até Z2, média = Z3, alta = Z4 e Z5. Referência de endurance: ~80% leve e ~20% média + alta.</p>` : ''}`;
+      <p class="note">Bike, corrida, natação e Hyrox, pelas zonas do seu Garmin. Referência de endurance: ~80% leve. O tempo em cada zona está em Zonas de treino.</p>` : ''}`;
   sec.querySelectorAll('[data-u]').forEach((b) => b.addEventListener('click', () => {
     unit = b.dataset.u; offset = 0; try { localStorage.setItem('rec.unit', unit); } catch {} volume(box, api);
   }));
