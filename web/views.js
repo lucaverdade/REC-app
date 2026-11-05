@@ -45,6 +45,11 @@ export async function renderSleep(screen, api, date) {
       ${s.hr?.length ? '<p class="sl-cap">FC durante a noite (ponto = a mais baixa)</p>' : ''}`;
   }
   const tot = s ? (s.deep ?? 0) + (s.light ?? 0) + (s.rem ?? 0) : 0;
+  // a chave pessoal só manda os totais por fase (sem o hipnograma): uma barra empilhada no lugar
+  if (s && !s.levels?.length) {
+    const all = ST.reduce((a2, c) => a2 + (s[c.k] ?? 0), 0);
+    if (all) hyp = `<div class="sl-stack">${[...ST].reverse().map((c) => (s[c.k] ? `<i style="flex:${s[c.k]};background:${c.c}"></i>` : '')).join('')}</div>`;
+  }
   const stageRows = s ? ST.map((c) => {
     const v = s[c.k], avg = a[c.k], pct = tot && c.k !== 'awake' ? Math.round((v / tot) * 100) : null;
     const diff = v != null && avg != null ? Math.round(v - avg) : null;
@@ -61,7 +66,7 @@ export async function renderSleep(screen, api, date) {
     </section>
     <section class="card" id="sl-tonight" hidden></section>
     <section class="card">${cardHead('moon', 'Fases', { color: 'var(--sleep)', info: 'Fases e FC da noite vindas da Garmin. A comparação usa as 14 noites anteriores com fases registradas.' })}
-      ${s ? `${hyp}<ul class="sl-st">${stageRows}</ul>` : '<p class="empty">Sem fases desta noite. As fases passam a ser guardadas a partir de hoje; para noites antigas, Ajustes → Garmin → Avançado → Buscar de novo os últimos 90 dias.</p>'}
+      ${s ? `${hyp}<ul class="sl-st">${stageRows}</ul>` : '<p class="empty">Sem fases desta noite.</p>'}
     </section>
     <section class="card">${cardHead('heart', 'Corpo durante a noite', { color: 'var(--hrv)' })}
       <div class="fs-grid fs-2">

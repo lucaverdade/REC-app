@@ -1407,7 +1407,13 @@ async function fitnessAgePayload(env: Env) {
   }
   const fromHist = (k: 'run' | 'bike') => Object.entries(hist).filter(([, v]) => v[k] != null).sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, vo2: v[k] as number }));
   const series = (sp: Sport, k: 'run' | 'bike') => { const a = results.filter((r) => r.sport === sp).map((r) => ({ date: r.date, vo2: r.vo2 })); return a.length ? a : fromHist(k); };
-  return { fitnessAge: fa, vo2: { corrida: series('corrida', 'run'), bike: series('bike', 'bike') } };
+  // estimativa própria (05/11): VO2máx de corrida pelo pace e FC das corridas (Daniels + Swain, o mesmo das previsões), um ponto por semana
+  const { runs } = await runVdots(env, addDays(today, -365 - 168), today);
+  const est: { date: string; vo2: number }[] = [];
+  for (let d = addDays(today, -364); d <= today; d = addDays(d, 7)) { const v = vdotOn(d, runs); if (v && v.n >= 3) est.push({ date: d, vo2: Math.round(v.vdot * 10) / 10 }); }
+  const lastEst = vdotOn(today, runs);
+  if (lastEst && est.at(-1)?.date !== today) est.push({ date: today, vo2: Math.round(lastEst.vdot * 10) / 10 });
+  return { fitnessAge: fa, vo2: { corrida: series('corrida', 'run'), bike: series('bike', 'bike') }, est };
 }
 
 // --- linha do tempo do dia: sono, treinos e curvas de FC/estresse (Garmin, guardadas por dia) ---

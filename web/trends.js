@@ -274,10 +274,18 @@ async function fageSec(box, api) {
   const row = (sp, l) => { const xs = d.vo2[sp]; const a = last(xs), b = first90(xs); if (!a) return ''; const dv = b ? Math.round((a.vo2 - b.vo2) * 10) / 10 : null;
     return `<li><span>VO2máx ${l}</span><span class="meta"><b>${nf(a.vo2)}</b>${dv ? ` · ${dv > 0 ? '+' : '−'}${nf(Math.abs(dv), 1)} em 3 meses` : ''}</span></li>`; };
   const vo2 = row('corrida', 'corrida') + row('bike', 'bike');
+  // sem VO2máx da Garmin: a estimativa do app pelas corridas (pace × FC)
+  const est = d.est ?? [], eNow = last(est), e90 = first90(est);
+  const estHtml = eNow ? `<div class="vo-est">${heroRing({ frac: Math.min(1, (eNow.vo2 - 30) / 40), text: nf(eNow.vo2, 1), count: eNow.vo2, dec: 1, color: 'var(--pred)', size: 'sm',
+      sub: `VO2máx estimado · corrida${e90 && e90 !== eNow ? ` · ${eNow.vo2 - e90.vo2 >= 0 ? '+' : '−'}${nf(Math.abs(eNow.vo2 - e90.vo2), 1)} em 3 meses` : ''}` })}<div class="vo-spark"></div></div>
+    <p class="note">Estimado pelo app a partir do pace e da FC média das corridas ao ar livre (mesma conta das previsões de prova), média das últimas 24 semanas. A Garmin não entrega o VO2máx pela chave pessoal, e o Strava não tem VO2máx. O anel vai de 30 a 70.</p>` : '';
   sec.innerHTML = `
     ${fa?.fitnessAge != null ? `<p class="headline">Idade fitness <b>${nf(fa.fitnessAge)}</b>${fa.chronologicalAge ? ` (idade real ${nf(fa.chronologicalAge)})` : ''}${fa.achievable ? `. Possível chegar a ${nf(fa.achievable)}.` : '.'}</p>` : `<p class="note">${fa?.error ? `A Garmin não entregou a idade fitness (${esc(fa.error)}).` : 'Idade fitness indisponível.'}</p>`}
-    ${vo2 ? `<ul class="acts">${vo2}</ul>` : '<p class="note">Os treinos ainda não trouxeram o VO2máx da Garmin. Garmin → Buscar 90 dias preenche os anteriores.</p>'}
-    <p class="note">Calculados pela Garmin: a idade fitness usa VO2máx, FC de repouso, minutos intensos e peso; o VO2máx vem das corridas e pedais ao ar livre com FC (e potência na bike). Atualiza uma vez por mês (idade) e a cada treino (VO2máx).</p>`;
+    ${vo2 ? `<ul class="acts">${vo2}</ul>` : estHtml || '<p class="note">Sem corridas suficientes para estimar o VO2máx.</p>'}
+    <p class="note">A idade fitness é calculada pela Garmin (VO2máx, FC de repouso, minutos intensos e peso).</p>`;
+  const sp = sec.querySelector('.vo-spark');
+  if (sp && est.length > 2) bandLine(sp, { dates: est.map((x) => x.date), values: est.map((x) => x.vo2), color: 'var(--pred)', height: 60, axes: 'x', label: 'VO2máx estimado' });
+  animateRings(sec); countUp(sec);
 }
 
 // Calibração: REC × nota "como me sinto"

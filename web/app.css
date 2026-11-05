@@ -1624,3 +1624,9 @@ details.how[open] > :not(summary) { animation: rise .35s ease both; }
 .sw-ring { display: grid; justify-items: center; margin: 8px 0 4px; }
 .sw-ring .sw-status { font-size: 15px; }
 .sw-head .sw-txt { text-align: center; color: var(--text-2); }
+
+.sl-stack { display: flex; height: 14px; gap: 2px; border-radius: 7px; overflow: hidden; margin: 6px 0 14px; }
+.sl-stack i { display: block; min-width: 2px; transform-origin: left; animation: grow-x .9s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes grow-x { from { transform: scaleX(0); } }
+.vo-est { display: grid; justify-items: center; gap: 8px; margin: 6px 0 4px; }
+.vo-spark { width: 100%; }
