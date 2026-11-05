@@ -1630,3 +1630,5 @@ details.how[open] > :not(summary) { animation: rise .35s ease both; }
 @keyframes grow-x { from { transform: scaleX(0); } }
 .vo-est { display: grid; justify-items: center; gap: 8px; margin: 6px 0 4px; }
 .vo-spark { width: 100%; }
+.vo-range { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin: 8px 0 0; font-size: 12px; color: var(--text-2); }
+.vo-range b { color: var(--text); font-weight: 500; }

@@ -1408,9 +1408,12 @@ async function fitnessAgePayload(env: Env) {
   const fromHist = (k: 'run' | 'bike') => Object.entries(hist).filter(([, v]) => v[k] != null).sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, vo2: v[k] as number }));
   const series = (sp: Sport, k: 'run' | 'bike') => { const a = results.filter((r) => r.sport === sp).map((r) => ({ date: r.date, vo2: r.vo2 })); return a.length ? a : fromHist(k); };
   // estimativa própria (05/11): VO2máx de corrida pelo pace e FC das corridas (Daniels + Swain, o mesmo das previsões), um ponto por semana
-  const { runs } = await runVdots(env, addDays(today, -365 - 168), today);
-  const est: { date: string; vo2: number }[] = [];
-  for (let d = addDays(today, -364); d <= today; d = addDays(d, 7)) { const v = vdotOn(d, runs); if (v && v.n >= 3) est.push({ date: d, vo2: Math.round(v.vdot * 10) / 10 }); }
+  // todo o histórico de corridas: começa na primeira semana com 3+ corridas na janela
+  const firstRun = (await env.DB.prepare("SELECT MIN(date) d FROM activities WHERE sport = 'corrida'").first<{ d: string | null }>())?.d ?? addDays(today, -364);
+  const { runs } = await runVdots(env, addDays(firstRun, -1), today);
+  const est: { date: string; vo2: number | null }[] = [];
+  const back = Math.ceil(daysBetween(firstRun, today) / 7) * 7;
+  for (let d = addDays(today, -back); d <= today; d = addDays(d, 7)) { const v = vdotOn(d, runs); if (v && v.n >= 3) est.push({ date: d, vo2: Math.round(v.vdot * 10) / 10 }); else if (est.length) est.push({ date: d, vo2: null }); /* semana sem corridas suficientes: buraco na linha */ }
   const lastEst = vdotOn(today, runs);
   if (lastEst && est.at(-1)?.date !== today) est.push({ date: today, vo2: Math.round(lastEst.vdot * 10) / 10 });
   return { fitnessAge: fa, vo2: { corrida: series('corrida', 'run'), bike: series('bike', 'bike') }, est };

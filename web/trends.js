@@ -275,7 +275,7 @@ async function fageSec(box, api) {
     return `<li><span>VO2máx ${l}</span><span class="meta"><b>${nf(a.vo2)}</b>${dv ? ` · ${dv > 0 ? '+' : '−'}${nf(Math.abs(dv), 1)} em 3 meses` : ''}</span></li>`; };
   const vo2 = row('corrida', 'corrida') + row('bike', 'bike');
   // sem VO2máx da Garmin: a estimativa do app pelas corridas (pace × FC)
-  const est = d.est ?? [], eNow = last(est), e90 = first90(est);
+  const est = d.est ?? [], ok = est.filter((x) => x.vo2 != null), eNow = last(ok), e90 = first90(ok);
   const estHtml = eNow ? `<div class="vo-est">${heroRing({ frac: Math.min(1, (eNow.vo2 - 30) / 40), text: nf(eNow.vo2, 1), count: eNow.vo2, dec: 1, color: 'var(--pred)', size: 'sm',
       sub: `VO2máx estimado · corrida${e90 && e90 !== eNow ? ` · ${eNow.vo2 - e90.vo2 >= 0 ? '+' : '−'}${nf(Math.abs(eNow.vo2 - e90.vo2), 1)} em 3 meses` : ''}` })}<div class="vo-spark"></div></div>
     <p class="note">Estimado pelo app a partir do pace e da FC média das corridas ao ar livre (mesma conta das previsões de prova), média das últimas 24 semanas. A Garmin não entrega o VO2máx pela chave pessoal, e o Strava não tem VO2máx. O anel vai de 30 a 70.</p>` : '';
@@ -284,7 +284,15 @@ async function fageSec(box, api) {
     ${vo2 ? `<ul class="acts">${vo2}</ul>` : estHtml || '<p class="note">Sem corridas suficientes para estimar o VO2máx.</p>'}
     <p class="note">A idade fitness é calculada pela Garmin (VO2máx, FC de repouso, minutos intensos e peso).</p>`;
   const sp = sec.querySelector('.vo-spark');
-  if (sp && est.length > 2) bandLine(sp, { dates: est.map((x) => x.date), values: est.map((x) => x.vo2), color: 'var(--pred)', height: 60, axes: 'x', label: 'VO2máx estimado' });
+  // todo o histórico (um ponto por semana), com mês/ano nas pontas e no meio, pico marcado e toque para ver cada semana
+  if (sp && ok.length > 2) {
+    const my = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '').replace(' de ', '/');
+    const pk = ok.reduce((a, x) => (x.vo2 > a.vo2 ? x : a), ok[0]), lo = ok.reduce((a, x) => (x.vo2 < a.vo2 ? x : a), ok[0]);
+    bandLine(sp, { dates: est.map((x) => x.date), values: est.map((x) => x.vo2), color: 'var(--pred)', height: 110, axes: 'x3', xFmt: my, label: 'VO2máx estimado',
+      dots: (v, i) => (est[i] === pk || est[i] === lo || i === est.length - 1 ? 'var(--pred)' : null),
+      tip: (i) => `<div><span>VO2máx</span><b>${est[i].vo2 == null ? 'sem corridas' : nf(est[i].vo2, 1)}</b></div>` });
+    sp.insertAdjacentHTML('beforeend', `<p class="vo-range"><span>Desde ${my(est[0].date)}</span><span>Mais alto <b>${nf(pk.vo2, 1)}</b> · ${my(pk.date)}</span><span>Mais baixo <b>${nf(lo.vo2, 1)}</b> · ${my(lo.date)}</span></p>`);
+  }
   animateRings(sec); countUp(sec);
 }
 
@@ -513,7 +521,14 @@ function bandLine(wrap, o) {
     if (o.area !== false) {
       const gid = `g${Math.random().toString(36).slice(2, 8)}`, fi = o.values.findIndex((v) => v != null), la = o.values.length - 1 - [...o.values].reverse().findIndex((v) => v != null);
       svg += `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${o.color};stop-opacity:.32"/><stop offset="1" style="stop-color:${o.color};stop-opacity:0"/></linearGradient></defs>`;
-      if (fi >= 0) svg += `<path d="${path(o.values.map((v, i) => (i < fi || i > la ? null : v ?? o.values.slice(0, i).reverse().find((z) => z != null))))} L${x(la).toFixed(1)},${H} L${x(fi).toFixed(1)},${H} Z" style="fill:url(#${gid})"/>`;
+      // uma área por trecho contínuo (buracos sem dado ficam vazios)
+      if (fi >= 0) { let a0 = null; o.values.forEach((v, i) => {
+        if (v != null && a0 == null) a0 = i;
+        if (a0 != null && (i === o.values.length - 1 || o.values[i + 1] == null)) {
+          const seg = o.values.map((z, k) => (k < a0 || k > i ? null : z));
+          svg += `<path d="${path(seg)} L${x(i).toFixed(1)},${H} L${x(a0).toFixed(1)},${H} Z" style="fill:url(#${gid})"/>`; a0 = null;
+        }
+      }); }
     }
     svg += `<path d="${path(o.values)}" class="bl-line bl-draw" pathLength="1" style="stroke:${o.color}"/>`;
   }
@@ -527,9 +542,9 @@ function bandLine(wrap, o) {
   }
   const niceT = (v) => { const st = hi - lo > 60 ? 20 : hi - lo > 20 ? 10 : hi - lo > 6 ? 2 : 1; return Math.round(v / st) * st; };
   const yTicks = o.yTicks ?? [niceT(lo + (hi - lo) * 0.2), niceT(lo + (hi - lo) * 0.8)];
-  const yt = o.axes === false || o.axes === 'x' ? '' : yTicks.map((v) => `<text x="${W}" y="${y(v) + 3}" class="ax" text-anchor="end">${o.yFmt ? o.yFmt(v) : nf(v)}</text>`).join('');
-  const xi = o.axes === false ? [] : o.axes === 'x' ? [0, n - 1] : [0, Math.round((n - 1) / 2), n - 1];
-  const xt = xi.map((i, k) => `<text x="${x(i)}" y="${H + (o.strip ? 30 : 14)}" class="ax" text-anchor="${k === 0 ? 'start' : k === xi.length - 1 ? 'end' : 'middle'}">${fmtDay(o.dates[i])}</text>`).join('');
+  const yt = o.axes === false || o.axes === 'x' || o.axes === 'x3' ? '' : yTicks.map((v) => `<text x="${W}" y="${y(v) + 3}" class="ax" text-anchor="end">${o.yFmt ? o.yFmt(v) : nf(v)}</text>`).join('');
+  const xi = o.axes === false ? [] : o.axes === 'x' ? [0, n - 1] : o.axes === 'x3' ? [0, Math.round((n - 1) / 2), n - 1] : [0, Math.round((n - 1) / 2), n - 1];
+  const xt = xi.map((i, k) => `<text x="${x(i)}" y="${H + (o.strip ? 30 : 14)}" class="ax" text-anchor="${k === 0 ? 'start' : k === xi.length - 1 ? 'end' : 'middle'}">${(o.xFmt ?? fmtDay)(o.dates[i])}</text>`).join('');
   const totalH = H + (o.strip ? 18 : 0) + (o.axes === false ? 2 : 18);
   wrap.innerHTML = `<svg viewBox="0 -4 ${W} ${totalH + 4}" class="chart bl" role="img" aria-label="${esc(o.label ?? '')}">${svg}${strip}${yt}${xt}
     <line class="bl-rule" y1="-4" y2="${H}" visibility="hidden"/><rect class="bl-hit" x="0" y="-4" width="${W}" height="${totalH}" fill="transparent"/></svg>
