@@ -368,42 +368,40 @@ function morningHtml(d) {
   const zc = readyColor(rd);
   const n = d.sleep?.night, base = d.sleep?.personalNeed, need = d.sleep?.need;
   const pl = d.planned ?? [];
-  const prev = pl.reduce((a, p) => a + (p.strain ?? 0), 0);
+  const prev = pl.reduce((a, p) => a + (p.strain ?? 0), 0), tgt = d.day?.target?.target;
   const HC = { acima: 'var(--good)', estavel: 'var(--text)', fadiga: 'var(--warn)', risco: 'var(--bad)' };
   const date = new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-  // anel pequeno da Prontidão
-  const R = 30, C = 2 * Math.PI * R, fill = Math.max(0.02, Math.min(1, rd / 100));
-  const ring = `<svg viewBox="0 0 76 76" class="mr-ring" aria-hidden="true">
-    <circle cx="38" cy="38" r="${R}" class="mr-ring-bg"/>
-    <circle cx="38" cy="38" r="${R}" class="mr-ring-fg" style="stroke:${zc}" stroke-dasharray="${(C * fill).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 38 38)"/>
-  </svg>`;
+  const hrvArrow = { acima: '↑', estavel: '→', fadiga: '↓', risco: '↓' }[d.hrvTrend?.cls] ?? '';
   const tiles = [
-    { k: 'Noite', v: n?.hours != null ? hmm(n.hours) : '–', c: n?.hours != null && base && n.hours >= base ? 'var(--sleep)' : 'var(--text)',
-      s: base ? `base ${hmm(base)}${d.sleep.debt >= 1 / 6 ? ` · dívida ${hmm(d.sleep.debt)}` : ''}` : '' },
-    d.hrvTrend ? { k: 'HRV', v: `${d.hrvTrend.mean7}<small> ms</small>`, c: HC[d.hrvTrend.cls], s: d.hrvTrend.label } : null,
+    { k: 'Noite', v: n?.hours != null ? hmm(n.hours) : '–', c: 'var(--sleep)', bar: n?.hours != null && base ? Math.min(1, n.hours / base) : null,
+      s: base ? `base ${hmm(base)}` : '' },
+    d.hrvTrend ? { k: 'HRV', v: `${d.hrvTrend.mean7}<small> ms</small>`, c: HC[d.hrvTrend.cls], s: `${hrvArrow} ${d.hrvTrend.label.toLowerCase()}` } : null,
     d.load?.formPct != null ? { k: 'Forma', v: `${sg(d.load.formPct)}<small>%</small>`, c: `var(--z-${d.load.zone?.key ?? 'neutro'})`, s: d.load.zone?.label ?? '' } : null,
   ].filter(Boolean);
+  let k = 0; const st = () => `style="--i:${k++}"`;
   return `<section class="morning" aria-label="Relatório da manhã" style="--rz:${zc}">
-    <div class="mr-top">
-      <div><p class="mr-hi">Bom dia</p><p class="mr-date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}</p></div>
+    <span class="mr-aura" aria-hidden="true"></span>
+    <div class="mr-top" ${st()}>
+      <div><p class="mr-hi">${ICON.sun}Bom dia</p><p class="mr-date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}</p></div>
       <button type="button" class="mr-close" aria-label="Fechar o relatório até amanhã">×</button>
     </div>
-    <div class="mr-hero">
-      <div class="mr-rec">${ring}<b>${rd}<small>%</small></b></div>
+    <div class="mr-hero" ${st()}>
+      ${heroRing({ frac: rd / 100, text: rd, count: rd, unit: '%', stops: readyStops(rd), size: 'sm' })}
       <div class="mr-hero-txt">
-        <span class="mr-lab">Recuperação ${d.rec ?? '–'}${d.day?.trend ? ` (${esc(d.day.trend.txt.replace('REC ', ''))})` : ''}</span>
         ${d.day?.summary ? `<p class="mr-phrase">${esc(d.day.summary)}</p>` : ''}
+        ${d.day?.why?.[0] && !/^Meta/.test(d.day.why[0]) ? `<p class="mr-why">${esc(d.day.why[0])}</p>` : ''}
+        <span class="mr-lab">Recuperação <b>${d.rec ?? '–'}</b></span>
       </div>
     </div>
-    <div class="mr-tiles">${tiles.map((t) => `<div class="mr-tile"><span class="mr-lab">${t.k}</span><b style="color:${t.c}">${t.v}</b><small>${esc(t.s)}</small></div>`).join('')}</div>
-    <div class="mr-block">
+    <div class="mr-tiles" ${st()}>${tiles.map((t) => `<div class="mr-tile"><span class="mr-lab">${t.k}</span><b style="color:${t.c}">${t.v}</b>${t.bar != null ? `<span class="mr-bar"><i style="--w:${(t.bar * 100).toFixed(0)}%"></i></span>` : ''}<small>${esc(t.s)}</small></div>`).join('')}</div>
+    <div class="mr-block" ${st()}>
       <span class="mr-lab">Treino de hoje</span>
-      ${pl.length ? `<ul class="mr-plan">${pl.map((p) => `<li><i class="dot s-${p.sport}"></i><span>${esc(p.titulo || p.label)}</span><em>${p.minutos ? `${p.minutos} min` : ''}${p.zona ? ` · ${esc(p.zona)}` : ''}</em></li>`).join('')}</ul>
-        ${d.day?.target ? `<p class="mr-meta">Strain previsto <b>${prev}</b> · meta do dia <b>${d.day.target.target}</b></p>` : ''}`
+      ${pl.length ? `<ul class="mr-sess">${pl.map((p) => `<li style="--c:var(--${p.sport}, var(--strain))"><span><b>${esc(p.titulo || p.label)}</b><small>${p.minutos ? `${p.minutos} min` : ''}${p.zona ? ` · ${esc(p.zona)}` : ''}</small></span>${p.strain ? `<em>${p.strain}</em>` : ''}</li>`).join('')}</ul>
+        ${tgt ? `<div class="mr-meter"><span class="mr-lab">Previsto <b>${prev}</b> · meta <b>${tgt}</b></span><span class="mr-mbar"><i style="--w:${Math.min(100, (prev / Math.max(prev, tgt * 1.5)) * 100).toFixed(0)}%"></i><u style="left:${Math.min(100, (tgt / Math.max(prev, tgt * 1.5)) * 100).toFixed(0)}%"></u></span></div>` : ''}`
         : '<p class="mr-meta">Sem treino planejado.</p>'}
     </div>
-    ${need ? `<div class="mr-block mr-night"><span class="mr-lab">Hoje à noite</span><p>Meta <b>${hmm(need.total)}</b>${d.sleep.bedtime ? ` · deitar até <b>${esc(d.sleep.bedtime.bedtime)}</b>` : ''}</p></div>` : ''}
-    ${d.alerts?.length ? `<p class="mr-alert">${esc(d.alerts[0].text)}</p>` : ''}
+    ${need ? `<div class="mr-block mr-night" ${st()}><span class="mr-lab">Hoje à noite</span><p>${ICON.moon}Meta <b>${hmm(need.total)}</b>${d.sleep.bedtime ? ` · deitar até <b>${esc(d.sleep.bedtime.bedtime)}</b>` : ''}</p></div>` : ''}
+    ${(() => { const al = (d.alerts ?? []).find((x) => x.kind !== 'carga'); return al ? `<p class="mr-alert" ${st()}>${esc(al.text)}</p>` : ''; })()}
   </section>`;
 }
 
@@ -450,13 +448,27 @@ function bindTimeline(screen, t) {
 
 // ---------- aviso da véspera (I4): a partir das 17 h, o que vem amanhã e a meta de sono ----------
 function tomorrowHtml(d) {
-  if (!d.isToday || new Date().getHours() < 17 || !d.tomorrow) return '';
+  if (!d.isToday || new Date().getHours() < 17 || !d.tomorrow || ls.get('rec.tomorrow') === d.date) return '';
   const ss = d.tomorrow.sessions ?? [], key = ss.find((x) => x.chave), need = d.sleep?.need, bed = d.sleep?.bedtime;
-  const wd = new Date(d.tomorrow.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' });
+  const wd = new Date(d.tomorrow.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const tot = ss.reduce((a, p) => a + (p.strain ?? 0), 0), min = ss.reduce((a, p) => a + (p.minutos ?? 0), 0);
+  // quanto falta para o horário de deitar
+  const left = bed?.bedtime ? (() => { const [h, m] = bed.bedtime.split(':').map(Number), now = new Date(); let x = h * 60 + m - (now.getHours() * 60 + now.getMinutes()); if (x < -240) x += 1440; return x; })() : null;
+  const leftTxt = left == null ? '' : left <= 0 ? 'já passou da hora' : left < 60 ? `em ${left} min` : `em ${Math.floor(left / 60)}h${String(left % 60).padStart(2, '0')}`;
+  let k = 0; const st = () => `style="--i:${k++}"`;
   return `<section class="tmr" aria-label="Amanhã">
-    <span class="mr-lab">Amanhã, ${esc(wd)}</span>
-    ${ss.length ? `<ul class="mr-plan">${ss.map((p) => `<li><i class="dot s-${p.sport}"></i><span>${esc(p.titulo || p.label)}${p.chave ? ' <em class="tmr-key">chave</em>' : ''}</span><em>${p.minutos ? `${p.minutos} min` : ''}${p.zona ? ` · ${esc(p.zona)}` : ''}</em></li>`).join('')}</ul>` : '<p class="mr-meta">Sem treino no plano: descanso.</p>'}
-    ${need ? `<p class="tmr-sleep">Hoje à noite: meta <b>${hmm(need.total)}</b>${bed ? ` · deitar até <b>${esc(bed.bedtime)}</b>` : ''}${key ? ' (véspera de sessão-chave)' : ''}</p>` : ''}
+    <span class="tmr-sky" aria-hidden="true"></span>
+    <div class="mr-top" ${st()}>
+      <div><p class="mr-hi">${ICON.moon}Amanhã</p><p class="mr-date">${esc(wd.charAt(0).toUpperCase() + wd.slice(1))}</p></div>
+      <button type="button" class="tmr-close mr-close" aria-label="Fechar até amanhã">×</button>
+    </div>
+    ${ss.length ? `<ul class="mr-sess" ${st()}>${ss.map((p) => `<li style="--c:var(--${p.sport}, var(--strain))"><span><b>${esc(p.titulo || p.label)}${p.chave ? ' <em class="tmr-key">chave</em>' : ''}</b><small>${p.minutos ? `${p.minutos} min` : ''}${p.zona ? ` · ${esc(p.zona)}` : ''}</small></span>${p.strain ? `<em>${p.strain}</em>` : ''}</li>`).join('')}</ul>
+      <p class="mr-meta" ${st()}>${min ? `${hmm(min / 60)} no total` : ''}${tot ? ` · Strain previsto <b>${tot}</b>` : ''}</p>`
+      : `<p class="tmr-rest" ${st()}>Descanso no plano.</p>`}
+    ${need ? `<div class="tmr-night" ${st()}>
+      <div><span class="mr-lab">Meta de sono</span><b>${hmm(need.total)}</b></div>
+      ${bed ? `<div><span class="mr-lab">Deitar até</span><b>${esc(bed.bedtime)}</b><small>${esc(leftTxt)}</small></div>` : ''}
+    </div>${key ? `<p class="mr-meta" ${st()}>Véspera de treino-chave.</p>` : ''}` : ''}
   </section>`;
 }
 
@@ -679,7 +691,13 @@ function render(d) {
   }));
 
   // relatório da manhã: fechar até amanhã
-  screen.querySelector('.mr-close')?.addEventListener('click', () => { ls.set('rec.morning', todayIso); screen.querySelector('.morning')?.remove(); });
+  // fechar com uma saída suave (encolhe e some)
+  const closeCard = (sel, key) => screen.querySelector(`${sel} .mr-close`)?.addEventListener('click', () => {
+    ls.set(key, todayIso); const el = screen.querySelector(sel); if (!el) return;
+    el.style.height = `${el.offsetHeight}px`; requestAnimationFrame(() => el.classList.add('is-closing'));
+    setTimeout(() => el.remove(), 420);
+  });
+  closeCard('.morning', 'rec.morning'); closeCard('.tmr', 'rec.tomorrow');
 
   // resumo da semana: domingo a partir das 18 h (semana atual) e segunda (semana anterior)
   if (d.isToday) {

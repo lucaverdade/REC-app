@@ -1521,3 +1521,56 @@ div.hring { cursor: default; }
 .set-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; }
 .set-ic .ic, .set-ic svg { width: 17px; height: 17px; color: #fff; stroke: #fff; }
 .sl-hero .hring .hr-val > span { font-size: 44px; letter-spacing: -0.035em; }
+
+/* bom dia e amanhã (05/11): aura que se move devagar, entrada em cascata, anel herói pequeno */
+.morning, .tmr { position: relative; isolation: isolate; overflow: hidden; margin: 0 0 18px; padding: 18px 18px 16px; border-radius: 24px; border: 0;
+  background: color-mix(in srgb, var(--text) 4%, var(--bg)); transition: height .4s ease, opacity .3s ease, margin .4s ease, padding .4s ease; animation: none; }
+.morning.is-closing, .tmr.is-closing { height: 0 !important; opacity: 0; margin: 0; padding-top: 0; padding-bottom: 0; }
+.mr-aura, .tmr-sky { position: absolute; inset: -40%; z-index: -1; pointer-events: none; }
+.mr-aura { background: radial-gradient(40% 35% at 25% 25%, color-mix(in srgb, var(--rz) 38%, transparent), transparent 70%),
+  radial-gradient(35% 30% at 80% 15%, color-mix(in srgb, #ffb547 18%, transparent), transparent 70%);
+  animation: aura 14s ease-in-out infinite alternate; }
+.tmr-sky { background: radial-gradient(40% 35% at 80% 20%, rgba(93, 79, 209, .38), transparent 70%), radial-gradient(35% 30% at 15% 80%, rgba(42, 212, 232, .12), transparent 70%);
+  animation: aura 18s ease-in-out infinite alternate; }
+.tmr-sky::after { content: ''; position: absolute; inset: 0; opacity: .5;
+  background-image: radial-gradient(1px 1px at 62% 44%, #fff, transparent), radial-gradient(1px 1px at 71% 52%, #fff, transparent), radial-gradient(1.2px 1.2px at 84% 41%, #fff, transparent),
+  radial-gradient(1px 1px at 56% 58%, #fff, transparent), radial-gradient(1px 1px at 77% 63%, #fff, transparent); animation: twinkle 5s ease-in-out infinite alternate; }
+@keyframes aura { from { transform: translate(0, 0) rotate(0deg); } to { transform: translate(4%, 3%) rotate(8deg); } }
+@keyframes twinkle { from { opacity: .25; } to { opacity: .7; } }
+.morning [style*="--i"], .tmr [style*="--i"] { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 90ms + 80ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.mr-hi { display: flex; align-items: center; gap: 8px; font: 500 24px/1.1 var(--font-display); letter-spacing: -.015em; }
+.mr-hi .ic, .mr-hi svg { width: 20px; height: 20px; color: #ffb547; stroke: #ffb547; }
+.tmr .mr-hi .ic, .tmr .mr-hi svg { color: #b3a7e6; stroke: #b3a7e6; }
+.mr-hero { display: flex; align-items: center; gap: 16px; margin: 14px 0 16px; }
+.mr-hero .hring { flex: none; }
+.mr-hero .hring--sm .hr-ring { width: 104px; }
+.mr-hero .hring--sm .hr-val > span { font-size: 32px; }
+.mr-hero .hring--sm .hr-val small { font-size: 13px; }
+.mr-phrase { margin: 0; font: 600 18px/1.25 var(--font-display); }
+.mr-why { margin: 4px 0 6px; font-size: 14px; color: var(--text-2); }
+.mr-hero-txt .mr-lab b { color: var(--text); font-weight: 500; }
+.mr-tile { border: 0; background: color-mix(in srgb, var(--text) 5%, transparent); border-radius: 16px; }
+.mr-tile b { font-weight: 200; font-size: 24px; }
+.mr-bar, .mr-mbar { position: relative; display: block; height: 3px; margin: 4px 0 5px; border-radius: 2px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.mr-bar i, .mr-mbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 2px; background: var(--sleep); animation: grow 1.1s .5s cubic-bezier(.2, .8, .2, 1) forwards; }
+.mr-mbar i { background: var(--strain); }
+.mr-mbar u { position: absolute; top: -3px; width: 2px; height: 9px; margin-left: -1px; border-radius: 1px; background: var(--text); text-decoration: none; }
+@keyframes grow { to { width: var(--w); } }
+.mr-block { border-top: 0; padding-top: 0; margin-top: 16px; }
+.mr-sess { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.mr-sess li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--c) 10%, transparent); box-shadow: inset 3px 0 0 var(--c); }
+.mr-sess li span { flex: 1; min-width: 0; display: grid; }
+.mr-sess li b { font-weight: 500; font-size: 15px; }
+.mr-sess li small { font-size: 12.5px; color: var(--text-2); }
+.mr-sess li > em { font-style: normal; font: 300 20px var(--font-display); color: var(--c); }
+.mr-meter { margin-top: 10px; }
+.mr-meter .mr-lab b { color: var(--text); font-weight: 500; }
+.mr-night p { display: flex; align-items: center; gap: 8px; }
+.mr-night .ic, .mr-night svg { width: 16px; height: 16px; color: var(--sleep); stroke: var(--sleep); }
+.tmr-rest { margin: 12px 0 4px; font: 300 22px var(--font-display); color: var(--text-2); }
+.tmr-night { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.tmr-night > div { padding: 10px 12px; border-radius: 16px; background: color-mix(in srgb, var(--sleep) 9%, transparent); }
+.tmr-night b { display: block; margin-top: 3px; font: 200 26px/1.1 var(--font-display); color: var(--sleep); }
+.tmr-night small { font-size: 12px; color: var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .mr-aura, .tmr-sky, .tmr-sky::after, .morning [style*="--i"], .tmr [style*="--i"] { animation: none; } .mr-bar i, .mr-mbar i { animation: none; width: var(--w); } }
