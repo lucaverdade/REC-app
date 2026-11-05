@@ -506,8 +506,9 @@ const hojeOrder = () => hojePrefs().filter((x) => x.on).map((x) => x.k);
 
 // ---------- Hoje v3 (05/11): uma frase, três portas (Sono, Strain, Corpo), carga em uma linha ----------
 function oneThingHtml(d) {
-  const t = d.day?.target?.target;
-  const lines = [...(d.alerts ?? []).map((a) => a.text), t != null && d.isToday ? `Meta de Strain do dia: ${t}.` : null].filter(Boolean);
+  const t = d.day?.target?.target, why = d.day?.why;
+  // frase nova (título + porquês) já traz a meta de Strain; o servidor antigo não
+  const lines = [...(why ?? []), ...(d.alerts ?? []).map((a) => a.text), !why && t != null && d.isToday ? `Meta de Strain do dia: ${t}.` : null].filter(Boolean);
   if (!d.day?.summary && !lines.length) return '';
   return `<section class="one-thing"><b>${esc(d.day?.summary ?? 'Dia sem resumo ainda.')}</b>${lines.map((l) => `<span>${esc(l)}</span>`).join('')}</section>`;
 }

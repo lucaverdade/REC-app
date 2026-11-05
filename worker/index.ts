@@ -13,6 +13,7 @@ import { cumulativeStress, loadFocus, trainingStatus, workoutInsights } from '..
 import { ARACAJU, climatology, parseForecast, type HourRow } from '../src/weather.ts';
 import { longTrend } from '../src/longtrend.ts';
 import { dailySummary, recTrend } from '../src/daily.ts';
+import { dayHeadline } from '../src/headline.ts';
 import { strainTargetV2 } from '../src/target.ts';
 import { readiness } from '../src/readiness.ts';
 import { recoveryVerdict } from '../src/verdict.ts';
@@ -1020,11 +1021,13 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     const rates = await strainRates(env, date);
     return { date: t, sessions: (pl.dias?.[t] ?? []).map((p) => { const sp = normSport(p.modalidade); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, chave: !!p.chave, strain: plannedStrainEst(p, rates).v }; }) };
   })() : null;
+  let hasWeekPlan = false;
   const planned = await (async () => {
-    if (!req) return [] as { label: string; sport: Sport; titulo: string | null; minutos: number | null; zona: string | null; strain: number | null; strainSrc: string | null }[];
+    if (!req) return [] as { label: string; sport: Sport; titulo: string | null; minutos: number | null; zona: string | null; chave: boolean; strain: number | null; strainSrc: string | null }[];
     const plan = await readPlan(env, req, mondayOf(date));
+    hasWeekPlan = !!plan?.dias;
     const rates = await strainRates(env, date);
-    return (plan?.dias?.[date] ?? []).map((p) => { const sp = normSport(p.modalidade); const e = plannedStrainEst(p, rates); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, strain: e.v, strainSrc: e.src }; });
+    return (plan?.dias?.[date] ?? []).map((p) => { const sp = normSport(p.modalidade); const e = plannedStrainEst(p, rates); return { label: SPORT_LABEL[sp], sport: sp, titulo: p.titulo ?? null, minutos: p.minutos ?? null, zona: p.zona ?? null, chave: !!p.chave, strain: e.v, strainSrc: e.src }; });
   })();
   const verdict7 = await (async () => {
     const { results: zr } = await env.DB.prepare('SELECT date, z_hrv, z_rhr, z_sleep, z_resp, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2 ORDER BY date')
@@ -1045,6 +1048,12 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   for (const k of K) { empty.z[k] = null; empty.value[k] = null; empty.base[k] = null; }
   const t = today ?? empty;
   const ready = await readyOn(env, date, t.rec);
+  const illA = await (async () => {
+    const sick = (await env.DB.prepare("SELECT 1 x FROM habit_tags WHERE tag = 'doente' AND date BETWEEN ?1 AND ?2").bind(addDays(date, -1), date).first()) != null;
+    const zz = (r: RecRow | undefined | null) => (r ? { resp: r.z.resp, rhr: r.z.rhr, hrv: r.z.hrv, stress: r.z.stress } : null);
+    return illnessAlert(today ? zz(t) : null, zz(yesterday), sick);
+  })();
+  const illnessNow = illA != null;
 
   const minsSinceSync = lastSync?.at ? Math.round((Date.now() - Date.parse(String(lastSync.at).replace(' ', 'T') + 'Z')) / 60000) : null;
   const syncIssue = await syncIssueOf(env, date, lastSync, minsSinceSync);
@@ -1055,12 +1064,7 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     contributors: contributors(t),
     comment: comment(t, hist),
     alerts: [
-      ...(await (async () => {
-        const sick = (await env.DB.prepare("SELECT 1 x FROM habit_tags WHERE tag = 'doente' AND date BETWEEN ?1 AND ?2").bind(addDays(date, -1), date).first()) != null;
-        const zz = (r: RecRow | undefined | null) => (r ? { resp: r.z.resp, rhr: r.z.rhr, hrv: r.z.hrv, stress: r.z.stress } : null);
-        const a = illnessAlert(today ? zz(t) : null, zz(yesterday), sick);
-        return a ? [a] : [];
-      })()),
+      ...(illA ? [illA] : []),
       ...alerts(t, yesterday), ...(await loadAlerts(env, date)),
     ],
     hrvTrend: await (async () => { const h = await hrvTrendOn(env, date); return h && { cls: h.cls, label: h.label, days: h.days, mean7: h.mean7, lo: h.lo, hi: h.hi }; })(),
@@ -1082,14 +1086,17 @@ async function todayPayload(env: Env, date: string, req?: Request) {
     readyPrev: ready.score == null && date === brtToday() ? (await readyOn(env, addDays(date, -1))).score : null,
     day: (() => {
       const recR = t.rec == null ? null : Math.round(t.rec);
-      return {
-        summary: dailySummary(recR, ln.zone?.key ?? null),
-        trend: recTrend([...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec == null ? null : Math.round(r.rec) }))),
-        target: strainTargetV2({
-          ...ln.tgt, recToday: ready.score == null ? recR : Math.round(ready.score), verdictLevel: verdict7?.level ?? null, zoneKey: ln.zone?.key ?? null,
-          plannedToday: planned.length ? planned.reduce((a, x) => a + (x.strain ?? 0), 0) : null,
-        }),
-      };
+      const trend = recTrend([...hist, t].slice(-7).map((r) => ({ date: r.date, rec: r.rec == null ? null : Math.round(r.rec) })));
+      const target = strainTargetV2({
+        ...ln.tgt, recToday: ready.score == null ? recR : Math.round(ready.score), verdictLevel: verdict7?.level ?? null, zoneKey: ln.zone?.key ?? null,
+        plannedToday: planned.length ? planned.reduce((a, x) => a + (x.strain ?? 0), 0) : null,
+      });
+      const hl = dayHeadline({
+        date, ready: ready.score, rec: recR, parts: ready.parts, trend, planned, target: target?.target ?? null,
+        sleepH: lastNight?.sleep_h ?? null, sleepBase: sb.hours, debtH: debt, raceDays: daysBetween(date, RACE.date),
+        illness: illnessNow, hasWeekPlan,
+      });
+      return { summary: hl?.title ?? dailySummary(recR, ln.zone?.key ?? null), why: hl?.why ?? [], trend, target };
     })(),
     planned,
     phase, tomorrow,
