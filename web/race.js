@@ -1,5 +1,5 @@
 import { predictions } from './trends.js';
-import { ICON, cardHead, countUp, readyColor } from './ui.js';
+import { ICON, cardHead, countUp, readyColor, heroRing, animateRings } from './ui.js';
 // Modo prova: Ironman 70.3 Aracaju. Ativa sozinho na semana da prova; antes disso abre como prévia.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const tfmt = (m) => {
@@ -26,14 +26,15 @@ export async function renderRace(screen, api) {
     <section class="race-hero">
       <p class="rh-name">${esc(r.name)}</p>
       <p class="rh-date">${esc((() => { const t = new Date(r.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); return t.charAt(0).toUpperCase() + t.slice(1); })())}</p>
-      <div class="rh-count">${count}</div>
+      <div class="dhero rh-ring">${heroRing({ frac: n < 0 ? 1 : (84 - Math.min(84, n)) / 84, text: n > 1 ? n : n === 1 ? 'Amanhã' : n === 0 ? 'Hoje' : 'Feita', count: n > 1 ? n : null,
+        stops: ['var(--natacao)', 'var(--bike)', 'var(--corrida)'], size: n > 1 ? 'md' : 'md is-word', sub: n > 1 ? 'dias' : '' })}</div>
       <div class="rh-legs">
         <div><i class="dot s-natacao"></i><b>1,9 km</b><small>Natação</small></div>
         <div><i class="dot s-bike"></i><b>90 km</b><small>Bike</small></div>
         <div><i class="dot s-corrida"></i><b>21,1 km</b><small>Corrida</small></div>
       </div>
       <div class="rh-now">
-        ${d.today.ready != null ? `<span><i style="background:${readyColor(d.today.ready)}"></i>Prontidão <b>${d.today.ready}%</b></span>` : `<span><i style="background:${recVar(d.today.rec)}"></i>REC hoje <b>${d.today.rec ?? '–'}</b></span>`}
+        ${d.today.ready != null ? `<span><i style="background:${readyColor(d.today.ready)}"></i>Hoje <b>${d.today.ready}%</b></span>` : `<span><i style="background:${recVar(d.today.rec)}"></i>REC hoje <b>${d.today.rec ?? '–'}</b></span>`}
         <span>Forma <b class="z-${d.today.zone?.key ?? 'neutro'}">${d.today.formPct == null ? '–' : (d.today.formPct > 0 ? '+' : d.today.formPct < 0 ? '−' : '') + Math.abs(d.today.formPct) + '%'}</b></span>
       </div>
     </section>
@@ -71,7 +72,7 @@ export async function renderRace(screen, api) {
   renderWeather(screen.querySelector('#wx'), api);
   predictions(screen, api);
   bindCarbo(screen, d.carbo);
-  countUp(screen);
+  countUp(screen); animateRings(screen);
 }
 
 // reta final (a partir de 28 dias): noites, sono, taper, Prontidão da semana e Forma prevista × faixa de prova

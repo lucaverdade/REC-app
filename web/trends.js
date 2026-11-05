@@ -97,24 +97,24 @@ async function bodyCharts(screen, api) {
   const head = (sel, icon, title, color, big, sub) => `${cardHead(icon, title, { color })}<div class="b-big"><b>${big}</b><small>${sub}</small></div><div class="b-chart"></div>`;
   const box = (id) => screen.querySelector(id);
   box('#b-ready').innerHTML = head('#b-ready', 'bolt', 'Prontidão e REC', aR == null ? 'var(--text-2)' : readyColor(aR), aR == null ? '–' : `${Math.round(aR)}<i>%</i>`, `Prontidão média · ${per}${aRec != null ? ` · REC médio ${Math.round(aRec)}` : ''}`);
-  bandLine(box('#b-ready .b-chart'), { dates: rDates, values: rd.map((x) => x.ready), color: 'rgba(179,167,230,.9)', min: 0, max: 100, height: 120, axes: true, yTicks: [33, 66],
-    dots: (val) => readyColor(val), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.35)', width: 1.2 }], label: 'Prontidão',
+  bandLine(box('#b-ready .b-chart'), { dates: rDates, values: rd.map((x) => x.ready), color: 'rgba(179,167,230,.9)', min: 0, max: 100, height: 120, axes: 'x',
+    dots: (val) => readyColor(val), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.28)', width: 1 }], label: 'Prontidão',
     tip: (i) => row('Prontidão', rd[i].ready == null ? '–' : `${rd[i].ready}%`) + row('REC', rd[i].rec ?? '–') + row('Strain', rd[i].strain) });
   box('#b-ready').insertAdjacentHTML('beforeend', '<p class="b-leg"><span><i style="background:#b3a7e6"></i>Prontidão</span><span><i style="background:rgba(255,255,255,.35)"></i>REC</span></p>');
 
   const hv = avg(days.map((x) => x.hrv)), hb = avg(days.map((x) => x.hrvBase));
   box('#b-hrv').innerHTML = head('#b-hrv', 'heart', 'HRV', 'var(--hrv)', hv == null ? '–' : `${Math.round(hv)}<i> ms</i>`, `média · ${per}${hb ? ` · base ${Math.round(hb)} ms` : ''}${h?.label ? ` · ${h.label.toLowerCase()}` : ''}`);
-  bandLine(box('#b-hrv .b-chart'), { dates, values: days.map((x) => x.hrv), lo: days.map((x) => x.hrvLo), hi: days.map((x) => x.hrvHi), base: days.map((x) => x.hrvBase), color: 'var(--hrv)', height: 120, axes: true, label: 'HRV',
+  bandLine(box('#b-hrv .b-chart'), { dates, values: days.map((x) => x.hrv), lo: days.map((x) => x.hrvLo), hi: days.map((x) => x.hrvHi), base: days.map((x) => x.hrvBase), color: 'var(--hrv)', height: 120, axes: 'x', label: 'HRV',
     tip: (i) => row('HRV', `${nf(days[i].hrv)} ms`) + row('Faixa normal', `${nf(days[i].hrvLo)}–${nf(days[i].hrvHi)}`) });
 
   const rv = avg(days.map((x) => x.rhr)), rb = avg(days.map((x) => x.rhrBase));
   box('#b-rhr').innerHTML = head('#b-rhr', 'heart', 'FC de repouso', 'var(--rhr)', rv == null ? '–' : `${nf(rv, 1)}<i> bpm</i>`, `média · ${per}${rb ? ` · base ${nf(rb, 1)} bpm` : ''}`);
-  bandLine(box('#b-rhr .b-chart'), { dates, values: days.map((x) => x.rhr), lo: days.map((x) => x.rhrLo), hi: days.map((x) => x.rhrHi), base: days.map((x) => x.rhrBase), color: 'var(--rhr)', height: 110, axes: true, label: 'FC de repouso',
+  bandLine(box('#b-rhr .b-chart'), { dates, values: days.map((x) => x.rhr), lo: days.map((x) => x.rhrLo), hi: days.map((x) => x.rhrHi), base: days.map((x) => x.rhrBase), color: 'var(--rhr)', height: 110, axes: 'x', label: 'FC de repouso',
     tip: (i) => row('FC', `${nf(days[i].rhr)} bpm`) + row('Faixa normal', `${nf(days[i].rhrLo)}–${nf(days[i].rhrHi)}`) });
 
   const sv = avg(days.map((x) => x.sleep)), short = days.filter((x) => x.sleep != null && x.sleep < need - 0.5).length, nights = days.filter((x) => x.sleep != null).length;
   box('#b-sleep').innerHTML = head('#b-sleep', 'moon', 'Sono', 'var(--sleep)', hm(sv), `média · ${per} · base ${hm(need)} · ${short} de ${nights} noites com mais de 30 min a menos`);
-  bandLine(box('#b-sleep .b-chart'), { dates, values: days.map((x) => x.sleep), bars: true, color: 'var(--sleep)', min: 0, ref: need, refLabel: hm(need), height: 110, axes: true, label: 'Sono', yTicks: [4, 8], yFmt: (val) => `${nf(val)} h`,
+  bandLine(box('#b-sleep .b-chart'), { dates, values: days.map((x) => x.sleep), bars: true, color: 'var(--sleep)', min: 0, ref: need, refLabel: hm(need), height: 110, axes: 'x', label: 'Sono',
     barColor: (val) => (val < need - 0.5 ? 'color-mix(in srgb, var(--sleep) 45%, #000)' : 'var(--sleep)'), tip: (i) => row('Sono', hm(days[i].sleep)) });
   box('#b-sleep').insertAdjacentHTML('beforeend', `<a class="b-link" href="#sono/${new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)}">Ver a última noite em detalhe ›</a>`);
 }
@@ -467,7 +467,12 @@ function bandLine(wrap, o) {
     const bw = Math.max(1.5, (W - 30) / n - 1.5);
     o.values.forEach((v, i) => { if (v != null) svg += `<rect x="${x(i) - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(0.5, H - y(v))}" rx="1" style="fill:${o.barColor ? o.barColor(v) : o.color}"/>`; });
   } else {
-    if (o.area) svg += `<path d="${path(o.values)} L${x(n - 1)},${H} L0,${H} Z" style="fill:${o.color};opacity:.12"/>`;
+    // área com degradê que some no fundo (05/11): em todo gráfico de linha, salvo area: false
+    if (o.area !== false) {
+      const gid = `g${Math.random().toString(36).slice(2, 8)}`, fi = o.values.findIndex((v) => v != null), la = o.values.length - 1 - [...o.values].reverse().findIndex((v) => v != null);
+      svg += `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${o.color};stop-opacity:.32"/><stop offset="1" style="stop-color:${o.color};stop-opacity:0"/></linearGradient></defs>`;
+      if (fi >= 0) svg += `<path d="${path(o.values.map((v, i) => (i < fi || i > la ? null : v ?? o.values.slice(0, i).reverse().find((z) => z != null))))} L${x(la).toFixed(1)},${H} L${x(fi).toFixed(1)},${H} Z" style="fill:url(#${gid})"/>`;
+    }
     svg += `<path d="${path(o.values)}" class="bl-line" style="stroke:${o.color}"/>`;
   }
   for (const e of o.extra ?? []) svg += `<path d="${path(e.values)}" class="bl-line" style="stroke:${e.color};stroke-width:${e.width ?? 1.6}"/>`;
@@ -480,9 +485,9 @@ function bandLine(wrap, o) {
   }
   const niceT = (v) => { const st = hi - lo > 60 ? 20 : hi - lo > 20 ? 10 : hi - lo > 6 ? 2 : 1; return Math.round(v / st) * st; };
   const yTicks = o.yTicks ?? [niceT(lo + (hi - lo) * 0.2), niceT(lo + (hi - lo) * 0.8)];
-  const yt = o.axes === false ? '' : yTicks.map((v) => `<text x="${W}" y="${y(v) + 3}" class="ax" text-anchor="end">${o.yFmt ? o.yFmt(v) : nf(v)}</text>`).join('');
-  const xi = o.axes === false ? [] : [0, Math.round((n - 1) / 2), n - 1];
-  const xt = xi.map((i, k) => `<text x="${x(i)}" y="${H + (o.strip ? 30 : 14)}" class="ax" text-anchor="${k === 0 ? 'start' : k === 2 ? 'end' : 'middle'}">${fmtDay(o.dates[i])}</text>`).join('');
+  const yt = o.axes === false || o.axes === 'x' ? '' : yTicks.map((v) => `<text x="${W}" y="${y(v) + 3}" class="ax" text-anchor="end">${o.yFmt ? o.yFmt(v) : nf(v)}</text>`).join('');
+  const xi = o.axes === false ? [] : o.axes === 'x' ? [0, n - 1] : [0, Math.round((n - 1) / 2), n - 1];
+  const xt = xi.map((i, k) => `<text x="${x(i)}" y="${H + (o.strip ? 30 : 14)}" class="ax" text-anchor="${k === 0 ? 'start' : k === xi.length - 1 ? 'end' : 'middle'}">${fmtDay(o.dates[i])}</text>`).join('');
   const totalH = H + (o.strip ? 18 : 0) + (o.axes === false ? 2 : 18);
   wrap.innerHTML = `<svg viewBox="0 -4 ${W} ${totalH + 4}" class="chart bl" role="img" aria-label="${esc(o.label ?? '')}">${svg}${strip}${yt}${xt}
     <line class="bl-rule" y1="-4" y2="${H}" visibility="hidden"/><rect class="bl-hit" x="0" y="-4" width="${W}" height="${totalH}" fill="transparent"/></svg>

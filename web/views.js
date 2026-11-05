@@ -1,6 +1,6 @@
 // Telas novas (04/11): a noite em detalhe (#sono/<data>) e a revisão da semana (#semana/<segunda>).
 import { nf } from './charts.js';
-import { cardHead, readyColor } from './ui.js';
+import { cardHead, readyColor, heroRing, animateRings, countUp } from './ui.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hm = (h) => { if (h == null) return '–'; const m = Math.round(h * 60); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
@@ -56,7 +56,7 @@ export async function renderSleep(screen, api, date) {
       <span class="sl-nav">${prev ? `<a href="#sono/${prev}" aria-label="Noite anterior">‹</a>` : ''}${next ? `<a href="#sono/${next}" aria-label="Noite seguinte">›</a>` : ''}</span></header>
     <section class="sl-hero">
       <p class="sl-date">Noite de ${esc(fmtDate(addIso(date, -1), { weekday: 'long', day: 'numeric', month: 'long' }).toLowerCase())} para ${esc(fmtDate(date, { weekday: 'long' }).toLowerCase())}</p>
-      <b class="sl-total">${hm(n?.h)}</b>
+      ${heroRing({ frac: n?.h && d.need ? n.h / d.need : 0, text: n?.h == null ? '–' : hm(n.h).replace(/ /g, ''), color: 'var(--sleep)', stops: ['#5d4fd1', '#9d8cff', '#cfc6ff'], size: 'md', empty: n?.h == null })}
       <p class="sl-meta">${start != null && end != null ? `${clock(start)} → ${clock(end)} · ` : ''}base ${hm(d.need)}${n?.score != null ? ` · score Garmin ${n.score}` : ''}${a.h != null ? ` · média de 14 noites ${hm(a.h)}` : ''}</p>
     </section>
     <section class="card" id="sl-tonight" hidden></section>
@@ -71,6 +71,7 @@ export async function renderSleep(screen, api, date) {
         ${n?.nap ? `<div><small>Cochilo do dia</small><b>${mm(n.nap * 60)}</b><em></em></div>` : ''}
       </div>
     </section>`;
+  animateRings(screen);
   // noite de hoje: meta, horário de deitar, dívida e regularidade (vem do Hoje)
   const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
   if (date === today) api(`/api/today?date=${date}`).then((t) => {

@@ -24,6 +24,7 @@ Lista viva do que o Luca pediu para depois.
 - [x] **Meta de Strain do dia v2** (03/11, `src/target.ts`; ver Guia 8b). Itens (c) e (d) entraram como "ontem pesado" e comparação com o plano. Pedido original: Hoje: Fitness (carga de 42 dias) × fator do REC (que já usa bases de 60–120 dias) × ajuste da Forma. Melhorar com: (a) quanto ainda cabe na **faixa semanal** (0,8–1,3 × média de 3 semanas) dividido pelos dias que faltam; (b) razão aguda/crônica e tendência da Fadiga; (c) dias desde o último dia pesado; (d) Strain previsto da sessão do plano; (e) a resposta de recuperação de 7 dias, não só o REC do dia. Validar contra o histórico: dias em que o Strain passou da meta deveriam ser seguidos de REC mais baixo.
 
 ## Abas e telas
+- [x] Visual fino nas outras telas (05/11): anel herói em Recuperação, Strain, Sono, Semana e Prova; anelzinhos por dia na Semana; linhas com degradê e eixos só nas pontas em Corpo; pílula de período; cartões sem borda; Ajustes agrupado estilo iOS.
 - [x] Frase do dia v2 (05/11): título por Prontidão × situação, variações por data, até 3 porquês.
 - [x] Anel principal sem nome (05/11): degradê, brilho, animação; tile Corpo → Recuperação.
 - [x] Strain previsto × feito por sessão e na semana (03/11), estilo TSS planejado × realizado do TrainingPeaks.

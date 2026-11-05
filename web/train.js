@@ -3,7 +3,7 @@
 import { nf } from './charts.js';
 import { distBar, renderEvolution } from './trends.js';
 import { reviewHtml } from './review.js';
-import { cardHead, readyColor } from './ui.js';
+import { cardHead, readyColor, heroRing, animateRings, countUp } from './ui.js';
 
 let offset = 0;
 let picked = null; // data escolhida na faixa da semana
@@ -151,11 +151,8 @@ async function body(screen, api) {
   box.innerHTML = `
     <section class="card wk-card">
       ${cardHead('bolt', offset === 0 ? 'Esta semana' : 'Semana', { color: 'var(--strain)', info: 'Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e zona) dos últimos 120 dias; sem 3 treinos parecidos, vale o do plano ou minutos × peso da zona. Entre 80% e 120% do previsto está no alvo. Na faixa de dias, bolinha cheia: feito; vazada: falta algo.' })}
-      <div class="wk-main">
-        <div><span class="num c-strain">${nf(sm.strain)}</span>${sm.plannedStrain != null ? `<span class="of">de ${nf(sm.plannedStrain)}</span>` : ''}<span class="lab">Strain da semana</span></div>
-        <div class="wk-h"><span class="num">${nf(sm.doneHours, 1)}</span>${sm.plannedHours != null ? `<span class="of">de ${nf(sm.plannedHours, 1)} h</span>` : '<span class="of">h</span>'}<span class="lab">Horas</span></div>
-      </div>
-      ${pct != null ? `<span class="wk-bar"><i style="width:${pct}%"></i></span>` : ''}
+      <div class="dhero wk-hero">${heroRing({ frac: sm.plannedStrain ? sm.strain / sm.plannedStrain : Math.min(1, sm.strain / 400), text: nf(sm.strain), count: sm.strain, color: 'var(--strain)', size: 'md',
+        sub: `${sm.plannedStrain != null ? `de ${nf(sm.plannedStrain)} previsto · ` : ''}${nf(sm.doneHours, 1)}${sm.plannedHours != null ? ` de ${nf(sm.plannedHours, 1)}` : ''} h` })}</div>
       ${sm.dist ? `<div class="wk-dist">${distBar(sm.dist)}</div>` : ''}
       ${w.plan?.fase ? `<p class="wk-fase">${esc(w.plan.fase)}</p>` : ''}
       ${w.plan?.notas ? `<details class="ss-more"><summary>Nota da semana</summary><p class="ss-detail">${esc(w.plan.notas)}</p></details>` : ''}
@@ -167,13 +164,15 @@ async function body(screen, api) {
 
     <ol class="wk-strip" role="tablist" aria-label="Dias da semana">
       ${w.days.map((d) => {
-        // uma bolinha por sessão: cheia = feita, vazada = prevista ou não feita
-        const dots = [...d.planned.map((p) => ({ s: p.sport, done: p.status === 'feito' || p.status === 'parcial' })),
-          ...d.executed.filter((e) => !e.matched).map((e) => ({ s: e.sport, done: true }))];
-        return `<li><button type="button" role="tab" data-date="${d.date}" aria-selected="${d.date === picked}" class="wd${d.isToday ? ' is-today' : ''}">
+        // anelzinho por dia: Strain feito contra o previsto, na cor da modalidade principal
+        const pS = d.planned.reduce((a, p) => a + (p.plannedStrain ?? 0), 0), dS = d.executed.reduce((a, e) => a + (e.strain ?? 0), 0);
+        const sp = (d.executed[0] ?? d.planned[0])?.sport, col = sp ? `var(--${sp}, var(--strain))` : 'var(--text-3)';
+        const f = pS ? Math.min(1, dS / pS) : dS ? 1 : 0, C = 2 * Math.PI * 15;
+        return `<li><button type="button" role="tab" data-date="${d.date}" aria-selected="${d.date === picked}" class="wd${d.isToday ? ' is-today' : ''}${d.future ? ' is-future' : ''}" aria-label="${day(d.date, { weekday: 'long', day: 'numeric' })}">
           <span class="wd-n">${day(d.date, { weekday: 'narrow' })}</span>
-          <span class="wd-d">${day(d.date, { day: 'numeric' })}</span>
-          <span class="wd-dots">${dots.slice(0, 3).map((x) => `<i class="dot ${x.done ? `s-${x.s}` : `open c-${x.s}`}"></i>`).join('') || '<i class="dot none"></i>'}</span>
+          <svg class="wd-ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" style="stroke:${pS || dS ? col : 'var(--line)'}" class="wr-t"/>
+            ${f ? `<circle cx="18" cy="18" r="15" style="stroke:${col}" class="wr-a" stroke-dasharray="${(C * f).toFixed(1)} ${C.toFixed(1)}"/>` : ''}
+            <text x="18" y="22.5" text-anchor="middle">${day(d.date, { day: 'numeric' })}</text></svg>
         </button></li>`;
       }).join('')}
     </ol>
@@ -191,4 +190,5 @@ async function body(screen, api) {
     box.querySelectorAll('.wd').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
     box.querySelector('#td').innerHTML = dayHtml(w.days.find((d) => d.date === picked));
   }));
+  animateRings(box); countUp(box);
 }

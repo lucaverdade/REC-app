@@ -1461,7 +1461,7 @@ body.is-share main { padding-bottom: 0; }
 .hr-start { transform: none; }
 .hr-cap::before, .hr-start::before { content: ''; position: absolute; left: 50%; top: 0; width: var(--w); height: var(--w); margin-left: calc(var(--w) / -2); border-radius: 50%; }
 .hr-cap::before { background: var(--end); box-shadow: 0 0 14px 2px var(--end); }
-.hr-start::before { background: #e2614f; }
+.hr-start::before { background: var(--start); }
 .hr-val { display: grid; place-items: center; }
 .hr-val > span { display: inline-flex; align-items: baseline; font: 200 64px/1 var(--font-display); letter-spacing: -0.03em; color: var(--text); }
 .hr-val small { font-size: 22px; margin-left: 2px; color: var(--end); opacity: .9; }
@@ -1473,3 +1473,51 @@ body.is-share main { padding-bottom: 0; }
 .hero.is-wait .hr-glow { animation-duration: 2.4s; }
 @media (prefers-reduced-motion: reduce) { .hring { transition: none; } .hr-glow { animation: none; } }
 .tri .tk { gap: 4px; }
+
+/* anéis herói nas telas de detalhe */
+.dhero, .sl-hero .hring { display: grid; justify-items: center; margin: 14px 0 18px; }
+.sl-hero .hring { margin: 12px auto 6px; }
+.hring--md .hr-ring { width: 176px; }
+.hring--md { --w: 12px; }
+.hring--md .hr-val > span { font-size: 48px; }
+.hring--md .hr-val small { font-size: 18px; }
+.hring--sm .hr-ring { width: 128px; }
+.hring--sm { --w: 9px; }
+.hring--sm .hr-val > span { font-size: 34px; }
+.hring--sm .hr-glow { filter: blur(16px); }
+div.hring { cursor: default; }
+.sd-card .st-ring { display: none; }
+.sd-card .st-card { grid-template-columns: 1fr; }
+.sd-card:empty { display: none; }
+
+/* semana: anel da semana e anelzinhos por dia */
+.wk-hero { margin: 4px 0 14px; }
+.wd-ring { width: 36px; height: 36px; display: block; margin: 4px auto 0; transform: rotate(-90deg); }
+.wd-ring circle { fill: none; stroke-width: 3; }
+.wd-ring .wr-t { opacity: .18; }
+.wd-ring .wr-a { stroke-linecap: round; }
+.wd-ring text { transform: rotate(90deg); transform-origin: 18px 18px; fill: var(--text); font: 500 11px var(--font-display, system-ui); }
+.wd.is-future .wd-ring text { fill: var(--text-3); }
+.wd .wd-d, .wd .wd-dots { display: none; }
+
+/* acabamento geral (05/11): pílula de período, números finos, cartões sem borda, toque */
+.seg { padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--text) 7%, transparent); gap: 2px; }
+.seg button { border-radius: 999px; padding: 7px 0; font-weight: 500; transition: background .25s, color .25s; }
+.seg button[aria-selected="true"] { background: color-mix(in srgb, var(--text) 16%, transparent); color: var(--text); box-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.b-big b { font: 200 44px/1 var(--font-display); letter-spacing: -0.02em; }
+.b-big b i { font-size: 17px; }
+.chart .bl-line { stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.card { border-color: transparent; background: linear-gradient(180deg, color-mix(in srgb, var(--text) 5.5%, var(--bg)), color-mix(in srgb, var(--text) 3.5%, var(--bg))); }
+.card, .tile, .load-line, a.b-link, .btn, .seg button, .wd { transition: transform .15s ease, background .25s; }
+.tile:active, .load-line:active, a.card:active, .wd:active, .btn:active { transform: scale(.97); }
+.num, .wk-main .num, .sl-total, .fs-grid b, .tile b, .load-line b { font-weight: 300; }
+.hring.is-word .hr-val > span { font-size: 32px; font-weight: 300; }
+.rh-ring { margin: 6px 0 10px; }
+.rh-ring .rt-sub { margin-top: 8px; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; }
+
+.set-h { margin: 22px 4px 8px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.set-list { padding: 2px 14px; }
+.set-list a { grid-template-columns: 30px 1fr auto; padding: 12px 0; border-top-color: color-mix(in srgb, var(--text) 8%, transparent); }
+.set-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; }
+.set-ic .ic, .set-ic svg { width: 17px; height: 17px; color: #fff; stroke: #fff; }
+.sl-hero .hring .hr-val > span { font-size: 44px; letter-spacing: -0.035em; }

@@ -60,3 +60,26 @@ export function readyColor(v) {
   return `rgb(${READY_STOPS[i].map((c, j) => Math.round(c + (READY_STOPS[i + 1][j] - c) * k)).join(',')})`;
 }
 
+
+/** Anel herói (05/11): arco em degradê até o valor, ponta luminosa, brilho que respira e número que conta.
+ *  stops: cores ao longo do arco (do início ao fim); frac 0–1. animateRings(root) dispara a animação. */
+export function heroRing({ id = '', frac = 0, text = '–', count = null, dec = 0, unit = '', stops = null, color = 'var(--text-3)', sub = '', aria = '', size = '', attrs = '', empty = false }) {
+  const f = empty ? 0 : Math.max(0.015, Math.min(1, frac));
+  const cs = stops ?? [`color-mix(in srgb, ${color} 45%, transparent)`, color];
+  const g = cs.map((c, i) => `${c} calc(var(--p) * ${(i / (cs.length - 1)).toFixed(3)} * 1turn)`).join(', ');
+  const end = cs[cs.length - 1];
+  const tag = id ? 'button type="button"' : 'div';
+  return `<${tag} class="hring${size ? ` hring--${size}` : ''}${empty ? ' is-empty' : ''}"${id ? ` data-ring="${id}"` : ''} data-p="${f}" ${aria ? `aria-label="${aria.replace(/"/g, '&quot;')}"` : ''} ${attrs}
+    style="--grad: conic-gradient(${g}, transparent 0); --end: ${end}; --start: ${cs[0]}">
+    <span class="hr-ring">
+      <span class="hr-glow"></span><span class="hr-track"></span><span class="hr-arc"></span>
+      ${empty ? '' : '<span class="hr-cap"></span><span class="hr-start"></span>'}
+      <span class="hr-val"><span><span${count != null ? ` data-count="${count}" data-dec="${dec}"` : ''}>${text}</span>${unit && !empty ? `<small>${unit}</small>` : ''}</span></span>
+    </span>
+    ${sub ? `<span class="rt-sub">${sub}</span>` : ''}
+  </${id ? 'button' : 'div'}>`;
+}
+export function animateRings(root) {
+  requestAnimationFrame(() => requestAnimationFrame(() => root.querySelectorAll('.hring').forEach((h) => h.style.setProperty('--p', h.dataset.p))));
+}
+export const readyStops = (v) => [0, 0.25, 0.5, 0.75, 1].map((k) => readyColor(v == null ? 0 : v * k));

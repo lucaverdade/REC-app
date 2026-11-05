@@ -4,7 +4,7 @@ import { renderTrain } from './train.js';
 import { renderRace, renderReport } from './race.js';
 import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
-import { ICON, cardHead, countUp, readyColor } from './ui.js';
+import { ICON, cardHead, countUp, readyColor, heroRing, animateRings, readyStops } from './ui.js';
 import { renderActivity } from './activity.js';
 import { renderSleep, renderWeekReview } from './views.js';
 import { recalcHistory, testOne } from './zones.js';
@@ -218,19 +218,9 @@ function ringTile({ id, value, unit = '', frac = 0, color, valColor = '', label,
 
 // anel principal (05/11): sem nome; arco em degradê pelas cores da escala até o valor do dia, ponta luminosa,
 // brilho que respira devagar e número que conta. Animação via --p (CSS @property).
-function heroRing(v, { sub = '', aria = '' } = {}) {
-  const f = v == null ? 0 : Math.max(0.015, Math.min(1, v / 100));
-  const stops = [0, 0.25, 0.5, 0.75, 1].map((k) => `${readyColor(v == null ? 0 : v * k)} calc(var(--p) * ${k} * 1turn)`).join(', ');
-  const end = v == null ? 'var(--text-3)' : readyColor(v);
-  return `<button type="button" class="hring${v == null ? ' is-empty' : ''}" data-ring="ready" data-p="${f}" aria-label="${esc(aria)}" aria-expanded="false" aria-controls="ready-parts"
-    style="--grad: conic-gradient(${stops}, transparent 0); --end: ${end}">
-    <span class="hr-ring">
-      <span class="hr-glow"></span><span class="hr-track"></span><span class="hr-arc"></span>
-      ${v == null ? '' : '<span class="hr-cap"></span><span class="hr-start"></span>'}
-      <span class="hr-val"><span><span${typeof v === 'number' ? ` data-count="${v}"` : ''}>${v ?? '–'}</span>${v == null ? '' : '<small>%</small>'}</span></span>
-    </span>
-    ${sub ? `<span class="rt-sub">${esc(sub)}</span>` : ''}
-  </button>`;
+function heroReady(v, { sub = '', aria = '' } = {}) {
+  return heroRing({ id: 'ready', frac: v == null ? 0 : v / 100, text: v ?? '–', count: typeof v === 'number' ? v : null, unit: '%', stops: v == null ? ['var(--text-3)', 'var(--text-3)'] : readyStops(v),
+    sub: esc(sub), aria, empty: v == null, attrs: 'aria-expanded="false" aria-controls="ready-parts"' });
 }
 
 // linha curta embaixo de cada anel
@@ -511,7 +501,7 @@ function formCard(d) {
 
 
 // ordem e visibilidade dos blocos do Hoje (Ajustes → Personalizar o Hoje; guardado neste aparelho)
-const HOJE_BLOCKS = [['frase', 'Frase do dia'], ['portas', 'Sono · Strain · Corpo'], ['carga', 'Fitness · Fadiga · Forma'], ['treinos', 'Treinos de hoje'], ['registro', 'Registro do dia']];
+const HOJE_BLOCKS = [['frase', 'Frase do dia'], ['portas', 'Sono · Strain · Recuperação'], ['carga', 'Fitness · Fadiga · Forma'], ['treinos', 'Treinos de hoje'], ['registro', 'Registro do dia']];
 function hojePrefs() {
   let p = null; try { p = JSON.parse(localStorage.getItem('rec.hoje') || 'null'); } catch {}
   const known = HOJE_BLOCKS.map((x) => x[0]);
@@ -577,14 +567,16 @@ async function renderRecDetail(date) {
   let d; try { d = todayCache?.[date] ?? await api(`/api/today?date=${date}`); } catch (e) { if (nav === navSeq) screen.querySelector('.empty').textContent = errText(e); return; }
   if (nav !== navSeq) return;
   screen.innerHTML = `<header class="top"><a class="back-link" href="#hoje">‹ Hoje</a></header>
-    <h1 class="td-title">Corpo</h1><p class="td-sub">${esc(cap(fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })))}</p>
-    <div class="b-big"><b style="color:${d.rec == null ? 'var(--text-3)' : readyColor(d.rec)}">${d.rec ?? '–'}</b><small>REC${d.day?.trend ? ` · ${esc(d.day.trend.txt.replace('REC ', ''))}` : ''}</small></div>
+    <h1 class="td-title">Recuperação</h1><p class="td-sub">${esc(cap(fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })))}</p>
+    <section class="dhero">${heroRing({ frac: (d.rec ?? 0) / 100, text: d.rec ?? '–', count: d.rec, stops: readyStops(d.rec), size: 'md', empty: d.rec == null,
+      sub: `REC${d.day?.trend ? ` · ${esc(d.day.trend.txt.replace('REC ', ''))}` : ''}` })}</section>
     <p class="comment">${esc(d.comment)}</p>
     <section class="card contrib is-open"><div><ul>${contribHtml(d.contributors)}</ul></div></section>
     <section class="card">${cardHead('clock', 'Últimos 7 dias')}
       <ol class="week">${d.week.map((w) => `<li class="${w.date === date ? 'is-today' : ''}"><i style="background:${w.rec == null ? 'var(--line)' : readyColor(w.rec)}"></i>${esc(fmtDate(w.date, { weekday: 'narrow' }))}<small>${w.rec ?? '–'}</small></li>`).join('')}</ol>
       ${d.shadowMode ? '<p class="shadow-note">Modo sombra: os portões do plano (HRV ≥ 100, FC de repouso ≤ 41) continuam valendo.</p>' : ''}</section>
     <a class="b-link" href="#tendencias">Tendências do corpo ›</a>`;
+  animateRings(screen); countUp(screen);
 }
 
 // detalhe do Strain: meta, treinos, carga e a curva do dia
@@ -596,13 +588,15 @@ async function renderStrainDetail(date) {
   if (nav !== navSeq) return;
   screen.innerHTML = `<header class="top"><a class="back-link" href="#hoje">‹ Hoje</a></header>
     <h1 class="td-title">Strain</h1><p class="td-sub">${esc(cap(fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })))}</p>
-    <section class="card">${d.day?.target ? strainRing(d.load?.strain ?? 0, d.day.target) : `<div class="b-big"><b style="color:var(--strain)">${d.load?.strain ?? 0}</b><small>Strain do dia</small></div>`}
+    <section class="dhero">${(() => { const st = d.load?.strain ?? 0, tg = d.day?.target?.target;
+      return heroRing({ frac: tg ? st / tg : st / 100, text: st, count: st, color: 'var(--strain)', size: 'md', sub: tg ? `meta ${tg}` : 'Strain do dia' }); })()}</section>
+    <section class="card sd-card">${d.day?.target ? strainRing(d.load?.strain ?? 0, d.day.target) : ''}
       ${d.planned?.length ? plannedHtml(d.planned, d.activities) : ''}</section>
     <section class="card">${cardHead('bolt', 'Treinos', { color: 'var(--strain)' })}${actsHtml(d.activities)}</section>
     <section class="card">${cardHead('trend', 'Carga')}${d.load ? loadStrip(d.load) : ''}</section>
     <section class="card tl" id="tl">${cardHead('clock', d.isToday ? 'Seu dia' : 'O dia')}<p class="empty">Carregando…</p></section>`;
   api(`/api/timeline?date=${date}`).then((t) => { const el = screen.querySelector('#tl'); if (el && nav === navSeq) { el.innerHTML = timelineHtml(t, d.isToday); bindTimeline(screen, t); } }).catch(() => screen.querySelector('#tl')?.remove());
-  countUp(screen);
+  animateRings(screen); countUp(screen);
 }
 
 function render(d) {
@@ -637,7 +631,7 @@ function render(d) {
       const wait = sc == null && d.isToday && d.readyPrev != null ? Math.round(d.readyPrev) : null;
       const shownV = sc ?? wait;
       return `<section class="hero${wait != null ? ' is-wait' : ''}" aria-label="Estou pronto hoje?">
-      ${heroRing(shownV, {
+      ${heroReady(shownV, {
         sub: wait != null ? 'de ontem · esperando a noite' : sc == null && d.isToday ? 'a noite ainda não chegou' : '',
         aria: wait != null ? `Ontem, ${wait}%. A noite de hoje ainda não chegou.` : shownV == null ? 'Sem número hoje.' : `${shownV}% pronto para hoje. Toque para ver o que entrou na conta.` })}
     </section>
@@ -666,10 +660,10 @@ function render(d) {
     </div>
   `;
 
+  animateRings(screen);
   // anéis: animação única ao abrir
   requestAnimationFrame(() => requestAnimationFrame(() => {
     screen.querySelectorAll('.rt-arc').forEach((a) => { a.style.strokeDashoffset = a.dataset.target; });
-    screen.querySelectorAll('.hring').forEach((h) => { h.style.setProperty('--p', h.dataset.p); });
   }));
 
   // Prontidão: abre as quatro partes
@@ -983,14 +977,22 @@ async function renderGarmin() {
 function renderSettings() {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   screen.innerHTML = `
-    <header class="top"><h1>Ajustes</h1><a class="foot-link" href="#hoje">Voltar</a></header>
+    <header class="top"><a class="back-link" href="#hoje">‹ Hoje</a></header>
+    <h1 class="td-title">Ajustes</h1>
+    <p class="set-h">Dados</p>
     <nav class="card set-list">
-      <a href="#garmin">${ICON.heart}<span><b>Garmin</b><small id="set-garmin">Dados, conexão e o que falta completar</small></span><em>›</em></a>
-      <a href="#personalizar">${ICON.check}<span><b>Personalizar o Hoje</b><small>Quais blocos aparecem e em que ordem</small></span><em>›</em></a>
-      <a href="#tema">${ICON.sun}<span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
-      <a href="#tend/calib">${ICON.smile}<span><b>O REC acerta?</b><small>Calibração: REC e Prontidão × como me sinto</small></span><em>›</em></a>
-      <a href="#treinador">${ICON.book}<span><b>Relatório do treinador</b><small id="set-coach">Publicado no GitHub para o chat de treino</small></span><em>›</em></a>
-      <a href="#widget">${ICON.check}<span><b>Widget do iPhone</b><small>O número do dia na tela inicial</small></span><em>›</em></a>
+      <a href="#garmin"><i class="set-ic" style="background:#e2614f">${ICON.heart}</i><span><b>Garmin</b><small id="set-garmin">Dados, conexão e o que falta completar</small></span><em>›</em></a>
+    </nav>
+    <p class="set-h">App</p>
+    <nav class="card set-list">
+      <a href="#personalizar"><i class="set-ic" style="background:#3f93d4">${ICON.check}</i><span><b>Personalizar o Hoje</b><small>Quais blocos aparecem e em que ordem</small></span><em>›</em></a>
+      <a href="#tema"><i class="set-ic" style="background:#a86fd6">${ICON.sun}</i><span><b>Tema</b><small>Fundo e cartões</small></span><em>›</em></a>
+      <a href="#widget"><i class="set-ic" style="background:#1f9e90">${ICON.bolt}</i><span><b>Widget do iPhone</b><small>O número do dia na tela inicial</small></span><em>›</em></a>
+    </nav>
+    <p class="set-h">Métricas e treinador</p>
+    <nav class="card set-list">
+      <a href="#tend/calib"><i class="set-ic" style="background:#d2764a">${ICON.smile}</i><span><b>O REC acerta?</b><small>Calibração × como me sinto</small></span><em>›</em></a>
+      <a href="#treinador"><i class="set-ic" style="background:#6b6d75">${ICON.book}</i><span><b>Relatório do treinador</b><small id="set-coach">Publicado no GitHub para o chat de treino</small></span><em>›</em></a>
     </nav>`;
   api('/api/diag').then((d) => {
     const miss = [d.dias.falta, d.horarios.falta, d.treinos.falta, d.zonas.states.pendente, d.zonas.states.erro, d.rec.falta].filter((x) => x > 0).length;
@@ -1004,7 +1006,7 @@ function renderCustomize() {
   const draw = () => {
     const list = hojePrefs(), name = Object.fromEntries(HOJE_BLOCKS);
     screen.innerHTML = `<header class="top"><h1>Personalizar o Hoje</h1><a class="foot-link" href="#ajustes">Voltar</a></header>
-      <p class="note">O anel da Prontidão fica sempre no topo. Escolha o que aparece embaixo dele e em que ordem.</p>
+      <p class="note">O anel do dia fica sempre no topo. Escolha o que aparece embaixo dele e em que ordem.</p>
       <ul class="card cz-list">${list.map((x, i) => `<li>
         <label><input type="checkbox" data-on="${x.k}" ${x.on ? 'checked' : ''}><span>${esc(name[x.k])}</span></label>
         <span class="cz-mv"><button type="button" data-up="${i}" aria-label="Subir" ${i === 0 ? 'disabled' : ''}>↑</button><button type="button" data-dn="${i}" aria-label="Descer" ${i === list.length - 1 ? 'disabled' : ''}>↓</button></span></li>`).join('')}</ul>
