@@ -62,20 +62,20 @@
     "2026-11-06": [
       {
         "modalidade": "bike",
-        "titulo": "Bike com 3 piques",
+        "titulo": "Bike solta, sem piques",
         "minutos": 40,
-        "zona": "Z1–Z2",
-        "detalhe": "10 min Z1; 20 min Z2 com 3×1 min a RPE 6 e 2 min fácil; 10 min Z1. Pré 40 g. Revisar pneus, câmara, CO2, freios e corrente; treinar a troca de câmara em casa.",
+        "zona": "Z1",
+        "detalhe": "Sono de 6 h 26 (<6,5 h): sem intensidade. 5 min aquec., 30 min Z1 (FC abaixo de 131, RPE 2), 5 min solta. Pré 30 g. Revisar pneus, câmara, CO2, freios e corrente; treinar a troca de câmara em casa.",
         "chave": true,
-        "strain": 63
+        "strain": 40
       },
       {
         "modalidade": "natacao",
-        "titulo": "Natação: ativação",
-        "minutos": 40,
-        "zona": "Z1–Z2",
-        "detalhe": "8 min aquec. 400 m; 22 min principais: 400 m Z2 + 6×100 m a 1:26–1:30 RPE 5–6 com 20 s de pausa + 300 m fácil; 10 min solta. Carbo do dia 440–500 g, pouca fibra à noite, cama às 22:00, sono ≥7 h.",
-        "strain": 72
+        "titulo": "Natação: ativação leve",
+        "minutos": 30,
+        "zona": "Z1",
+        "detalhe": "À noite. 8 min aquec. 400 m; 16 min: 300 m contínuos + 6×50 m soltos a 1:35–1:40/100 m RPE 3 com 20 s de pausa; 6 min solta. Carbo do dia 440–500 g, pouca fibra à noite, cama às 21:40–22:00, sono ≥7,5 h.",
+        "strain": 30
       }
     ],
     "2026-11-07": [
