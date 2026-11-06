@@ -660,10 +660,13 @@ function render(d) {
       ${sessionsHtml(d.planned ?? [], d.activities)}
     </section>`,
       registro: `<section class="card reg">
-      ${cardHead('smile', d.isToday ? 'Registro do dia' : 'Registro', { color: 'var(--accent)', info: 'Como me sinto (1 a 10) e o diário do dia. Marque à noite o que aconteceu: conta para o REC de amanhã; o efeito de cada hábito aparece em Corpo → O que mexe no meu REC.' })}
+      ${cardHead('smile', d.isToday ? 'Registro do dia' : 'Registro', { color: 'var(--accent)', info: 'Como me sinto (1 a 10) e o diário do dia. Noite passada: marque de manhã como foi a noite. Hoje: marque à noite o que aconteceu no dia, conta para o REC de amanhã; o efeito de cada hábito aparece em Corpo → O que mexe no meu REC.' })}
       <div class="feel-dots" role="radiogroup" aria-label="Como me sinto, de 1 a 10">${Array.from({ length: 10 }, (_, i) => i + 1).map((v) => `<button type="button" role="radio" data-feel="${v}" aria-checked="${d.feel === v}">${v}</button>`).join('')}</div>
       <span class="saved" aria-live="polite"></span>
-      ${d.habits ? `<div class="hb-list">${[...d.habits.defs].sort((a, b) => d.habits.on.includes(b.key) - d.habits.on.includes(a.key)).map((h) => `<button type="button" class="hb" data-tag="${h.key}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>` : ''}
+      ${d.habits ? (() => {
+        const grp = (g, t) => { const xs = d.habits.defs.filter((h) => (h.group ?? 'dia') === g); return xs.length ? `<p class="hb-h">${t}</p><div class="hb-list">${xs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" data-night="${g === 'noite'}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>` : ''; };
+        return grp('noite', d.isToday ? 'Noite passada' : 'Noite anterior') + grp('dia', d.isToday ? 'Hoje' : 'No dia');
+      })() : ''}
     </section>`,
     }[k] ?? '')).join('\n')}
 
@@ -719,7 +722,9 @@ function render(d) {
   screen.querySelectorAll('.hb').forEach((b) => b.addEventListener('click', async () => {
     const on = b.getAttribute('aria-pressed') !== 'true';
     b.setAttribute('aria-pressed', String(on));
-    try { await api('/api/tags', { method: 'POST', body: JSON.stringify({ date: todayIso, tag: b.dataset.tag, on }) }); }
+    // a noite pertence ao dia anterior (o efeito é no REC desta manhã)
+    const date = b.dataset.night === 'true' ? addDaysIso(todayIso, -1) : todayIso;
+    try { await api('/api/tags', { method: 'POST', body: JSON.stringify({ date, tag: b.dataset.tag, on }) }); }
     catch { b.setAttribute('aria-pressed', String(!on)); }
   }));
 
@@ -751,7 +756,8 @@ function goDay(step, dir) {
 // deslizar: arrastar para a direita volta um dia; para a esquerda avança
 let sx = null, sy = null;
 screen.addEventListener('touchstart', (e) => {
-  if ((location.hash || '#hoje') !== '#hoje' || e.target.closest('input, .chart-wrap')) { sx = null; return; }
+  // dentro do registro (notas e diário) e de gráficos o arraste não troca o dia
+  if ((location.hash || '#hoje') !== '#hoje' || e.target.closest('input, textarea, .chart-wrap, .reg, .feel-dots')) { sx = null; return; }
   sx = e.touches[0].clientX; sy = e.touches[0].clientY;
 }, { passive: true });
 screen.addEventListener('touchend', (e) => {

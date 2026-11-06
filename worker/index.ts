@@ -5,7 +5,7 @@ import { SPORT_LABEL, sportOf, type Sport } from '../src/sports.ts';
 import { acwr, formZone, pmc, strainHR, ZONE_FALLBACK } from '../src/load.ts';
 import { DISTANCES, predictAll, vdotFromRun, vdotOn, type DistKey } from '../src/predict.ts';
 import { bedtimeTarget, debtLevel, irregularNights, regularity, regularityScore, responseNeed, sleepDebt, sleepNeedTonight, type SleepNight } from '../src/sleep.ts';
-import { HABITS, HABIT_KEYS, impact } from '../src/habits.ts';
+import { HABITS, HABIT_KEYS, NIGHT_KEYS, impact } from '../src/habits.ts';
 import { hrvTrendNow } from '../src/hrvtrend.ts';
 import { illnessAlert } from '../src/illness.ts';
 import { calibration, spearman } from '../src/calibration.ts';
@@ -1011,7 +1011,9 @@ async function todayPayload(env: Env, date: string, req?: Request) {
   const acts = await env.DB.prepare(`SELECT id, time, type, sport, min, km, avghr, maxhr, rpe, z1, z2, z3, z4, z5, ${STRAIN_SQL} strain FROM activities WHERE date = ?1 ORDER BY time`)
     .bind(date).all<{ id: string; time: string; type: string; sport: Sport; min: number; km: number; avghr: number; maxhr: number | null; rpe: number | null; strain: number | null; z1: number | null; z2: number | null; z3: number | null; z4: number | null; z5: number | null }>();
   const feel = await env.DB.prepare('SELECT value FROM feel_notes WHERE date = ?1').bind(date).first<{ value: number }>();
-  const { results: tagRows } = await env.DB.prepare('SELECT tag FROM habit_tags WHERE date = ?1').bind(date).all<{ tag: string }>();
+  // tags do dia (gravadas hoje) + tags da noite passada (gravadas ontem)
+  const { results: tagAll } = await env.DB.prepare('SELECT date, tag FROM habit_tags WHERE date IN (?1, ?2)').bind(date, addDays(date, -1)).all<{ date: string; tag: string }>();
+  const tagRows = tagAll.filter((t) => (NIGHT_KEYS.has(t.tag) ? t.date === addDays(date, -1) : t.date === date));
   const lastSync = await env.DB.prepare('SELECT at, status, detail FROM sync_log ORDER BY id DESC LIMIT 1').first();
   const ln = await loadOn(env, date);
   const phase = req ? (await readPlan(env, req, mondayOf(date)))?.fase ?? null : null;
