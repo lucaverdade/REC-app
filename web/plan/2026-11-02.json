@@ -81,20 +81,20 @@
     "2026-11-07": [
       {
         "modalidade": "bike",
-        "titulo": "SIMULADO: bike",
+        "titulo": "Bike longa Z2 + teste de nutrição",
         "minutos": 150,
-        "zona": "Z3",
-        "detalhe": "Só se HRV ≥95 e FC de repouso ≤41; senão bike Z2 e decido a corrida na hora. 10 min aquec. FC 120–140; 130 min em ritmo de prova RPE 6, FC 147–153; 10 min Z2 antes da T2. Teste de fala aos 60 min. Nutri: pré 50 g 90 min antes; 65 g/h = 163 g, garrafa e barras do min 30 (113 g).",
-        "chave": true,
-        "strain": 425
+        "zona": "Z2",
+        "detalhe": "Sono 5h54 (abaixo de 6 h): o simulado em ritmo de prova sai de hoje. 10 min aquec. FC 120–135; 130 min Z2 FC 135–147, RPE 5, teto 150; 10 min Z1. Teste de fala aos 60 min. O ritmo de prova fica para o longo de 14/11 e a bike de 15/11.",
+        "chave": false,
+        "strain": 285
       },
       {
         "modalidade": "corrida",
-        "titulo": "SIMULADO: corrida",
-        "minutos": 60,
-        "zona": "Z2–Z3",
-        "detalhe": "T2 em até 3 min. 5 min a 6:00–6:10/km; 45 min em ritmo de prova, FC 155–160, nunca mais rápido que 5:15/km; 10 min Z1 a 6:45–7:15/km. Pare se FC >165, dor no pé ou mal-estar. Nutri: gel 25 g aos 20 min + 500 ml com 20 g (~45 g/h); total do dia ~208 g.",
-        "strain": 142
+        "titulo": "T2: mini corrida",
+        "minutos": 15,
+        "zona": "Z1",
+        "detalhe": "Só se o pé estiver em 0–1/10 ao caminhar. T2 em até 3 min; 15 min a 6:40–7:00/km, FC abaixo de 135. Se doer, caminhe e encerre.",
+        "strain": 25
       }
     ],
     "2026-11-08": [
