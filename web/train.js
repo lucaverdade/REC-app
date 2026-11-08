@@ -102,7 +102,7 @@ async function show(screen, api) {
     </div>
     <div id="wk-body"><p class="empty">Carregando…</p></div>`;
   box.querySelectorAll('.vol-nav button').forEach((b) => b.addEventListener('click', () => {
-    offset = Math.max(0, offset + Number(b.dataset.step)); picked = null; body(screen, api);
+    offset = Math.max(-1, offset + Number(b.dataset.step)); picked = null; body(screen, api); // -1 = próxima semana (plano publicado)
   }));
   await body(screen, api);
 }
@@ -139,19 +139,19 @@ async function monthView(box, api) {
 
 async function body(screen, api) {
   const box = screen.querySelector('#wk-body'); if (!box) return;
-  screen.querySelector('.vol-nav [data-step="-1"]').disabled = offset === 0;
+  screen.querySelector('.vol-nav [data-step="-1"]').disabled = offset <= -1;
   let w;
   try { w = await api(`/api/week?offset=${offset}`); }
   catch (e) { if (e.message !== '401') box.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
   screen.querySelector('#wk-title').textContent =
-    `${offset === 0 ? 'Esta semana · ' : ''}${day(w.monday, { day: 'numeric', month: 'short' })} – ${day(w.sunday, { day: 'numeric', month: 'short' })}`;
+    `${offset === 0 ? 'Esta semana · ' : offset === -1 ? 'Próxima semana · ' : ''}${day(w.monday, { day: 'numeric', month: 'short' })} – ${day(w.sunday, { day: 'numeric', month: 'short' })}`;
   if (!picked || !w.days.some((d) => d.date === picked)) picked = (w.days.find((d) => d.isToday) ?? w.days[0]).date;
 
   const sm = w.summary;
   const pct = sm.plannedStrain ? Math.min(100, (sm.strain / sm.plannedStrain) * 100) : null;
   box.innerHTML = `
     <section class="card wk-card">
-      ${cardHead('bolt', offset === 0 ? 'Esta semana' : 'Semana', { color: 'var(--strain)', info: 'Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e zona) dos últimos 120 dias; sem 3 treinos parecidos, vale o do plano ou minutos × peso da zona. Entre 80% e 120% do previsto está no alvo. Na faixa de dias, bolinha cheia: feito; vazada: falta algo.' })}
+      ${cardHead('bolt', offset === 0 ? 'Esta semana' : offset === -1 ? 'Próxima semana' : 'Semana', { color: 'var(--strain)', info: 'Strain previsto: minutos planejados × o seu Strain por minuto típico em treinos parecidos (mesma modalidade e zona) dos últimos 120 dias; sem 3 treinos parecidos, vale o do plano ou minutos × peso da zona. Entre 80% e 120% do previsto está no alvo. Na faixa de dias, bolinha cheia: feito; vazada: falta algo.' })}
       <div class="dhero wk-hero">${heroRing({ frac: sm.plannedStrain ? sm.strain / sm.plannedStrain : Math.min(1, sm.strain / 400), text: nf(sm.strain), count: sm.strain, color: 'var(--strain)', size: 'md',
         sub: `${sm.plannedStrain != null ? `de ${nf(sm.plannedStrain)} previsto · ` : ''}${nf(sm.doneHours, 1)}${sm.plannedHours != null ? ` de ${nf(sm.plannedHours, 1)}` : ''} h` })}</div>
       ${sm.dist ? `<div class="wk-dist">${distBar(sm.dist)}</div>` : ''}

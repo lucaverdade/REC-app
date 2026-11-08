@@ -1843,7 +1843,7 @@ async function handle(req: Request, env: Env): Promise<Response> {
       return json(await strainWeeksPayload(env, n));
     }
     if (url.pathname === '/api/week' && req.method === 'GET') {
-      const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, 0), 156);
+      const offset = Math.min(Math.max(Number(url.searchParams.get('offset')) || 0, -1), 156); // -1: próxima semana
       return json(await weekPayload(env, req, offset));
     }
     if (url.pathname === '/api/trends' && req.method === 'GET') {
