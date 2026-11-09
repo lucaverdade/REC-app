@@ -1,53 +1,65 @@
 {
   "semana": "2026-11-09",
   "fase": "Última semana de carga antes do polimento",
-  "notas": "Provisório: reescrevo na noite de 08/11 com os dados do simulado. Hyrox opcional em dia livre (40 min, sem corrida, RPE ≤6), nunca na sexta.",
+  "notas": "Calor: terça (sem casaco) e quinta (casaco fino) de sala, mais domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia. Se os números piorarem, corta primeiro a academia de quinta, depois a bike solta de quarta; o longo de sábado e a bike de domingo caem por último. Sexta: dormir pelo menos 7 h.",
   "dias": {
     "2026-11-09": [
       {
         "modalidade": "academia",
-        "titulo": "Pernas pesadas (última vez)",
-        "minutos": 50,
-        "detalhe": "À noite, sem natação no dia. Agachamento, terra romeno e afundo: 3–4 séries, 2 repetições de reserva, sem ir à falha. Se perna ou pé não estiverem bem após o simulado, vira academia de superiores.",
-        "chave": true,
-        "strain": 25
+        "titulo": "Pernas leves",
+        "minutos": 40,
+        "zona": null,
+        "detalhe": "À noite. 8 min aquec.; 27 min: agachamento 3×5 RPE 6, stiff 2×6, afundo 2×8 por perna, panturrilha 2×12, sem falha; 5 min solta. Mantém a força sem deixar dor para a T2 de terça.",
+        "chave": false,
+        "strain": 20
       }
     ],
     "2026-11-10": [
       {
         "modalidade": "bike",
-        "titulo": "Calor 1 (sem casaco)",
-        "minutos": 45,
-        "zona": "Z2",
-        "detalhe": "Rolo em quarto fechado, janela fechada, sem casaco, RPE 3–4, teto de FC 160. Pesar antes e depois; repor ~150% do que perder. Não fazer se HRV <100, FC de repouso >41 ou sono <7 h.",
-        "strain": 90
+        "titulo": "T2: bike (calor 1, sem casaco)",
+        "minutos": 60,
+        "zona": "Z1–Z2",
+        "detalhe": "Indoor, sem casaco. 10 min Z1; 40 min Z2, RPE 5; 10 min Z1. Com FC de repouso ≥44 ou HRV abaixo de 90, cai para 30 min.",
+        "chave": true,
+        "strain": 100
+      },
+      {
+        "modalidade": "corrida",
+        "titulo": "T2: corrida",
+        "minutos": 25,
+        "zona": "Z1–Z2",
+        "detalhe": "T2 em até 3 min. 5 min a 6:30–6:40/km; 15 min Z2 a 6:00–6:10; 5 min Z1 a 6:40–7:00. Sai se FC de repouso acima de 42 ou HRV abaixo de 95.",
+        "chave": false,
+        "strain": 40
       },
       {
         "modalidade": "natacao",
         "titulo": "Natação: 4×300 m",
         "minutos": 40,
         "zona": "Z1–Z2",
-        "detalhe": "À noite. 8 min aquec. 400 m fácil; 26 min principais: 4×300 m a 1:30–1:34/100 m RPE 4 com 20 s de pausa + 4×50 m educativo; 6 min solta.",
+        "detalhe": "À noite, RPE 5. 10 min aquec.; 4×300 m com 30 s de pausa; 10 min soltos.",
         "chave": true,
         "strain": 66
       }
     ],
     "2026-11-11": [
       {
-        "modalidade": "bike",
-        "titulo": "Brick: bike",
-        "minutos": 70,
-        "zona": "Z1–Z2",
-        "detalhe": "10 min Z1; 50 min Z2 (FC 131–146); 10 min Z1. Só se HRV ≥100, FC de repouso ≤41 e pé liberado; senão, bike Z2 de 70 min. Nutri: pré 50 g 90 min antes; bike 65 g/h = 76 g; total 141 g com a corrida.",
-        "chave": true,
-        "strain": 120
+        "modalidade": "hyrox",
+        "titulo": "Hyrox",
+        "minutos": 40,
+        "zona": "Z3",
+        "detalhe": "De manhã. Sem correr, RPE até 6.",
+        "chave": false,
+        "strain": 100
       },
       {
-        "modalidade": "corrida",
-        "titulo": "Brick: corrida",
-        "minutos": 25,
-        "zona": "Z1–Z2",
-        "detalhe": "T2 em até 3 min. 5 min a 6:45–7:15/km; 15 min a 6:10–6:40/km; 5 min Z1. 250 ml com ~15 g de carbo.",
+        "modalidade": "bike",
+        "titulo": "Bike solta",
+        "minutos": 40,
+        "zona": "Z1",
+        "detalhe": "Depois do Hyrox. 5 min aquec.; 30 min Z1, FC abaixo de 131, RPE 2; 5 min solta.",
+        "chave": false,
         "strain": 40
       }
     ],
@@ -55,17 +67,20 @@
       {
         "modalidade": "bike",
         "titulo": "Calor 2 (casaco fino)",
-        "minutos": 45,
+        "minutos": 60,
         "zona": "Z2",
-        "detalhe": "Rolo em quarto fechado com 1 camada de manga longa, RPE 3–4, teto de FC 160. Mesma regra de peso e de pausa por mal-estar.",
-        "strain": 90
+        "detalhe": "Indoor, com casaco fino. 5 min Z1; 50 min Z2, RPE 5; 5 min Z1. Sem corrida hoje, por isso a sessão é mais longa.",
+        "chave": false,
+        "strain": 110
       },
       {
         "modalidade": "academia",
         "titulo": "Superiores e core",
-        "minutos": 45,
-        "detalhe": "À noite, leve; sem natação no dia.",
-        "strain": 22
+        "minutos": 40,
+        "zona": null,
+        "detalhe": "À noite. 8 min aquec.; 27 min; 5 min solta. Primeira a cortar se os números piorarem.",
+        "chave": false,
+        "strain": 20
       }
     ],
     "2026-11-13": [
@@ -74,7 +89,8 @@
         "titulo": "Bike solta",
         "minutos": 40,
         "zona": "Z1",
-        "detalhe": "FC abaixo de 131, RPE 2. Sem calor extra: véspera do longo.",
+        "detalhe": "5 min aquec.; 30 min Z1, FC abaixo de 131; 5 min solta. Dormir pelo menos 7 h.",
+        "chave": false,
         "strain": 40
       },
       {
@@ -82,7 +98,7 @@
         "titulo": "Natação: 12×50 m",
         "minutos": 40,
         "zona": "Z1–Z2",
-        "detalhe": "À noite. 8 min aquec. 400 m; 24 min principais: 12×50 m a 0:42–0:44 RPE 5 com 15 s de pausa + 600 m Z2 contínuos; 8 min solta. Cama às 22:00, sono ≥7 h.",
+        "detalhe": "À noite. 10 min aquec.; 12×50 m com 20 s de pausa, ritmo de prova; 10 min soltos.",
         "chave": true,
         "strain": 70
       }
@@ -91,9 +107,9 @@
       {
         "modalidade": "corrida",
         "titulo": "Longo com ritmo de prova",
-        "minutos": 85,
+        "minutos": 80,
         "zona": "Z2–Z3",
-        "detalhe": "Só se o pé liberou e o simulado foi bem; senão 60 min Z1–Z2. 10 min Z1 (6:45–7:15); 17 min Z2 (6:10–6:40); 3×10 min em ritmo de prova (FC 155–160, nunca abaixo de 5:15/km) com 4 min de trote Z1 entre eles; 12 min Z2; 8 min Z1. Nutri: pré 50 g 90 min antes; durante ~47 g/h = 67 g (gel 25 g aos 20 min, gel 25 g aos 55 min, 500 ml com 17 g); total 117 g.",
+        "detalhe": "10 min a 6:40–6:50/km; 10 min Z2 a 6:00–6:10; 3×10 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 5 min leves a 7:00 entre eles; 15 min Z2; 5 min Z1. Para se houver dor aguda na canela ou na panturrilha.",
         "chave": true,
         "strain": 165
       }
@@ -101,19 +117,20 @@
     "2026-11-15": [
       {
         "modalidade": "bike",
-        "titulo": "Longão Z2 ao ar livre",
+        "titulo": "Longão ao ar livre",
         "minutos": 180,
         "zona": "Z2",
-        "detalhe": "Entre 10h e 13h, só Z2 (FC 131–146), Relative Effort abaixo de ~100. 10 min Z1; 160 min Z2; 10 min Z1. Pesar antes e depois, sem roupa, para a taxa de suor. Nutri: pré 50 g; 70 g/h = 210 g no total, garrafa e barras do min 30 (160 g). Este longão cobre o calor 3.",
+        "detalhe": "10 min aquec.; 50 min Z2 (RPE 5, FC 135–147); 15 min esforço de prova (RPE 6, FC 147–153); 35 min Z2; 15 min esforço de prova; 45 min Z2; 10 min Z1.",
         "chave": true,
-        "strain": 340
+        "strain": 370
       },
       {
         "modalidade": "corrida",
-        "titulo": "Mini-corrida pós-bike",
+        "titulo": "T2: mini-corrida",
         "minutos": 10,
         "zona": "Z1",
-        "detalhe": "Só se o pé estiver liberado: 10 min a 6:45–7:15/km, FC ≤140.",
+        "detalhe": "Logo ao descer da bike, 10 min Z1.",
+        "chave": false,
         "strain": 10
       }
     ]
