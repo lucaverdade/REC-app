@@ -375,7 +375,13 @@ function morningHtml(d) {
   const tiles = [
     { k: 'Noite', v: n?.hours != null ? hmm(n.hours) : '–', c: 'var(--sleep)', bar: n?.hours != null && base ? Math.min(1, n.hours / base) : null,
       s: base ? `base ${hmm(base)}` : '' },
-    d.hrvTrend ? { k: 'HRV', v: `${d.hrvTrend.mean7}<small> ms</small>`, c: HC[d.hrvTrend.cls], s: `${hrvArrow} ${d.hrvTrend.label.toLowerCase()}` } : null,
+    // HRV da noite (o que entrou no REC de hoje), com a média de 7 noites embaixo
+    (() => {
+      const c = d.contributors?.find((x) => x.key === 'hrv'), night = c?.value ? parseFloat(String(c.value)) : null;
+      if (night == null || Number.isNaN(night)) return d.hrvTrend ? { k: 'HRV 7 noites', v: `${d.hrvTrend.mean7}<small> ms</small>`, c: HC[d.hrvTrend.cls], s: `${hrvArrow} ${d.hrvTrend.label.toLowerCase()}` } : null;
+      const col = c.z == null ? 'var(--text)' : c.z >= 0.5 ? 'var(--good)' : c.z <= -1 ? 'var(--bad)' : c.z <= -0.5 ? 'var(--warn)' : 'var(--text)';
+      return { k: 'HRV da noite', v: `${Math.round(night)}<small> ms</small>`, c: col, s: d.hrvTrend ? `7 noites ${d.hrvTrend.mean7} ${hrvArrow}` : c.base ? `base ${c.base}` : '' };
+    })(),
     d.load?.formPct != null ? { k: 'Forma', v: `${sg(d.load.formPct)}<small>%</small>`, c: `var(--z-${d.load.zone?.key ?? 'neutro'})`, s: d.load.zone?.label ?? '' } : null,
   ].filter(Boolean);
   let k = 0; const st = () => `style="--i:${k++}"`;
