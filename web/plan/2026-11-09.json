@@ -66,12 +66,11 @@
       },
       {
         "modalidade": "natacao",
-        "titulo": "Natação: 4×300 m",
+        "titulo": "Natação com o professor",
         "minutos": 40,
         "zona": "Z1–Z2",
-        "detalhe": "À noite, RPE 5. 10 min aquec.; 4×300 m com 30 s de pausa; 10 min soltos. Só se não empurrar a hora de dormir; se o trabalho acabar muito tarde, pula.",
-        "chave": false,
-        "strain": 66
+        "detalhe": "À noite, treino da piscina com o professor.",
+        "chave": false
       }
     ],
     "2026-11-13": [
@@ -86,23 +85,22 @@
       },
       {
         "modalidade": "natacao",
-        "titulo": "Natação: 12×50 m",
+        "titulo": "Natação com o professor",
         "minutos": 40,
         "zona": "Z1–Z2",
-        "detalhe": "Opcional, à noite. Só se dormir 6 h ou mais na noite anterior; com menos, pula e não repõe. 10 min aquec.; 12×50 m com 20 s de pausa, ritmo de prova; 10 min soltos.",
-        "chave": false,
-        "strain": 70
+        "detalhe": "Opcional, à noite: só se dormir 6 h ou mais; termina até as 20:00 para cama às 21:45. Treino da piscina com o professor.",
+        "chave": false
       }
     ],
     "2026-11-14": [
       {
         "modalidade": "corrida",
         "titulo": "Longo com ritmo de prova",
-        "minutos": 80,
+        "minutos": 90,
         "zona": "Z2–Z3",
-        "detalhe": "10 min a 6:40–6:50/km; 10 min Z2 a 6:00–6:10; 3×10 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 5 min leves a 7:00 entre eles; 15 min Z2; 5 min Z1. Para se houver dor aguda na canela ou na panturrilha. Decisão pela manhã: com HRV abaixo de 95 ou FC de repouso acima de 42, vira 50 min em Z2, sem os blocos. Se a FC passar de 160 para manter 5:20–5:30, ou o ritmo a FC 155–158 ficar mais lento que 5:35/km, cancela a bike de domingo.",
+        "detalhe": "10 min a 6:40–6:50/km; 10 min Z2 a 6:00–6:10; 3×10 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 5 min leves a 7:00 entre eles; 25 min Z2 a 6:00–6:10; 5 min Z1. Decisão pela manhã: com HRV abaixo de 95 ou FC de repouso acima de 42, vira 50 min em Z2, sem os blocos. Se a FC passar de 160 para manter 5:20–5:30, ou o ritmo a FC 155–158 ficar mais lento que 5:35/km, cancela a bike de domingo. Para se houver dor aguda na canela ou na panturrilha.",
         "chave": true,
-        "strain": 165
+        "strain": 185
       }
     ],
     "2026-11-15": [
@@ -117,12 +115,12 @@
       },
       {
         "modalidade": "corrida",
-        "titulo": "T2: mini-corrida",
-        "minutos": 10,
-        "zona": "Z1",
-        "detalhe": "Logo ao descer da bike, 10 min Z1.",
+        "titulo": "T2: corrida",
+        "minutos": 20,
+        "zona": "Z1–Z2",
+        "detalhe": "Logo ao descer da bike. 5 min Z1 a 6:40/km; 15 min Z2 a 6:10–6:20, FC até 150. Para se houver dor aguda na canela ou na panturrilha. Cancela se a bike de domingo for cancelada.",
         "chave": false,
-        "strain": 10
+        "strain": 35
       }
     ]
   }
