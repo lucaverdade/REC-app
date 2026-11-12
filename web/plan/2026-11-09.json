@@ -66,10 +66,10 @@
       },
       {
         "modalidade": "natacao",
-        "titulo": "Natação com o professor",
+        "titulo": "Natação",
         "minutos": 40,
         "zona": "Z1–Z2",
-        "detalhe": "À noite, treino da piscina com o professor.",
+        "detalhe": "À noite.",
         "chave": false
       }
     ],
@@ -85,10 +85,10 @@
       },
       {
         "modalidade": "natacao",
-        "titulo": "Natação com o professor",
+        "titulo": "Natação",
         "minutos": 40,
         "zona": "Z1–Z2",
-        "detalhe": "Opcional, à noite: só se dormir 6 h ou mais; termina até as 20:00 para cama às 21:45. Treino da piscina com o professor.",
+        "detalhe": "À noite, opcional: só se dormir 6 h ou mais.",
         "chave": false
       }
     ],
