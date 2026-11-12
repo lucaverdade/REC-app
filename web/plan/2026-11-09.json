@@ -1,7 +1,7 @@
 {
   "semana": "2026-11-09",
   "fase": "Última semana de carga antes do polimento",
-  "notas": "Calor: terça (sem casaco) e quinta (casaco fino) de sala, mais domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia. Se os números piorarem, corta primeiro a academia de quinta, depois a bike solta de quarta; o longo de sábado e a bike de domingo caem por último. Sexta: dormir pelo menos 7 h.",
+  "notas": "Calor: terça (sem casaco) e quinta (2–3 camadas, sem plástico) em sala fechada, mais domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia. Se os números piorarem, corta primeiro a natação de sexta; o longo de sábado e a bike de domingo caem por último. Sexta: sono vale mais que natação; cama às 21:45 para o longo de sábado.",
   "dias": {
     "2026-11-09": [
       {
@@ -32,15 +32,6 @@
         "detalhe": "T2 em até 3 min. 5 min a 6:30–6:40/km; 15 min Z2 a 6:00–6:10; 5 min Z1 a 6:40–7:00. Sai se FC de repouso acima de 42 ou HRV abaixo de 95.",
         "chave": false,
         "strain": 40
-      },
-      {
-        "modalidade": "natacao",
-        "titulo": "Natação: 4×300 m",
-        "minutos": 40,
-        "zona": "Z1–Z2",
-        "detalhe": "À noite, RPE 5. 10 min aquec.; 4×300 m com 30 s de pausa; 10 min soltos.",
-        "chave": true,
-        "strain": 66
       }
     ],
     "2026-11-11": [
@@ -66,21 +57,21 @@
     "2026-11-12": [
       {
         "modalidade": "bike",
-        "titulo": "Calor 2 (casaco fino)",
-        "minutos": 60,
+        "titulo": "Calor 2 (casacos)",
+        "minutos": 75,
         "zona": "Z2",
-        "detalhe": "Indoor, com casaco fino. 5 min Z1; 50 min Z2, RPE 5; 5 min Z1. Sem corrida hoje, por isso a sessão é mais longa.",
+        "detalhe": "Indoor, quarto fechado, ventilador desligado, 2–3 camadas, sem plástico. 10 min Z1; 55 min Z2, RPE 5, FC em Z2 (teto de segurança 160); 10 min Z1 tirando os casacos aos poucos. Pesar antes e depois.",
         "chave": false,
-        "strain": 110
+        "strain": 130
       },
       {
-        "modalidade": "academia",
-        "titulo": "Superiores e core",
+        "modalidade": "natacao",
+        "titulo": "Natação: 4×300 m",
         "minutos": 40,
-        "zona": null,
-        "detalhe": "À noite. 8 min aquec.; 27 min; 5 min solta. Primeira a cortar se os números piorarem.",
+        "zona": "Z1–Z2",
+        "detalhe": "À noite, RPE 5. 10 min aquec.; 4×300 m com 30 s de pausa; 10 min soltos. Só se não empurrar a hora de dormir; se o trabalho acabar muito tarde, pula.",
         "chave": false,
-        "strain": 20
+        "strain": 66
       }
     ],
     "2026-11-13": [
@@ -89,7 +80,7 @@
         "titulo": "Bike solta",
         "minutos": 40,
         "zona": "Z1",
-        "detalhe": "5 min aquec.; 30 min Z1, FC abaixo de 131; 5 min solta. Dormir pelo menos 7 h.",
+        "detalhe": "Em qualquer horário que o sono permitir. 5 min aquec.; 30 min Z1, FC abaixo de 131; 5 min solta. Cama às 21:45.",
         "chave": false,
         "strain": 40
       },
@@ -98,8 +89,8 @@
         "titulo": "Natação: 12×50 m",
         "minutos": 40,
         "zona": "Z1–Z2",
-        "detalhe": "À noite. 10 min aquec.; 12×50 m com 20 s de pausa, ritmo de prova; 10 min soltos.",
-        "chave": true,
+        "detalhe": "Opcional, à noite. Só se dormir 6 h ou mais na noite anterior; com menos, pula e não repõe. 10 min aquec.; 12×50 m com 20 s de pausa, ritmo de prova; 10 min soltos.",
+        "chave": false,
         "strain": 70
       }
     ],
@@ -109,7 +100,7 @@
         "titulo": "Longo com ritmo de prova",
         "minutos": 80,
         "zona": "Z2–Z3",
-        "detalhe": "10 min a 6:40–6:50/km; 10 min Z2 a 6:00–6:10; 3×10 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 5 min leves a 7:00 entre eles; 15 min Z2; 5 min Z1. Para se houver dor aguda na canela ou na panturrilha.",
+        "detalhe": "10 min a 6:40–6:50/km; 10 min Z2 a 6:00–6:10; 3×10 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 5 min leves a 7:00 entre eles; 15 min Z2; 5 min Z1. Para se houver dor aguda na canela ou na panturrilha. Decisão pela manhã: com HRV abaixo de 95 ou FC de repouso acima de 42, vira 50 min em Z2, sem os blocos. Se a FC passar de 160 para manter 5:20–5:30, ou o ritmo a FC 155–158 ficar mais lento que 5:35/km, cancela a bike de domingo.",
         "chave": true,
         "strain": 165
       }
@@ -118,11 +109,11 @@
       {
         "modalidade": "bike",
         "titulo": "Longão ao ar livre",
-        "minutos": 180,
+        "minutos": 150,
         "zona": "Z2",
-        "detalhe": "10 min aquec.; 50 min Z2 (RPE 5, FC 135–147); 15 min esforço de prova (RPE 6, FC 147–153); 35 min Z2; 15 min esforço de prova; 45 min Z2; 10 min Z1.",
+        "detalhe": "10 min aquec.; 40 min Z2 (RPE 5, FC 135–147); 15 min esforço de prova (RPE 6, FC 147–153); 30 min Z2; 15 min esforço de prova; 30 min Z2; 10 min Z1.",
         "chave": true,
-        "strain": 370
+        "strain": 310
       },
       {
         "modalidade": "corrida",
