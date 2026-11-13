@@ -1,0 +1,144 @@
+{
+  "semana": "2026-11-16",
+  "fase": "Polimento, semana 1 de 2",
+  "notas": "Volume cai para ~7,5 h e os toques de ritmo de prova continuam. Calor: segunda, quarta, sexta (rolo, com camadas) e domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2. Natação 3 vezes (terça, quinta, domingo), a terceira leve. Cama às 21:45.",
+  "dias": {
+    "2026-11-16": [
+      {
+        "modalidade": "bike",
+        "titulo": "Calor (casacos)",
+        "minutos": 45,
+        "zona": "Z1–Z2",
+        "detalhe": "Rolo, quarto fechado, ventilador desligado, 2–3 camadas, sem plástico. 5 min Z1; 35 min Z1–Z2 em RPE 3–4 (não aumente a carga para subir a FC: coloque camada); 5 min Z1. A FC deve ficar 10–15 bpm acima do normal para esse esforço (cerca de 130–140); teto 150, acima disso tira uma camada. Pesar antes e depois. Reabsorção do fim de semana e manutenção da aclimatação.",
+        "chave": false,
+        "strain": 60
+      },
+      {
+        "modalidade": "academia",
+        "titulo": "Superiores e core",
+        "minutos": 30,
+        "zona": null,
+        "detalhe": "À noite. 6 min aquec.; 20 min RPE 6; 4 min solta. Sem carga de pernas.",
+        "chave": false,
+        "strain": 15
+      }
+    ],
+    "2026-11-17": [
+      {
+        "modalidade": "bike",
+        "titulo": "T2: bike",
+        "minutos": 40,
+        "zona": "Z2",
+        "detalhe": "Indoor, sem casaco. 10 min Z1 (FC abaixo de 131); 15 min Z2 (135–147, RPE 5); 5 min esforço de prova (147–153, RPE 6); 5 min Z1; 5 min esforço de prova.",
+        "chave": true,
+        "strain": 75
+      },
+      {
+        "modalidade": "corrida",
+        "titulo": "T2: corrida",
+        "minutos": 25,
+        "zona": "Z2–Z3",
+        "detalhe": "T2 em até 3 min. 3 min a 6:40/km; 3 min a 6:00; 12 min a 5:25–5:30 (GAP, FC 155–158); 3 min Z1 a 6:40; 4 min soltos. Sai se FC de repouso acima de 42 ou HRV abaixo de 95. Para se houver dor aguda na canela ou na panturrilha.",
+        "chave": true,
+        "strain": 52
+      },
+      {
+        "modalidade": "natacao",
+        "titulo": "Natação",
+        "minutos": 40,
+        "zona": "Z1–Z2",
+        "detalhe": "À noite.",
+        "chave": false
+      }
+    ],
+    "2026-11-18": [
+      {
+        "modalidade": "hyrox",
+        "titulo": "Hyrox",
+        "minutos": 30,
+        "zona": "Z3",
+        "detalhe": "De manhã. 8 min aquec.; 18 min sem correr, teto de FC 150 (acima disso, desacelera); 4 min solta. É o último antes da prova.",
+        "chave": false,
+        "strain": 75
+      },
+      {
+        "modalidade": "bike",
+        "titulo": "Calor (casacos)",
+        "minutos": 45,
+        "zona": "Z1–Z2",
+        "detalhe": "Rolo, quarto fechado, ventilador desligado, 2–3 camadas, sem plástico. 5 min Z1; 35 min Z1–Z2 em RPE 3–4 (não aumente a carga para subir a FC: coloque camada); 5 min Z1. A FC deve ficar 10–15 bpm acima do normal para esse esforço (cerca de 130–140); teto 150, acima disso tira uma camada. Pesar antes e depois. Depois do Hyrox, bem fácil. À noite, banho quente opcional de 30–35 min a 40 °C (uma vez nesta semana).",
+        "chave": false,
+        "strain": 60
+      }
+    ],
+    "2026-11-19": [
+      {
+        "modalidade": "bike",
+        "titulo": "T2: bike",
+        "minutos": 30,
+        "zona": "Z2",
+        "detalhe": "Indoor, sem casaco. 10 min Z1; 12 min Z2 (135–147, RPE 5); 3 min esforço de prova (147–153, RPE 6); 2 min Z1; 3 min esforço de prova.",
+        "chave": true,
+        "strain": 54
+      },
+      {
+        "modalidade": "corrida",
+        "titulo": "T2: corrida",
+        "minutos": 15,
+        "zona": "Z2–Z3",
+        "detalhe": "T2 em até 3 min. 3 min a 6:40/km; 3 min a 6:00; 7 min a 5:25–5:30 (GAP, FC 155–158); 2 min Z1 a 6:40. Sai se FC de repouso acima de 42 ou HRV abaixo de 95.",
+        "chave": true,
+        "strain": 32
+      },
+      {
+        "modalidade": "natacao",
+        "titulo": "Natação",
+        "minutos": 40,
+        "zona": "Z1–Z2",
+        "detalhe": "À noite.",
+        "chave": false
+      }
+    ],
+    "2026-11-20": [
+      {
+        "modalidade": "bike",
+        "titulo": "Calor (casacos)",
+        "minutos": 45,
+        "zona": "Z1–Z2",
+        "detalhe": "Rolo, quarto fechado, ventilador desligado, 2–3 camadas, sem plástico. 5 min Z1; 35 min Z1–Z2 em RPE 3–4 (não aumente a carga para subir a FC: coloque camada); 5 min Z1. A FC deve ficar 10–15 bpm acima do normal para esse esforço (cerca de 130–140); teto 150, acima disso tira uma camada. Pesar antes e depois. Véspera da corrida de sábado: sem Hyrox, sem academia. Cama às 21:45.",
+        "chave": false,
+        "strain": 60
+      }
+    ],
+    "2026-11-21": [
+      {
+        "modalidade": "corrida",
+        "titulo": "Ritmo de prova (último)",
+        "minutos": 50,
+        "zona": "Z2–Z3",
+        "detalhe": "10 min a 6:40–6:50/km; 10 min a 6:00–6:10; 2×8 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 4 min a 7:00 entre; 5 min Z2 a 6:00–6:10; 5 min Z1. Com HRV abaixo de 95 ou FC de repouso acima de 42, vira 30 min em Z2. Para se houver dor aguda na canela ou na panturrilha.",
+        "chave": true,
+        "strain": 97
+      }
+    ],
+    "2026-11-22": [
+      {
+        "modalidade": "bike",
+        "titulo": "Bike ao ar livre com nutrição de prova",
+        "minutos": 60,
+        "zona": "Z2",
+        "detalhe": "Entre 10h e 13h, calor natural. 10 min Z1; 15 min Z2 (135–147, RPE 5); 8 min esforço de prova (147–153, RPE 6); 4 min Z1; 8 min esforço de prova; 10 min Z2; 5 min Z1. Nutrição de prova, 70 g/h de carbo, sem subir.",
+        "chave": true,
+        "strain": 117
+      },
+      {
+        "modalidade": "natacao",
+        "titulo": "Natação",
+        "minutos": 40,
+        "zona": "Z1–Z2",
+        "detalhe": "À tarde, depois da bike. Leve.",
+        "chave": false
+      }
+    ]
+  }
+}
