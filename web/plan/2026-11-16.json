@@ -1,7 +1,7 @@
 {
   "semana": "2026-11-16",
   "fase": "Polimento, semana 1 de 2",
-  "notas": "Volume cai para ~7,5 h e os toques de ritmo de prova continuam. Calor: segunda, quarta, sexta (rolo, com camadas) e domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2. Natação 3 vezes (terça, quinta, domingo), a terceira leve. Cama às 21:45.",
+  "notas": "Volume cai para ~7,5 h e os toques de ritmo de prova continuam. Calor: segunda, quarta, sexta (rolo, com camadas) e domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2. Natação 3 vezes (terça, quinta, domingo), a terceira leve. Cama às 21:45. Banho quente de 30 min a 40 °C na quarta 18 e no sábado 21 (e na segunda 23), no mínimo 90 min antes de dormir.",
   "dias": {
     "2026-11-16": [
       {
@@ -66,7 +66,7 @@
         "titulo": "Calor (casacos)",
         "minutos": 45,
         "zona": "Z1–Z2",
-        "detalhe": "Rolo, quarto fechado, ventilador desligado, 2–3 camadas, sem plástico. 5 min Z1; 35 min Z1–Z2 em RPE 3–4 (não aumente a carga para subir a FC: coloque camada); 5 min Z1. A FC deve ficar 10–15 bpm acima do normal para esse esforço (cerca de 130–140); teto 150, acima disso tira uma camada. Pesar antes e depois. Depois do Hyrox, bem fácil. À noite, banho quente opcional de 30–35 min a 40 °C (uma vez nesta semana).",
+        "detalhe": "Rolo, quarto fechado, ventilador desligado, 2–3 camadas, sem plástico. 5 min Z1; 35 min Z1–Z2 em RPE 3–4 (não aumente a carga para subir a FC: coloque camada); 5 min Z1. A FC deve ficar 10–15 bpm acima do normal para esse esforço (cerca de 130–140); teto 150, acima disso tira uma camada. Pesar antes e depois. Depois do Hyrox, bem fácil. Banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir; sem banho frio depois; pese antes e depois e reponha 500 ml com sal.",
         "chave": false,
         "strain": 60
       }
@@ -116,7 +116,7 @@
         "titulo": "Ritmo de prova (último)",
         "minutos": 50,
         "zona": "Z2–Z3",
-        "detalhe": "10 min a 6:40–6:50/km; 10 min a 6:00–6:10; 2×8 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 4 min a 7:00 entre; 5 min Z2 a 6:00–6:10; 5 min Z1. Com HRV abaixo de 95 ou FC de repouso acima de 42, vira 30 min em Z2. Para se houver dor aguda na canela ou na panturrilha.",
+        "detalhe": "10 min a 6:40–6:50/km; 10 min a 6:00–6:10; 2×8 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 4 min a 7:00 entre; 5 min Z2 a 6:00–6:10; 5 min Z1. Com HRV abaixo de 95 ou FC de repouso acima de 42, vira 30 min em Z2. Para se houver dor aguda na canela ou na panturrilha. Depois, banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; reponha 500 ml com sal.",
         "chave": true,
         "strain": 97
       }
