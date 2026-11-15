@@ -77,6 +77,13 @@ function dayHtml(d) {
 // três visões (04/11): Semana (planejado × feito), Mês (calendário) e Evolução (tudo de treino em cartões)
 let mode = (() => { try { return localStorage.getItem('rec.trmode') || 'semana'; } catch { return 'semana'; } })();
 let monthOff = 0;
+// abre Treino → Semana numa semana específica (vem do Progresso: #treino/<segunda>)
+export function setWeek(monday) {
+  const mon = (iso) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7)); return t; };
+  const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  offset = Math.max(-1, Math.round((mon(today) - mon(monday)) / (7 * 864e5))); picked = null; mode = 'semana';
+}
+
 export async function renderTrain(screen, api) {
   document.documentElement.style.setProperty('--rec', 'var(--text-3)');
   screen.innerHTML = `
@@ -145,7 +152,8 @@ async function body(screen, api) {
   catch (e) { if (e.message !== '401') box.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
   screen.querySelector('#wk-title').textContent =
     `${offset === 0 ? 'Esta semana · ' : offset === -1 ? 'Próxima semana · ' : ''}${day(w.monday, { day: 'numeric', month: 'short' })} – ${day(w.sunday, { day: 'numeric', month: 'short' })}`;
-  if (!picked || !w.days.some((d) => d.date === picked)) picked = (w.days.find((d) => d.isToday) ?? w.days[0]).date;
+  // semana passada: abre no primeiro dia com treino
+  if (!picked || !w.days.some((d) => d.date === picked)) picked = (w.days.find((d) => d.isToday) ?? w.days.find((d) => d.executed?.length) ?? w.days[0]).date;
 
   const sm = w.summary;
   const pct = sm.plannedStrain ? Math.min(100, (sm.strain / sm.plannedStrain) * 100) : null;
@@ -179,6 +187,12 @@ async function body(screen, api) {
     </ol>
 
     <section class="card td" id="td">${dayHtml(w.days.find((d) => d.date === picked))}</section>
+    ${(() => { // todos os treinos feitos na semana, numa lista só
+      const ex = w.days.flatMap((d) => d.executed.map((e) => ({ ...e, date: d.date })));
+      if (!ex.length) return '';
+      return `<section class="card wk-all">${cardHead('stopwatch', 'Treinos da semana', { color: 'var(--text-2)' })}<ul class="wk-list">${ex.map((e) => `<li><a href="#atv/${encodeURIComponent(e.id)}" style="--c:var(--${e.sport}, var(--text-3))">
+        <span class="wl-d">${esc(day(e.date, { weekday: 'short', day: 'numeric' }))}</span><span class="wl-n"><b>${esc(e.label)}</b><small>${e.min ? `${Math.round(e.min)} min` : ''}${e.km ? ` · ${nf(e.km, 1)} km` : ''}</small></span>${e.strain != null ? `<em>${e.strain}</em>` : ''}<i>›</i></a></li>`).join('')}</ul></section>`;
+    })()}
 `;
 
   // resumo da semana: semanas passadas, e a atual a partir de domingo

@@ -726,7 +726,7 @@ function drawProgress(box, d) {
   };
   svg.addEventListener('pointerdown', (e) => { show(e.clientX); });
   svg.addEventListener('pointermove', (e) => show(e.clientX)); // touch-action: pan-y deixa a rolagem vertical e entrega o arraste horizontal
-  tip.addEventListener('click', () => { if (tip.dataset.wk) location.hash = `#semana/${tip.dataset.wk}`; });
+  tip.addEventListener('click', () => { if (tip.dataset.wk) location.hash = `#treino/${tip.dataset.wk}`; });
   // começa mostrando a semana atual
   requestAnimationFrame(() => { const r = svg.getBoundingClientRect(); show(r.left + (X(n - 1) / VW) * r.width); });
 }

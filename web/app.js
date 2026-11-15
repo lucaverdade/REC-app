@@ -1,6 +1,6 @@
 // REC — app. Sem framework.
 import { renderTrends, renderProgress, renderTrendDetail, zoneOfPct, FORM_ZONES } from './trends.js';
-import { renderTrain } from './train.js';
+import { renderTrain, setWeek } from './train.js';
 import { renderRace, renderReport } from './race.js';
 import { reviewHtml } from './review.js';
 import { renderShare } from './share.js';
@@ -1174,7 +1174,7 @@ function route() {
   const h = location.hash || '#hoje';
   navAnim(h);
   document.querySelectorAll('.tab[href]').forEach((t) => {
-    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') || h === '#progresso' ? '#treino' : h.startsWith('#sono/') || h.startsWith('#rec/') || h.startsWith('#strain/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h === '#treinador' || h === '#personalizar' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
+    const on = t.getAttribute('href') === (h.startsWith('#relatorio/') ? '#prova' : h.startsWith('#tend/') ? (h === '#tend/calib' ? '#hoje' : '#tendencias') : h.startsWith('#semana/') || h === '#progresso' || h.startsWith('#treino/') ? '#treino' : h.startsWith('#sono/') || h.startsWith('#rec/') || h.startsWith('#strain/') ? '#hoje' : h === '#garmin' || h === '#tema' || h === '#ajustes' || h === '#widget' || h === '#treinador' || h === '#personalizar' || h.startsWith('#atv/') || h.startsWith('#card/') ? '#hoje' : h);
     t.classList.toggle('is-active', on);
     if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
@@ -1193,6 +1193,7 @@ function route() {
   else if (h === '#personalizar') renderCustomize();
   else if (h === '#tendencias') renderTrends(page(), api);
   else if (h === '#treino') renderTrain(page(), api);
+  else if (h.startsWith('#treino/')) { setWeek(h.slice(8)); history.replaceState(null, '', '#treino'); renderTrain(page(), api); }
   else if (h === '#prova') renderRace(page(), api);
   else if (h.startsWith('#relatorio/')) renderReport(page(), api, h.slice(11));
   else if (h.startsWith('#tend/')) renderTrendDetail(page(), api, h.slice(6));
