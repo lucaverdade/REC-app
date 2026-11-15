@@ -1,7 +1,7 @@
 {
   "semana": "2026-11-09",
   "fase": "Última semana de carga antes do polimento",
-  "notas": "Calor: terça (sem casaco) e quinta (2–3 camadas, sem plástico) em sala fechada, mais domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia. Se os números piorarem, corta primeiro a natação de sexta; o longo de sábado e a bike de domingo caem por último. Sexta: sono vale mais que natação; cama às 21:45 para o longo de sábado.",
+  "notas": "Calor: terça (sem casaco) e quinta (2–3 camadas, sem plástico) em sala fechada, mais domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia. Se os números piorarem, corta primeiro a natação de sexta; o longo de sábado e a bike de domingo caem por último. Sexta: sono vale mais que natação; cama às 21:45 para o longo de sábado. Domingo 15 ajustado de manhã para bike de 60 min, sem T2, por HRV 94 e sono 6h50.",
   "dias": {
     "2026-11-09": [
       {
@@ -106,21 +106,12 @@
     "2026-11-15": [
       {
         "modalidade": "bike",
-        "titulo": "Longão ao ar livre",
-        "minutos": 150,
+        "titulo": "Bike ao ar livre com nutrição de prova",
+        "minutos": 60,
         "zona": "Z2",
-        "detalhe": "10 min aquec.; 40 min Z2 (RPE 5, FC 135–147); 15 min esforço de prova (RPE 6, FC 147–153); 30 min Z2; 15 min esforço de prova; 30 min Z2; 10 min Z1.",
         "chave": true,
-        "strain": 310
-      },
-      {
-        "modalidade": "corrida",
-        "titulo": "T2: corrida",
-        "minutos": 30,
-        "zona": "Z1–Z2",
-        "detalhe": "Logo ao descer da bike. 5 min Z1 a 6:40/km; 20 min a 6:00–6:10, FC até 150 (ritmo dos primeiros km da prova); 5 min Z1 a 6:40. Corta para 15 min se o esforço ao descer da bike passar de RPE 7. Para se houver dor aguda na canela ou na panturrilha. Cancela se a bike de domingo for cancelada.",
-        "chave": false,
-        "strain": 50
+        "strain": 115,
+        "detalhe": "A partir das 10h, calor natural. 10 min Z1 (FC abaixo de 131); 35 min Z2 (RPE 5, FC 135–147); 10 min esforço de prova (RPE 6, FC 147–153); 5 min Z1. Carbo de 70 g/h a partir do minuto 10, com café da manhã com carboidrato antes. Teste do macaquinho na bike inteira. Se a perna estiver pesada nos primeiros 10 min em Z1, corta para 45 min só em Z1, sem o bloco de esforço. Sem corrida de T2 hoje (HRV 94, abaixo de 95)."
       }
     ]
   }
