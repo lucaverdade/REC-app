@@ -1575,7 +1575,7 @@ async function syncIssueOf(env: Env, date: string, lastSync: Record<string, unkn
 // --- cálculos prontos (03/11 → 04/11): respostas GET guardadas no D1 por "versão dos dados" ---
 // Qualquer escrita (sincronização com dado novo, nota, diário, recálculo…) sobe a versão e invalida tudo.
 // Campos que dependem do relógio (última busca, aviso de sincronização) são refeitos a cada abertura.
-const CACHEABLE = new Set(['/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
+const CACHEABLE = new Set(['/api/vol-weeks', '/api/today', '/api/longtrend', '/api/strain-weeks', '/api/week', '/api/trends', '/api/load-insights', '/api/stress31',
   '/api/habits', '/api/year', '/api/predictions', '/api/race', '/api/review', '/api/activity', '/api/hrvtrend', '/api/calibration', '/api/day', '/api/widget', '/api/race-report', '/api/zones-dist', '/api/ready-series', '/api/month', '/api/sleep']);
 const CACHE_TTL = 30 * 60e3; // também expira em 30 min (plano novo publicado, virada de hora)
 async function dataVer(env: Env) {
@@ -1837,6 +1837,20 @@ async function handle(req: Request, env: Env): Promise<Response> {
       const { results: rc } = await env.DB.prepare('SELECT date, rec, z_hrv, z_rhr, z_sleep, z_resp, z_stress FROM rec_daily WHERE date BETWEEN ?1 AND ?2')
         .bind(addDays(from, -14), e).all<{ date: string; rec: number | null; z_hrv: number | null; z_rhr: number | null; z_sleep: number | null; z_resp: number | null; z_stress: number | null }>();
       return json(longTrend({ from, to: e, loads, metrics: dm, recs: rc, sleepNeed: (await sleepBase(env, e)).hours }));
+    }
+    if (url.pathname === '/api/vol-weeks' && req.method === 'GET') {
+      // horas por semana (seg–dom) e por modalidade, das últimas n semanas (inclui a atual)
+      const n = Math.min(Math.max(Number(url.searchParams.get('n')) || 26, 4), 156);
+      const today = brtToday(), mon0 = addDays(mondayOf(today), -7 * (n - 1));
+      const { results } = await env.DB.prepare(
+        `SELECT date(date, '-' || ((CAST(strftime('%w', date) AS INTEGER) + 6) % 7) || ' days') wk, sport, SUM(min) / 60.0 h, COUNT(*) n
+         FROM activities WHERE date BETWEEN ?1 AND ?2 GROUP BY wk, sport`,
+      ).bind(mon0, today).all<{ wk: string; sport: Sport; h: number; n: number }>();
+      const weeks = Array.from({ length: n }, (_, i) => { const wk = addDays(mon0, 7 * i);
+        const rows = results.filter((r) => r.wk === wk);
+        return { monday: wk, hours: Math.round(rows.reduce((a, r) => a + r.h, 0) * 1e4) / 1e4, sessions: rows.reduce((a, r) => a + r.n, 0),
+          sports: Object.fromEntries(rows.map((r) => [r.sport, Math.round(r.h * 1e4) / 1e4])) }; });
+      return json({ today, weeks, labels: SPORT_LABEL });
     }
     if (url.pathname === '/api/strain-weeks' && req.method === 'GET') {
       const n = Math.min(Math.max(Number(url.searchParams.get('weeks')) || 16, 4), 52);

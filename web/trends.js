@@ -626,6 +626,7 @@ async function volume(box, api) {
   const perWeek = d.total.hours / d.weeks;
   sec.innerHTML = `
     <h2>Como treinei?</h2>
+    <div class="vw" id="vw"><div class="vw-chart"></div></div>
     <div class="seg seg-sm" role="tablist">${UNITS.map(([u, l]) => `<button role="tab" data-u="${u}" aria-selected="${u === unit}">${l}</button>`).join('')}</div>
     <div class="vol-nav">
       <button type="button" data-step="1" aria-label="Período anterior">‹</button>
@@ -645,6 +646,53 @@ async function volume(box, api) {
     unit = b.dataset.u; offset = 0; try { localStorage.setItem('rec.unit', unit); } catch {} volume(box, api);
   }));
   sec.querySelectorAll('.vol-nav button').forEach((b) => b.addEventListener('click', () => { offset = Math.max(0, offset + Number(b.dataset.step)); volume(box, api); }));
+  volWeeks(sec, api, box);
+}
+
+// barras por semana (05/11 → 15/11): horas empilhadas por modalidade, como no Strava. Toque numa barra: detalhe da semana
+// e o "Como treinei?" vai para ela.
+let vwN = 26, vwPick = null;
+async function volWeeks(sec, api, box) {
+  const wrap = sec.querySelector('#vw'); if (!wrap) return;
+  let d; try { d = await api(`/api/vol-weeks?n=${vwN}`); } catch { wrap.innerHTML = ''; return; }
+  const W = d.weeks, n = W.length, mx = Math.max(1, ...W.map((w) => w.hours)), done = W.slice(0, -1).filter((w) => w.hours > 0);
+  const avg = done.length ? done.slice(-4).reduce((a, w) => a + w.hours, 0) / Math.min(4, done.length) : 0;
+  const ORDER = ['natacao', 'bike', 'corrida', 'hyrox', 'forca', 'outro'];
+  const H = 120, BW = 100 / n, top = Math.ceil(mx / 2) * 2;
+  if (vwPick == null || !W.some((w) => w.monday === vwPick)) vwPick = W[n - 1].monday;
+  const pk = W.find((w) => w.monday === vwPick), pi = W.indexOf(pk);
+  const fmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '');
+  const bars = W.map((w, i) => {
+    let acc = 0;
+    const segs = ORDER.concat(Object.keys(w.sports).filter((k) => !ORDER.includes(k))).filter((k) => w.sports[k]).map((k) => {
+      const h = (w.sports[k] / top) * H, y = H - acc - h; acc += h;
+      return `<rect x="${(i * BW + BW * 0.14).toFixed(2)}%" width="${(BW * 0.72).toFixed(2)}%" y="${y.toFixed(1)}" height="${Math.max(0.5, h).toFixed(1)}" style="fill:var(--${k}, var(--text-3))"/>`;
+    }).join('');
+    return `<g class="vw-b${w.monday === vwPick ? ' on' : ''}${i === n - 1 ? ' now' : ''}" data-wk="${w.monday}">${segs}<rect class="vw-hit" x="${(i * BW).toFixed(2)}%" width="${BW.toFixed(2)}%" y="0" height="${H}"/></g>`;
+  }).join('');
+  const yAvg = H - (avg / top) * H;
+  const sp = Object.entries(pk.sports).sort((a, b) => b[1] - a[1]);
+  wrap.innerHTML = `
+    <div class="vw-head">
+      <div><b>${hm(pk.hours)}</b><small>${pi === n - 1 ? 'esta semana' : `semana de ${fmt(pk.monday)}`} · ${pk.sessions} ${pk.sessions === 1 ? 'sessão' : 'sessões'}</small></div>
+      <div class="seg seg-sm vw-n">${[[12, '12 sem'], [26, '6 m'], [52, '1 ano']].map(([k, l]) => `<button data-vn="${k}" aria-selected="${k === vwN}">${l}</button>`).join('')}</div>
+    </div>
+    <p class="vw-sp">${sp.length ? sp.map(([k, h]) => `<span><i style="background:var(--${k}, var(--text-3))"></i>${esc(d.labels[k] ?? k)} ${hm(h)}</span>`).join('') : '<span>Sem treinos</span>'}</p>
+    <div class="vw-plot">${[top / 2, top].map((v) => `<em style="top:${((H - (v / top) * H) / (H + 16)) * 100}%">${v} h</em>`).join('')}
+    <svg class="vw-svg" viewBox="0 0 100 ${H + 16}" preserveAspectRatio="none" role="img" aria-label="Horas por semana">
+      ${[top / 2, top].map((v) => `<line x1="0" x2="100%" y1="${H - (v / top) * H}" y2="${H - (v / top) * H}" class="vw-grid"/>`).join('')}
+      ${avg ? `<line x1="0" x2="100%" y1="${yAvg.toFixed(1)}" y2="${yAvg.toFixed(1)}" class="vw-avg"/>` : ''}
+      ${bars}
+    </svg></div>
+    <div class="vw-ax"><span>${fmt(W[0].monday)}</span><span>esta semana</span></div>
+    <p class="vw-leg">${avg ? `<span><i class="vw-avg-k"></i>média das últimas 4 semanas: ${hm(avg)}</span>` : ''}</p>`;
+  wrap.querySelectorAll('[data-vn]').forEach((b) => b.addEventListener('click', () => { vwN = Number(b.dataset.vn); volWeeks(sec, api, box); }));
+  wrap.querySelectorAll('.vw-b').forEach((g) => g.addEventListener('click', () => {
+    vwPick = g.dataset.wk;
+    // leva o "Como treinei?" para a semana tocada
+    const k = W.length - 1 - W.findIndex((w) => w.monday === vwPick);
+    if (unit !== 'semana' || offset !== k) { unit = 'semana'; offset = k; volume(box, api); } else volWeeks(sec, api, box);
+  }));
 }
 
 // barra de intensidade com marca dos 80%

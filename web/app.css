@@ -1635,3 +1635,27 @@ details.how[open] > :not(summary) { animation: rise .35s ease both; }
 .hb { transition: background .2s, border-color .2s, transform .12s; }
 .hb:active { transform: scale(.95); }
 .hb[data-night="true"][aria-pressed="true"] { background: color-mix(in srgb, var(--sleep) 22%, transparent); border-color: var(--sleep); }
+
+/* volume por semana (barras empilhadas por modalidade) */
+.vw { margin: 6px 0 18px; }
+.vw-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.vw-head b { display: block; font: 200 40px/1 var(--font-display); letter-spacing: -.02em; }
+.vw-head small { font-size: 12.5px; color: var(--text-2); }
+.vw-n { width: auto; flex: none; }
+.vw-n button { padding: 6px 10px; font-size: 12px; }
+.vw-sp { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0 10px; font-size: 12.5px; color: var(--text-2); }
+.vw-sp i, .vw-leg i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.vw-svg { width: 100%; height: 136px; display: block; overflow: visible; }
+.vw-grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .6; }
+.vw-avg { stroke: var(--text); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: .55; }
+.vw-b rect:not(.vw-hit) { opacity: .45; transition: opacity .2s; transform-origin: bottom; transform-box: fill-box; animation: vw-up .7s cubic-bezier(.2, .8, .2, 1) both; }
+.vw-b.on rect:not(.vw-hit) { opacity: 1; }
+.vw-hit { fill: transparent; cursor: pointer; }
+@keyframes vw-up { from { transform: scaleY(0); } }
+.vw-ax { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-top: -12px; }
+.vw-leg { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
+.vw-avg-k { width: 14px !important; height: 0 !important; border-top: 1px dashed var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .vw-b rect { animation: none; } }
+.vw-plot { position: relative; }
+.vw-plot em { position: absolute; right: 0; transform: translateY(-120%); font-style: normal; font-size: 10.5px; color: var(--text-3); pointer-events: none; }
+.vw-n button { white-space: nowrap; }
