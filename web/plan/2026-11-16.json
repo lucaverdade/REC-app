@@ -1,7 +1,7 @@
 {
   "semana": "2026-11-16",
   "fase": "Polimento, semana 1 de 2",
-  "notas": "Polimento: volume cai de 8,4 h para ~7,0 h (sem academia) e os toques de ritmo de prova continuam. Calor: segunda e sexta (rolo, 40 min, com camadas), banho quente na quarta e no sábado, e domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 e o Hyrox de quarta. Natação 3 vezes (terça, quinta, domingo), a terceira leve. Cama às 21:45; sexta e sábado sem sair.",
+  "notas": "Polimento: volume cai de 8,4 h para ~7,0 h (sem academia) e os toques de ritmo de prova continuam. Calor: segunda e sexta (rolo, 40 min, com camadas), banho quente na quarta e no sábado, e domingo ao ar livre. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 e o Hyrox de quarta. Natação 3 vezes (segunda, quinta, domingo), a terceira leve; academia só na terça (superiores e core), nunca no mesmo dia da natação. Cama às 21:45; sexta e sábado sem sair.",
   "dias": {
     "2026-11-16": [
       {
@@ -14,24 +14,23 @@
         "strain": 53
       },
       {
-        "modalidade": "academia",
-        "titulo": "Superiores e core",
-        "minutos": 30,
-        "zona": null,
-        "detalhe": "À noite. 6 min aquec.; 20 min RPE 6; 4 min solta. Sem carga de pernas.",
-        "chave": false,
-        "strain": 15
+        "modalidade": "natacao",
+        "titulo": "Natação",
+        "minutos": 40,
+        "zona": "Z1–Z2",
+        "detalhe": "À noite.",
+        "chave": false
       }
     ],
     "2026-11-17": [
       {
         "modalidade": "bike",
         "titulo": "T2: bike",
-        "minutos": 30,
+        "minutos": 34,
         "zona": "Z2",
-        "detalhe": "Indoor, sem casaco. 10 min Z1 (FC abaixo de 131); 8 min Z2 (135–147, RPE 5); 4 min esforço de prova (147–153, RPE 6); 4 min Z1; 4 min esforço de prova.",
+        "detalhe": "Indoor, sem casaco. 10 min Z1 (FC abaixo de 131); 8 min Z2 (135–147, RPE 5); 6 min esforço de prova (147–153, RPE 6); 4 min Z1; 6 min esforço de prova. Segure a FC na faixa: é o toque de esforço de prova da semana.",
         "chave": true,
-        "strain": 54
+        "strain": 66
       },
       {
         "modalidade": "corrida",
@@ -43,12 +42,13 @@
         "strain": 52
       },
       {
-        "modalidade": "natacao",
-        "titulo": "Natação",
-        "minutos": 40,
-        "zona": "Z1–Z2",
-        "detalhe": "À noite.",
-        "chave": false
+        "modalidade": "academia",
+        "titulo": "Superiores e core",
+        "minutos": 30,
+        "zona": null,
+        "detalhe": "À noite. 6 min aquec.; 20 min RPE 6; 4 min solta. Sem carga de pernas.",
+        "chave": false,
+        "strain": 15
       }
     ],
     "2026-11-18": [
