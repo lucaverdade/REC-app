@@ -1840,16 +1840,18 @@ async function handle(req: Request, env: Env): Promise<Response> {
     }
     if (url.pathname === '/api/vol-weeks' && req.method === 'GET') {
       // horas por semana (seg–dom) e por modalidade, das últimas n semanas (inclui a atual)
-      const n = Math.min(Math.max(Number(url.searchParams.get('n')) || 26, 4), 156);
+      const n = Math.min(Math.max(Number(url.searchParams.get('n')) || 26, 4), 210);
       const today = brtToday(), mon0 = addDays(mondayOf(today), -7 * (n - 1));
       const { results } = await env.DB.prepare(
-        `SELECT date(date, '-' || ((CAST(strftime('%w', date) AS INTEGER) + 6) % 7) || ' days') wk, sport, SUM(min) / 60.0 h, COUNT(*) n
+        `SELECT date(date, '-' || ((CAST(strftime('%w', date) AS INTEGER) + 6) % 7) || ' days') wk, sport, SUM(min) / 60.0 h, COUNT(*) n,
+                SUM(COALESCE(km, 0)) km, SUM(COALESCE(${STRAIN_SQL}, 0)) st
          FROM activities WHERE date BETWEEN ?1 AND ?2 GROUP BY wk, sport`,
-      ).bind(mon0, today).all<{ wk: string; sport: Sport; h: number; n: number }>();
+      ).bind(mon0, today).all<{ wk: string; sport: Sport; h: number; n: number; km: number; st: number }>();
       const weeks = Array.from({ length: n }, (_, i) => { const wk = addDays(mon0, 7 * i);
         const rows = results.filter((r) => r.wk === wk);
         return { monday: wk, hours: Math.round(rows.reduce((a, r) => a + r.h, 0) * 1e4) / 1e4, sessions: rows.reduce((a, r) => a + r.n, 0),
-          sports: Object.fromEntries(rows.map((r) => [r.sport, Math.round(r.h * 1e4) / 1e4])) }; });
+          sports: Object.fromEntries(rows.map((r) => [r.sport, Math.round(r.h * 1e4) / 1e4])),
+          by: Object.fromEntries(rows.map((r) => [r.sport, { h: Math.round(r.h * 1e4) / 1e4, km: Math.round(r.km * 10) / 10, st: Math.round(r.st), n: r.n }])) }; });
       return json({ today, weeks, labels: SPORT_LABEL });
     }
     if (url.pathname === '/api/strain-weeks' && req.method === 'GET') {
