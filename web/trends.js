@@ -626,7 +626,7 @@ async function volume(box, api) {
   const perWeek = d.total.hours / d.weeks;
   sec.innerHTML = `
     <h2>Como treinei?</h2>
-    <div class="vw" id="vw"><div class="vw-chart"></div></div>
+    <a class="pg-link" href="#progresso"><span><b>Progresso por semana</b><small>Tempo, distância e Strain, semana a semana</small></span><em>›</em></a>
     <div class="seg seg-sm" role="tablist">${UNITS.map(([u, l]) => `<button role="tab" data-u="${u}" aria-selected="${u === unit}">${l}</button>`).join('')}</div>
     <div class="vol-nav">
       <button type="button" data-step="1" aria-label="Período anterior">‹</button>
@@ -646,68 +646,89 @@ async function volume(box, api) {
     unit = b.dataset.u; offset = 0; try { localStorage.setItem('rec.unit', unit); } catch {} volume(box, api);
   }));
   sec.querySelectorAll('.vol-nav button').forEach((b) => b.addEventListener('click', () => { offset = Math.max(0, offset + Number(b.dataset.step)); volume(box, api); }));
-  volWeeks(sec, api, box);
 }
 
-// Progresso por semana (15/11, no jeito do Strava): total do período, % contra o período anterior, linha com pontos
-// e área. Filtros: modalidade e métrica (tempo, distância, Strain); períodos 1M/3M/6M/1A. Toque num ponto: a semana
-// aparece em cima e o "Como treinei?" vai para ela.
-let vwN = 26, vwPick = null, vwSport = 'todos', vwMet = 'h';
-async function volWeeks(sec, api, box) {
-  const wrap = sec.querySelector('#vw'); if (!wrap) return;
-  let d; try { d = await api(`/api/vol-weeks?n=${vwN * 2}`); } catch { wrap.innerHTML = ''; return; }
-  const all = d.weeks, W = all.slice(-vwN), prev = all.slice(0, all.length - vwN), n = W.length;
-  const val = (w) => { const xs = vwSport === 'todos' ? Object.values(w.by ?? {}) : [w.by?.[vwSport]].filter(Boolean); return xs.reduce((a, x) => a + (x[vwMet] ?? 0), 0); };
+// ---------- Progresso por semana (tela própria, 15/11) ----------
+// Busca 2 anos de semanas UMA vez (fica em memória por 10 min); trocar modalidade, métrica ou período só redesenha.
+// Arrastar o dedo no gráfico mostra a semana sob o dedo (sem buscar nada); tocar no balão abre a semana.
+let pgCache = null, pgN = 26, pgSport = 'todos', pgMet = 'h';
+export async function renderProgress(screen, api) {
+  screen.innerHTML = `<header class="top"><a class="back-link" href="#treino">‹ Treino</a></header>
+    <h1 class="td-title">Progresso</h1>
+    <section class="pg" id="pg"><p class="empty">Carregando…</p></section>`;
+  const box = screen.querySelector('#pg');
+  if (!pgCache || Date.now() - pgCache.at > 10 * 60e3) {
+    try { pgCache = { at: Date.now(), d: await api('/api/vol-weeks?n=104') }; }
+    catch (e) { box.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  }
+  drawProgress(box, pgCache.d);
+}
+
+function drawProgress(box, d) {
+  const all = d.weeks, W = all.slice(-pgN), prev = all.slice(-2 * pgN, -pgN), n = W.length;
+  const val = (w) => { const xs = pgSport === 'todos' ? Object.values(w.by ?? {}) : [w.by?.[pgSport]].filter(Boolean); return xs.reduce((a, x) => a + (x[pgMet] ?? 0), 0); };
   const vs = W.map(val), tot = vs.reduce((a, v) => a + v, 0), totPrev = prev.reduce((a, w) => a + val(w), 0);
-  const pct = totPrev > 0 ? Math.round((tot / totPrev - 1) * 100) : null;
-  const fmtV = (v) => (vwMet === 'h' ? hm(v) : vwMet === 'km' ? `${nf(v, v < 100 ? 1 : 0)} km` : nf(v));
+  const pct = prev.length === pgN && totPrev > 0 ? Math.round((tot / totPrev - 1) * 100) : null;
+  const fmtV = (v) => (pgMet === 'h' ? hm(v) : pgMet === 'km' ? `${nf(v, v < 100 ? 1 : 0)} km` : nf(v));
   const sportsIn = [...new Set(all.flatMap((w) => Object.keys(w.by ?? {})))].filter((k) => k !== 'outro');
-  const color = vwMet === 'st' && vwSport === 'todos' ? 'var(--strain)' : vwSport === 'todos' ? '#ff8a4c' : `var(--${vwSport}, var(--text))`;
+  const color = pgMet === 'st' && pgSport === 'todos' ? 'var(--strain)' : pgSport === 'todos' ? '#ff8a4c' : `var(--${pgSport}, var(--text))`;
   const fmtD = (iso, o) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', o).replace('.', '');
-  if (vwPick && !W.some((w) => w.monday === vwPick)) vwPick = null;
-  const pk = vwPick ? W.find((w) => w.monday === vwPick) : null;
-  // gráfico
-  const VW = 340, H = 150, R = 44, PW = VW - R, mx = Math.max(...vs, 0.0001);
-  const step = vwMet === 'h' ? [1, 2, 3, 5, 6, 10, 12, 20].find((s2) => mx / s2 <= 3) ?? 30 : vwMet === 'km' ? [10, 20, 25, 50, 100, 200].find((s2) => mx / s2 <= 3) ?? 500 : [50, 100, 200, 250, 500].find((s2) => mx / s2 <= 3) ?? 1000;
-  const top = Math.max(step, Math.ceil(mx / step) * step);
-  const X = (i) => (n === 1 ? PW / 2 : 6 + (i / (n - 1)) * (PW - 12)), Y = (v) => 8 + (1 - v / top) * (H - 8);
+  const VW = 340, H = 170, R = 44, PW = VW - R, mx = Math.max(...vs, 0.0001);
+  const steps = pgMet === 'h' ? [1, 2, 3, 4, 5, 6, 10, 12, 20, 30] : pgMet === 'km' ? [10, 20, 25, 50, 100, 200, 500] : [50, 100, 200, 250, 500, 1000];
+  const step = steps.find((s2) => mx / s2 <= 3) ?? steps.at(-1), top = Math.max(step, Math.ceil(mx / step) * step);
+  const X = (i) => (n === 1 ? PW / 2 : 6 + (i / (n - 1)) * (PW - 12)), Y = (v) => 10 + (1 - v / top) * (H - 10);
   const line = vs.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
   const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, k) => k * step);
   const months = []; W.forEach((w, i) => { const m = w.monday.slice(0, 7); if (!months.some((x) => x.m === m) && Number(w.monday.slice(8)) <= 7) months.push({ m, i }); });
   const mStep = months.length > 7 ? 2 : 1;
-  const tickLbl = (v) => (vwMet === 'h' ? `${v} h` : vwMet === 'km' ? `${v} km` : `${v}`);
-  const pi = pk ? W.indexOf(pk) : -1;
-  wrap.innerHTML = `
-    <div class="pg-f">
-      <div class="pg-chips">${['todos', ...sportsIn].map((k) => `<button data-vs="${k}" aria-pressed="${k === vwSport}">${k === 'todos' ? 'Todos' : esc(d.labels[k] ?? k)}</button>`).join('')}</div>
-      <div class="pg-chips">${[['h', 'Tempo'], ['km', 'Distância'], ['st', 'Strain']].map(([k, l]) => `<button data-vm="${k}" aria-pressed="${k === vwMet}">${l}</button>`).join('')}</div>
-    </div>
+  const tl = (v) => (pgMet === 'h' ? `${v} h` : pgMet === 'km' ? `${v} km` : `${v}`);
+  const perTxt = { 4: 'mês anterior', 13: '3 meses anteriores', 26: '6 meses anteriores', 52: 'ano anterior' }[pgN];
+  box.innerHTML = `
+    <div class="pg-chips">${['todos', ...sportsIn].map((k) => `<button data-vs="${k}" aria-pressed="${k === pgSport}">${k === 'todos' ? 'Todos' : esc(d.labels[k] ?? k)}</button>`).join('')}</div>
+    <div class="pg-chips">${[['h', 'Tempo'], ['km', 'Distância'], ['st', 'Strain']].map(([k, l]) => `<button data-vm="${k}" aria-pressed="${k === pgMet}">${l}</button>`).join('')}</div>
     <div class="pg-head">
-      <div><small>${pk ? `Semana de ${fmtD(pk.monday, { day: 'numeric', month: 'short' })}` : vwMet === 'h' ? 'Tempo total' : vwMet === 'km' ? 'Distância total' : 'Strain total'}</small>
-        <b>${fmtV(pk ? vs[pi] : tot)}</b>
-        <span>${pk ? (() => { const ns = vwSport === 'todos' ? pk.sessions : pk.by?.[vwSport]?.n ?? 0; return `${ns} ${ns === 1 ? 'sessão' : 'sessões'} · toque de novo para voltar`; })() : `${fmtD(W[0].monday, { day: 'numeric', month: 'short', year: 'numeric' })} – hoje`}</span></div>
-      ${!pk && pct != null ? `<div class="pg-pct ${pct >= 0 ? 'up' : 'dn'}"><b>${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</b><span>vs. ${vwN === 4 ? 'mês' : vwN === 52 ? 'ano' : `${Math.round(vwN / 4.33)} meses`} anterior${vwN === 52 ? '' : vwN === 4 ? '' : 'es'}</span></div>` : ''}
+      <div><small>${pgMet === 'h' ? 'Tempo total' : pgMet === 'km' ? 'Distância total' : 'Strain total'}</small><b>${fmtV(tot)}</b>
+        <span>${fmtD(W[0].monday, { day: 'numeric', month: 'short', year: 'numeric' })} – hoje · média ${fmtV(tot / n)} por semana</span></div>
+      ${pct != null ? `<div class="pg-pct ${pct >= 0 ? 'up' : 'dn'}"><b>${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</b><span>vs. ${perTxt}</span></div>` : ''}
     </div>
-    <svg class="pg-svg" viewBox="0 0 ${VW} ${H + 22}" role="img" aria-label="Progresso por semana" style="--c:${color}">
-      <defs><linearGradient id="pgG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${color};stop-opacity:.45"/><stop offset="1" style="stop-color:${color};stop-opacity:.03"/></linearGradient></defs>
-      ${ticks.map((t) => `<line x1="0" x2="${PW}" y1="${Y(t)}" y2="${Y(t)}" class="pg-grid"/><text x="${VW}" y="${Y(t) + 3.5}" class="pg-yl" text-anchor="end">${tickLbl(t)}</text>`).join('')}
-      <path d="${line} L${X(n - 1).toFixed(1)},${Y(0)} L${X(0).toFixed(1)},${Y(0)} Z" fill="url(#pgG)" class="pg-area"/>
-      <path d="${line}" class="pg-line bl-draw" pathLength="1"/>
-      ${n <= 60 ? vs.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${i === pi ? 5 : 3.2}" class="pg-dot${i === pi ? ' on' : ''}" style="--d:${(i / n) * 1.2}s"/>`).join('') : ''}
-      ${pi >= 0 ? `<line x1="${X(pi)}" x2="${X(pi)}" y1="8" y2="${H}" class="pg-cur"/>` : ''}
-      ${months.filter((_, k) => k % mStep === 0).map((m) => `<text x="${X(m.i).toFixed(1)}" y="${H + 18}" class="pg-xl">${fmtD(m.m + '-15', { month: 'short' }).toUpperCase()}</text>`).join('')}
-      ${W.map((w, i) => `<rect x="${(X(i) - PW / n / 2).toFixed(1)}" width="${(PW / n).toFixed(1)}" y="0" height="${H}" class="pg-hit" data-wk="${w.monday}"/>`).join('')}
-    </svg>
-    <div class="seg pg-per">${[[4, '1M'], [13, '3M'], [26, '6M'], [52, '1A']].map(([k, l]) => `<button data-vn="${k}" aria-selected="${k === vwN}">${l}</button>`).join('')}</div>`;
-  wrap.querySelectorAll('[data-vn]').forEach((b) => b.addEventListener('click', () => { vwN = Number(b.dataset.vn); vwPick = null; volWeeks(sec, api, box); }));
-  wrap.querySelectorAll('[data-vs]').forEach((b) => b.addEventListener('click', () => { vwSport = b.dataset.vs; volWeeks(sec, api, box); }));
-  wrap.querySelectorAll('[data-vm]').forEach((b) => b.addEventListener('click', () => { vwMet = b.dataset.vm; volWeeks(sec, api, box); }));
-  wrap.querySelectorAll('.pg-hit').forEach((r) => r.addEventListener('click', () => {
-    vwPick = vwPick === r.dataset.wk ? null : r.dataset.wk;
-    if (!vwPick) { volWeeks(sec, api, box); return; }
-    const k = all.length - 1 - all.findIndex((w) => w.monday === vwPick);
-    if (unit !== 'semana' || offset !== k) { unit = 'semana'; offset = k; volume(box, api); } else volWeeks(sec, api, box);
-  }));
+    <div class="pg-plot">
+      <button type="button" class="pg-tip" hidden></button>
+      <svg class="pg-svg" viewBox="0 0 ${VW} ${H + 22}" role="img" aria-label="Progresso por semana" style="--c:${color}">
+        <defs><linearGradient id="pgG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${color};stop-opacity:.45"/><stop offset="1" style="stop-color:${color};stop-opacity:.03"/></linearGradient></defs>
+        ${ticks.map((t) => `<line x1="0" x2="${PW}" y1="${Y(t)}" y2="${Y(t)}" class="pg-grid"/><text x="${VW}" y="${Y(t) + 3.5}" class="pg-yl" text-anchor="end">${tl(t)}</text>`).join('')}
+        <path d="${line} L${X(n - 1).toFixed(1)},${Y(0)} L${X(0).toFixed(1)},${Y(0)} Z" fill="url(#pgG)" class="pg-area"/>
+        <path d="${line}" class="pg-line bl-draw" pathLength="1"/>
+        ${n <= 60 ? vs.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.2" class="pg-dot"/>`).join('') : ''}
+        <line class="pg-cur" x1="0" x2="0" y1="10" y2="${H}" visibility="hidden"/><circle class="pg-sel" r="5.5" cx="0" cy="0" visibility="hidden"/>
+        ${months.filter((_, k) => k % mStep === 0).map((m) => `<text x="${X(m.i).toFixed(1)}" y="${H + 18}" class="pg-xl">${fmtD(m.m + '-15', { month: 'short' }).toUpperCase()}</text>`).join('')}
+      </svg>
+    </div>
+    <div class="seg pg-per">${[[4, '1M'], [13, '3M'], [26, '6M'], [52, '1A']].map(([k, l]) => `<button data-vn="${k}" aria-selected="${k === pgN}">${l}</button>`).join('')}</div>
+    <p class="note pg-hint">Arraste o dedo no gráfico para ver cada semana; toque no balão para abrir a semana.</p>`;
+  const redraw = () => drawProgress(box, d);
+  box.querySelectorAll('[data-vn]').forEach((b) => b.addEventListener('click', () => { pgN = Number(b.dataset.vn); redraw(); }));
+  box.querySelectorAll('[data-vs]').forEach((b) => b.addEventListener('click', () => { pgSport = b.dataset.vs; redraw(); }));
+  box.querySelectorAll('[data-vm]').forEach((b) => b.addEventListener('click', () => { pgMet = b.dataset.vm; redraw(); }));
+  // arraste: só move o cursor e o balão (nada é buscado nem redesenhado)
+  const svg = box.querySelector('.pg-svg'), tip = box.querySelector('.pg-tip'), cur = svg.querySelector('.pg-cur'), sel = svg.querySelector('.pg-sel');
+  let at = -1;
+  const show = (clientX) => {
+    const r = svg.getBoundingClientRect(), x = ((clientX - r.left) / r.width) * VW;
+    const i = Math.max(0, Math.min(n - 1, Math.round(((x - 6) / (PW - 12)) * (n - 1))));
+    if (i === at) return; at = i;
+    cur.setAttribute('x1', X(i)); cur.setAttribute('x2', X(i)); cur.setAttribute('visibility', 'visible');
+    sel.setAttribute('cx', X(i)); sel.setAttribute('cy', Y(vs[i])); sel.setAttribute('visibility', 'visible');
+    const w = W[i], ns = pgSport === 'todos' ? w.sessions : w.by?.[pgSport]?.n ?? 0;
+    tip.innerHTML = `<b>${fmtV(vs[i])}</b><small>${i === n - 1 ? 'esta semana' : `semana de ${fmtD(w.monday, { day: 'numeric', month: 'short' })}`} · ${ns} ${ns === 1 ? 'sessão' : 'sessões'}</small><em>Ver semana ›</em>`;
+    tip.dataset.wk = w.monday; tip.hidden = false;
+    const left = (X(i) / VW) * r.width;
+    tip.style.left = `${Math.max(0, Math.min(r.width - tip.offsetWidth, left - tip.offsetWidth / 2))}px`;
+  };
+  svg.addEventListener('pointerdown', (e) => { show(e.clientX); });
+  svg.addEventListener('pointermove', (e) => show(e.clientX)); // touch-action: pan-y deixa a rolagem vertical e entrega o arraste horizontal
+  tip.addEventListener('click', () => { if (tip.dataset.wk) location.hash = `#semana/${tip.dataset.wk}`; });
+  // começa mostrando a semana atual
+  requestAnimationFrame(() => { const r = svg.getBoundingClientRect(); show(r.left + (X(n - 1) / VW) * r.width); });
 }
 
 // barra de intensidade com marca dos 80%
