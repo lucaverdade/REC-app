@@ -84,6 +84,18 @@ Lista viva do que o Luca pediu para depois.
 - [ ] Retrospectiva da temporada em story (horas, km, recordes, evolução) — dezembro.
 - [ ] Segurança: Cloudflare Access (login por e-mail) antes de widget/atalhos.
 
+## Nutrição: calorias, macros e peso (ideia salva em 16/11, fazer depois)
+Muda a decisão inicial ("contador de calorias fora do app"): agora o Luca quer acompanhar dentro do REC.
+- [ ] Gasto: calorias ativas do dia (Garmin) + basal; testar se a chave pessoal traz as duas (resumo diário). Total do dia = basal + ativas.
+- [ ] Consumo: registro ao longo do dia, aos poucos (não só no fim). Fluxo dele hoje: foto do prato numa IA → macros. Opções para entrar no app:
+      (a) colar o texto/JSON que a IA devolve (kcal, P, C, G, nome) num campo "Adicionar refeição"; (b) atalho do iPhone que manda para uma rota /api/meal;
+      (c) arquivo no GitHub escrito pelo chat, como o plano. Decidir antes de construir. Sem IA paga dentro do app.
+- [ ] Tela do dia: consumido × gasto (déficit/superávit), barras de proteína/carbo/gordura contra metas, lista das refeições com horário.
+- [ ] Peso: registro a cada X dias (manual, ou da balança se vier pela Garmin), gráfico com média móvel de 7 dias.
+- [ ] Percepção: marcação rápida "secando / estável / engordando" junto do peso, para comparar com a tendência.
+- [ ] Semana/mês: déficit médio, peso médio, tendência; ligar com Strain e REC (dias de déficit grande × REC no dia seguinte).
+- Cuidado: nada de meta agressiva ou gamificação; mostrar números e tendência. Perto da prova (taper), carbo dos treinos já é tratado na aba Nutrição.
+
 ## Integrações
 - [ ] **Strava no app** (o Luca cria a conexão/API do Strava): trazer o **nome e a descrição** que ele escreve no Strava para cada treino feito, na aba Treino, ao lado do planejado do dia (e do dia seguinte). Sincroniza depois do treino.
 
