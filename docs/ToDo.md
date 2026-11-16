@@ -84,6 +84,14 @@ Lista viva do que o Luca pediu para depois.
 - [ ] Retrospectiva da temporada em story (horas, km, recordes, evolução) — dezembro.
 - [ ] Segurança: Cloudflare Access (login por e-mail) antes de widget/atalhos.
 
+## Depois de Aracaju (29/11): treinador automatizado, tudo num lugar só (pedido 16/11)
+Objetivo: o chat de treino (o outro, que já está treinado) lê os dados do Luca sozinho na hora de passar o treino, e o treino passado chega sozinho no relógio.
+- [ ] **Treinador lendo os dados sempre**: fechar o relatório do treinador que já existe (`relatorio/ultimo.md` no GitHub). Falta do lado do Luca: token do GitHub como secret `GITHUB_TOKEN` no Cloudflare, Build watch paths excluindo `relatorio/*` e a instrução no projeto do chat de treino ("antes de passar treino, leia relatorio/ultimo.md"). Conferir que o relatório traz: HRV da noite e de 7 noites contra a base, REC, nota do dia, Strain da semana × faixa, Fitness/Fadiga/Forma, sono e dívida, treinos feitos × planejados, notas "como me sinto" e o registro (noite/dia).
+- [ ] **Plano → Intervals.icu → Garmin (só bike e corrida)**: conta gratuita no Intervals.icu ligada ao Garmin Connect com "Upload planned workouts"; chave do Intervals.icu e athlete id como secrets no servidor (nunca no chat, código ou docs). Quando o plano da semana chega ou muda, o servidor faz upsert das sessões de bike e corrida (`POST /api/v1/athlete/0/events/bulk?upsert=true`, `external_id` = data + índice para não duplicar; apagar as removidas). Natação e academia não vão.
+- [ ] **Formato do plano**: campo novo `blocos` em cada sessão de bike/corrida (texto no formato do Intervals.icu, ex.: `- 15m Z2` / `3x` / `- 8m Z4` / `- 3m Z1` / `- 10m Z1`), escrito pelo chat de treino. Documentar em `Formato_Plano.md`.
+- [ ] **Testes antes de definir a estrutura**: mandar alguns treinos de teste (bike e corrida; alvo por zona de FC × pace/potência; nomes curtos × longos; com e sem texto por bloco) e ver no relógio como aparecem. Regras a fechar: nome curto que caiba na tela, texto de cada passo curto (descrição grande não dá para ler no relógio), alvo por zona de FC. Conferir também se chega estruturado ou só como texto (há relatos dos dois).
+- [ ] Depois de definido: o REC mostra na aba Treino quais sessões já foram enviadas ao relógio.
+
 ## Nutrição: calorias, macros e peso (ideia salva em 16/11, fazer depois)
 Muda a decisão inicial ("contador de calorias fora do app"): agora o Luca quer acompanhar dentro do REC.
 - [ ] Gasto: calorias ativas do dia (Garmin) + basal; testar se a chave pessoal traz as duas (resumo diário). Total do dia = basal + ativas.
