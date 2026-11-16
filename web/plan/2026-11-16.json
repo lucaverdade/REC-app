@@ -26,11 +26,11 @@
       {
         "modalidade": "bike",
         "titulo": "T2: bike",
-        "minutos": 34,
+        "minutos": 40,
         "zona": "Z2",
-        "detalhe": "Na sua bike, no rolo, sem casaco. 10 min Z1 (FC abaixo de 131); 8 min Z2 (135–147, RPE 5); 6 min esforço de prova (147–153, RPE 6); 4 min Z1; 6 min esforço de prova. Segure a FC na faixa: é o toque de esforço de prova da semana. Depois da T2, entregue a bike na oficina.",
+        "detalhe": "Na sua bike, no rolo, sem casaco. 10 min Z1 (FC abaixo de 131); 10 min Z2 (135–147, RPE 5); 8 min esforço de prova (147–153, RPE 6); 4 min Z1; 8 min esforço de prova. Segure a FC na faixa: é o toque de esforço de prova da semana. Nutrição: pré 30–40 min antes com 2 fatias de pão de forma com geleia fina (~34 g de carbo); garrafinha de 650 ml com 30 g de maltodextrina, 15 g de frutose e 0,5 g de sal (45 g de carbo), bebida toda na bike em goles a cada 5 min. Corrida só com água. Média de ~73 g/h contando o pré. Depois da T2, entregue a bike na oficina.",
         "chave": true,
-        "strain": 66
+        "strain": 72
       },
       {
         "modalidade": "corrida",
