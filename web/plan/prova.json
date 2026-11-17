@@ -35,16 +35,56 @@
   "notas": "Plano-base; ajusto depois do simulado de 07/11 e do longão de 15/11.",
   "taper": [
     {
+      "dia": "2026-11-18",
+      "item": "Comprar: elástico novo para as garrafinhas da bike, fita crepe, caneta permanente grossa, ligas amarelas (10) e uma toalha pequena extra"
+    },
+    {
+      "dia": "2026-11-19",
+      "item": "Separar o pó em 5 saquinhos de 50 g (33 g de maltodextrina + 17 g de frutose) e o sal de cada garrafa de carbo (1,5–2 g); a garrafa de água não leva sal"
+    },
+    {
+      "dia": "2026-11-20",
+      "item": "Pedal de teste: conferir a bike, o elástico novo das garrafas e as ligas amarelas"
+    },
+    {
+      "dia": "2026-11-21",
+      "item": "Fita nas garrafas antes de despachar: C1, C2 e C3 (50 g + sal) e ÁGUA (sem carbo, sem sal)"
+    },
+    {
+      "dia": "2026-11-21",
+      "item": "Mala da bike (despacho até 13h): capacete, sapatilha, óculos, protetor, garrafas vazias com fita, pó e sal em saquinhos, roupa de borracha, ligas amarelas, toalha extra"
+    },
+    {
+      "dia": "2026-11-21",
+      "item": "Pedal de 50 min: teste a sapatilha sem meia; com ponto quente ou bolha, vai de meia na prova"
+    },
+    {
       "dia": "2026-11-22",
       "item": "Fechar o tênis (Deviate Nitro 3 ou Novablast 5) e o teto de FC da corrida (162 ou 160)"
     },
     {
       "dia": "2026-11-25",
-      "item": "Definir a dose de cafeína da prova"
+      "item": "Definir a dose de cafeína e fechar a estratégia dos géis"
+    },
+    {
+      "dia": "2026-11-26",
+      "item": "Fita em cada gel com o momento: bike hidrogel “BIKE 1h20”, Iced Coffee “BIKE 2h20”, Z2 de reserva; corrida km 3 (~17 min) Z2, km 8 (~44 min) Iced Coffee, km 10,5 (~58 min) hidrogel só se o estômago aceitar, km 13 (~72 min) e km 18 (~99 min) hidrogel"
+    },
+    {
+      "dia": "2026-11-27",
+      "item": "Bagagem de mão: os 2 tênis (um no pé), todos os géis, Super Coffee, macaquinho, 1 saquinho de pó, relógio e carregador"
     },
     {
       "dia": "2026-11-28",
-      "item": "Sacola vermelha: tênis e géis da corrida (5, sendo 3 hidrogel e 2 Z2)"
+      "item": "Sacola vermelha da T2, que só abre hoje: tênis escolhido, meias, 5 géis da corrida, boné, cinto de número, toalha"
+    },
+    {
+      "dia": "2026-11-28",
+      "item": "Garrafas: C1 e a de água frias (enchem no T1); C2 e C3 com pó, sal e água até 70%, congeladas no freezer do hotel"
+    },
+    {
+      "dia": "2026-11-29",
+      "item": "T1: completar as garrafas com água gelada, prender os géis da bike, ligas amarelas na sapatilha, toalha extra para o pé; levar as garrafas numa bolsa térmica"
     }
   ]
 }
