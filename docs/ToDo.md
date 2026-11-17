@@ -93,6 +93,9 @@ Objetivo: o chat de treino (o outro, que já está treinado) lê os dados do Luc
 - [ ] **Testes antes de definir a estrutura**: mandar alguns treinos de teste (bike e corrida; alvo por zona de FC × pace/potência; nomes curtos × longos; com e sem texto por bloco) e ver no relógio como aparecem. Regras a fechar: nome curto que caiba na tela, texto de cada passo curto (descrição grande não dá para ler no relógio), alvo por zona de FC. Conferir também se chega estruturado ou só como texto (há relatos dos dois).
 - [ ] Depois de definido: o REC mostra na aba Treino quais sessões já foram enviadas ao relógio.
 
+## Depois de Aracaju: app para mais uma pessoa (pedido 17/11)
+- [ ] Uma segunda pessoa usar o REC com os dados dela: login separado, dados separados por pessoa no banco, conexão com o Garmin dela (a chave pessoal é individual: ela precisaria da própria chave, ou o caminho Intervals.icu), plano/treinos dela e o envio para o relógio dela. Bases (120 dias) e calibração por pessoa. Antes: decidir hospedagem (mesmo Worker com várias contas × uma cópia separada) e privacidade (LGPD, dados de saúde de outra pessoa).
+
 ## Nutrição: calorias, macros e peso (ideia salva em 16/11, fazer depois)
 Muda a decisão inicial ("contador de calorias fora do app"): agora o Luca quer acompanhar dentro do REC.
 - [ ] Gasto: calorias ativas do dia (Garmin) + basal; testar se a chave pessoal traz as duas (resumo diário). Total do dia = basal + ativas.
