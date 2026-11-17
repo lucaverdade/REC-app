@@ -1,7 +1,7 @@
 {
   "semana": "2026-11-16",
   "fase": "Polimento, semana 1 de 2",
-  "notas": "Polimento: volume cai de 8,4 h para ~7,0 h (sem academia de pernas) e os toques de ritmo de prova continuam. A bike vai para a oficina depois da T2 de terça e só volta na sexta; é despachada no sábado até 13h. Quinta: T2 na academia (spinning e esteira), sem casaco. Sexta: bike ao ar livre com nutrição de prova (calor natural, teste da bike pós-revisão) e natação no lago de macaquinho. Domingo: spinning leve na academia. Calor: banho quente na quarta e no sábado. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 e o Hyrox de quarta. Natação segunda, quinta e sexta (no lago), a de sexta leve; academia só na terça (superiores e core), nunca no mesmo dia da natação. Cama às 21:45; sexta e sábado sem sair, exceto o treino.",
+  "notas": "Polimento: volume cai de 8,4 h para ~7,4 h (sem academia) e os toques de ritmo de prova continuam. A bike foi para a oficina na terça e volta na sexta; é despachada no sábado às 13h. Quinta: T2 na academia (spinning e esteira), sem casaco, com a transição em até 3 min. Sexta: teste da bike de 25 min e natação no lago de macaquinho. Sábado: bike ao ar livre com nutrição de prova, de manhã. Domingo: a última corrida de ritmo de prova, 7 dias antes da prova. Calor: banho quente na quarta e no domingo. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 e o Hyrox de quarta. Natação segunda, terça e quarta (leves) e sexta (lago); sem academia nesta semana. Cama às 21:45; sexta e sábado sem sair, exceto o treino.",
   "dias": {
     "2026-11-16": [
       {
@@ -42,13 +42,12 @@
         "strain": 52
       },
       {
-        "modalidade": "academia",
-        "titulo": "Superiores e core",
-        "minutos": 30,
-        "zona": null,
-        "detalhe": "À noite. 6 min aquec.; 20 min RPE 6; 4 min solta. Sem carga de pernas.",
-        "chave": false,
-        "strain": 15
+        "modalidade": "natacao",
+        "titulo": "Natação",
+        "minutos": 25,
+        "zona": "Z1",
+        "detalhe": "À noite. Leve, para manter contato com a água.",
+        "chave": false
       }
     ],
     "2026-11-18": [
@@ -60,6 +59,14 @@
         "chave": false,
         "strain": 100,
         "detalhe": "De manhã. É o último antes da prova. Se o HRV estiver abaixo de 95 ou a FC de repouso acima de 42, não faz: vira calor de 40 min na bike (5 min Z1; 30 min Z1–Z2 em RPE 3–4, 2–3 camadas, FC teto 150; 5 min Z1). À noite, banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. Jantar forte em carboidrato; cama às 21:45."
+      },
+      {
+        "modalidade": "natacao",
+        "titulo": "Natação",
+        "minutos": 20,
+        "zona": "Z1",
+        "detalhe": "No fim da tarde, leve, antes do banho quente.",
+        "chave": false
       }
     ],
     "2026-11-19": [
@@ -80,55 +87,47 @@
         "detalhe": "Na esteira (1% de inclinação, ventilador ligado), sem casaco. T2 em até 3 min. 3 min a 6:40/km; 3 min a 6:00; 7 min a 5:25–5:30 (GAP, FC 155–158); 2 min Z1 a 6:40. Os 7 min em ritmo de prova só se a dor de perna do Hyrox estiver em 4 ou menos em 10; com 5 ou mais, vira 10 min a 6:20, bem solto. Sai se FC de repouso acima de 42 ou HRV abaixo de 95.",
         "chave": true,
         "strain": 32
-      },
-      {
-        "modalidade": "natacao",
-        "titulo": "Natação",
-        "minutos": 40,
-        "zona": "Z1–Z2",
-        "detalhe": "À noite.",
-        "chave": false
       }
     ],
     "2026-11-20": [
       {
         "modalidade": "bike",
-        "titulo": "Bike ao ar livre com nutrição de prova",
-        "minutos": 50,
-        "zona": "Z2",
-        "detalhe": "Entre 10h e 15h, assim que a bike sair da oficina; calor natural, sem casaco. 10 min Z1; 12 min Z2 (135–147, RPE 5); 8 min esforço de prova (147–153, RPE 6); 4 min Z1; 8 min esforço de prova; 8 min Z1. Nutrição de prova, 70 g/h de carbo. É também o teste da bike pós-revisão: confira marcha, freio e pneu, e se algo estiver errado a oficina ainda abre antes do despacho. Sem bike até as 15h: vira 30 min de spinning em Z1 na academia e banho quente de 30 min a 40 °C, e a nutrição passa para o spinning de domingo. Cama às 21:45.",
-        "chave": true,
-        "strain": 94
+        "titulo": "Bike: teste pós-revisão",
+        "minutos": 25,
+        "zona": "Z1–Z2",
+        "detalhe": "Assim que pegar a bike na oficina. 10 min Z1; 3×1 min em esforço de prova (FC 147–153) com 2 min Z1 entre; resto Z1. Confira marcha, freio e pneu: se algo estiver errado, a oficina ainda abre antes do despacho.",
+        "chave": false,
+        "strain": 30
       },
       {
         "modalidade": "natacao",
         "titulo": "Natação",
         "minutos": 30,
         "zona": "Z1–Z2",
-        "detalhe": "No lago, de macaquinho, no fim da tarde.",
+        "detalhe": "No lago, de macaquinho, no fim da tarde. Cama às 21:45.",
         "chave": false
       }
     ],
     "2026-11-21": [
       {
-        "modalidade": "corrida",
-        "titulo": "Ritmo de prova (último)",
-        "minutos": 45,
-        "zona": "Z2–Z3",
-        "detalhe": "10 min a 6:40–6:50/km; 10 min a 6:00–6:10; 2×8 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 4 min a 7:00 entre; 5 min Z1 a 6:40. Com HRV abaixo de 95, FC de repouso acima de 42 ou dor de perna em 5 ou mais em 10, vira 30 min em Z2. Para se houver dor aguda na canela ou na panturrilha. Depois, banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; reponha 500 ml com sal. Despache a bike até 13h.",
+        "modalidade": "bike",
+        "titulo": "Bike ao ar livre com nutrição de prova",
+        "minutos": 50,
+        "zona": "Z2",
+        "detalhe": "De manhã, calor natural, sem casaco; termine antes de despachar a bike até as 13h. 10 min Z1; 12 min Z2 (135–147, RPE 5); 8 min esforço de prova (147–153, RPE 6); 4 min Z1; 8 min esforço de prova; 8 min Z1. Nutrição de prova, 70 g/h de carbo, sem subir. É o último pedal antes do despacho.",
         "chave": true,
-        "strain": 87
+        "strain": 94
       }
     ],
     "2026-11-22": [
       {
-        "modalidade": "bike",
-        "titulo": "Spinning leve",
-        "minutos": 40,
-        "zona": "Z1–Z2",
-        "detalhe": "Na academia, sem casaco. 10 min Z1; 12 min Z2 (135–147, RPE 5); 2×4 min esforço de prova (147–153, RPE 6) com 4 min Z1 entre; resto Z1. É o rodar a perna depois da corrida de sábado. Teste de tolerância ao nitrato: tome de 2 a 3 h antes e anote como o estômago e a FC respondem. Se a academia não abrir, o dia vira descanso total.",
-        "chave": false,
-        "strain": 55
+        "modalidade": "corrida",
+        "titulo": "Ritmo de prova (último)",
+        "minutos": 45,
+        "zona": "Z2–Z3",
+        "detalhe": "Teste do nitrato: tome de 2 a 3 h antes e anote como o estômago e a FC respondem. 10 min a 6:40–6:50/km; 10 min a 6:00–6:10; 2×8 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 4 min a 7:00 entre; 5 min Z1 a 6:40. Com HRV abaixo de 95, FC de repouso acima de 42 ou dor de perna em 5 ou mais em 10, vira 30 min em Z2. Para se houver dor aguda na canela ou na panturrilha. Depois, banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; reponha 500 ml com sal.",
+        "chave": true,
+        "strain": 87
       }
     ]
   }
