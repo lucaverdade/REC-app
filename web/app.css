@@ -1,3 +1,5 @@
+/* Manrope (SIL Open Font License), só para números e títulos — 17/11 */
+@font-face { font-family: "Manrope"; src: url("/fonts/manrope.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
 /* REC — tema escuro, cinza e branco. Cor só no REC. */
 :root {
   --bg: #000;
@@ -66,7 +68,7 @@
   --rec: var(--text-3);
 
   --font: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-display: -apple-system, "SF Pro Display", system-ui, sans-serif;
+  --font-display: "Manrope", -apple-system, "SF Pro Display", system-ui, sans-serif;
   --pad: 22px;
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
@@ -1734,3 +1736,44 @@ details.how[open] > :not(summary) { animation: rise .35s ease both; }
 .hb-g > summary::after { content: '›'; margin-left: auto; font-size: 16px; transition: transform .2s; }
 .hb-g[open] > summary::after { transform: rotate(90deg); }
 .hb-g[open] .hb-list { animation: rise .3s ease both; }
+
+/* 17/11 — faixa da semana, anel das partes, minigráficos */
+.wkstrip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 4px 0 6px; min-height: 52px; }
+.ws-d { display: grid; justify-items: center; gap: 4px; background: none; border: 0; padding: 4px 0; color: var(--text-2); font: inherit; cursor: pointer; }
+.ws-d small { font-size: 11px; text-transform: uppercase; }
+.ws-d i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 500 11px var(--font-display); font-style: normal; color: var(--text);
+  background: color-mix(in srgb, var(--c) 22%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); }
+.ws-d.on i { background: var(--c); color: #0b0b0d; box-shadow: 0 0 12px color-mix(in srgb, var(--c) 60%, transparent); }
+.ws-d.on small { color: var(--text); font-weight: 600; }
+.hero { position: relative; }
+.parts-ring { position: absolute; left: 50%; top: -20px; width: 252px; height: 252px; margin-left: -126px; pointer-events: none; transform: rotate(0deg); }
+.parts-ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 126px 126px; animation: fadein .8s .8s both; }
+.parts-ring .pr-l { display: none; }
+.spk { display: block; width: 60px; height: 18px; margin: 2px 0 1px; overflow: visible; }
+.spk path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+
+/* números com a mesma largura (não "dançam" na contagem) */
+.hr-val, .tile b, .load-line b, .b-big b, .pg-head b, .vw-head b, .vs-row b, .mr-tile b, .tmr-night b, .ss-ring b, .wk-list em, .fs-grid b, .zs-head b, .rv-grid b, .ws-d i, [data-count] { font-variant-numeric: tabular-nums; }
+
+/* Seu dia em faixa de 24 h (17/11) */
+.tl-strip { width: 100%; display: block; overflow: visible; margin-top: 6px; }
+.tl-strip .tl-lane { fill: color-mix(in srgb, var(--text) 5%, transparent); }
+.tl-strip .tl-sleep { fill: color-mix(in srgb, var(--sleep) 70%, transparent); }
+.tl-strip .tl-hr { fill: none; stroke: var(--fatigue); stroke-width: 1.2; opacity: .75; }
+.tl-strip .tl-grid { stroke: color-mix(in srgb, var(--text) 10%, transparent); stroke-width: .6; }
+
+/* brilho do fundo pela hora (Hoje) */
+#screen { position: relative; isolation: isolate; }
+.tod { position: absolute; left: -16px; right: -16px; top: -60px; height: 520px; z-index: -1; pointer-events: none; transition: opacity 1s; }
+.tod-manha { background: radial-gradient(60% 50% at 20% 10%, rgba(255, 181, 71, .16), transparent 70%), radial-gradient(50% 40% at 85% 0%, rgba(255, 138, 76, .10), transparent 70%); }
+.tod-dia { background: radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--rec) 12%, transparent), transparent 70%); }
+.tod-noite { background: radial-gradient(60% 50% at 80% 5%, rgba(93, 79, 209, .22), transparent 70%), radial-gradient(45% 40% at 10% 20%, rgba(42, 120, 232, .10), transparent 70%); }
+
+/* telas vazias com desenho (17/11) */
+.empty[data-art] { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 14px 8px; }
+.empty[data-art]::before { content: ''; width: 56px; height: 56px; background: center / contain no-repeat; opacity: .9; animation: art-float 4s ease-in-out infinite; }
+.empty[data-art="noite"]::before { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%20stroke%3D%27%23b3a7e6%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M40%2014a18%2018%200%201%200%2010%2030A16%2016%200%200%201%2040%2014z%27/%3E%3Cpath%20d%3D%27M50%2012v4M48%2014h4M14%2018v3M12.5%2019.5h3%27%20stroke%3D%27%23d9d4f5%27/%3E%3C/svg%3E"); }
+.empty[data-art="treino"]::before { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%3E%3Ccircle%20cx%3D%2720%27%20cy%3D%2732%27%20r%3D%279%27%20stroke%3D%27%234c9dff%27/%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2732%27%20r%3D%279%27%20stroke%3D%27%23ff8a4c%27/%3E%3Ccircle%20cx%3D%2744%27%20cy%3D%2732%27%20r%3D%279%27%20stroke%3D%27%231f9e90%27%20stroke-dasharray%3D%273%204%27/%3E%3C/svg%3E"); }
+.empty[data-art="dados"]::before { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%20stroke%3D%27%238a8a91%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M10%2044c8%200%209-14%2016-14s8%208%2014%208%208-18%2014-18%27%20stroke-dasharray%3D%272%204%27/%3E%3Ccircle%20cx%3D%2754%27%20cy%3D%2720%27%20r%3D%272.5%27%20fill%3D%27%238a8a91%27/%3E%3C/svg%3E"); }
+@keyframes art-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .empty[data-art]::before { animation: none; } }

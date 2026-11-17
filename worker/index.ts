@@ -400,7 +400,8 @@ async function readinessSeries(env: Env, from: string, to: string) {
   for (let x = addDays(from, -120); x <= to; x = addDays(x, 1)) debt.set(x, sleepDebt(nights, need, x));
   const recBy = new Map(recs.map((r) => [r.date, r.rec]));
   const L = loads.map((x) => x.load); // um vetor só: a Prontidão de cada dia usa até a véspera (sem copiar)
-  const out: { date: string; rec: number | null; ready: number | null; strain: number }[] = [];
+  const out: { date: string; rec: number | null; ready: number | null; strain: number; sleep: number | null }[] = [];
+  const sleepBy = new Map(nights.map((n) => [n.date, n.sleep_h]));
   for (let d = from; d <= to; d = addDays(d, 1)) {
     const i = li.get(d) ?? -1, rec = recBy.get(d) ?? null;
     let ready: number | null = null;
@@ -408,7 +409,7 @@ async function readinessSeries(env: Env, from: string, to: string) {
       const dh: number[] = []; for (let x = addDays(d, -120); x < d; x = addDays(x, 1)) { const v = debt.get(x); if (v != null) dh.push(v); }
       ready = readiness(rec, L, debt.get(d) ?? null, dh, undefined, i - 1).score;
     }
-    out.push({ date: d, rec: rec == null ? null : Math.round(rec), ready: ready == null ? null : Math.round(ready), strain: i >= 0 ? Math.round(loads[i].load) : 0 });
+    out.push({ date: d, rec: rec == null ? null : Math.round(rec), ready: ready == null ? null : Math.round(ready), strain: i >= 0 ? Math.round(loads[i].load) : 0, sleep: sleepBy.get(d) ?? null });
   }
   return out;
 }

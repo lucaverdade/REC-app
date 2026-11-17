@@ -117,6 +117,56 @@ function contribHtml(list) {
   }).join('');
 }
 
+// 17/11: anel fino por fora do principal, dividido nas 4 partes da conta (tamanho = peso); a cor diz se ajudou ou pesou
+function partsRing(r) {
+  if (!r?.parts?.length) return '';
+  const W = { corpo: 55, carga: 20, ontem: 10, sono: 15 }, LB = { corpo: 'Corpo', carga: 'Carga', ontem: 'Ontem', sono: 'Sono' };
+  const col = (z) => (z == null ? 'var(--line)' : z >= 0.5 ? 'var(--good)' : z <= -1 ? 'var(--bad)' : z <= -0.4 ? 'var(--warn)' : 'color-mix(in srgb, var(--text) 45%, transparent)');
+  const S = 252, R = 121, C = 2 * Math.PI * R, gap = 6;
+  let at = 0;
+  const segs = r.parts.map((p) => {
+    const len = (W[p.key] / 100) * C, off = at; at += len;
+    const mid = (off + len / 2) / C * 2 * Math.PI - Math.PI / 2, lx = S / 2 + (R + 0) * Math.cos(mid), ly = S / 2 + (R + 0) * Math.sin(mid);
+    return `<circle cx="${S / 2}" cy="${S / 2}" r="${R}" stroke="${col(p.z)}" stroke-dasharray="${(len - gap).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-off - gap / 2).toFixed(1)}"><title>${LB[p.key]}</title></circle>
+      <text x="${lx.toFixed(1)}" y="${(ly + 3).toFixed(1)}" class="pr-l" text-anchor="middle">${LB[p.key]}</text>`;
+  }).join('');
+  return `<svg class="parts-ring" viewBox="0 0 ${S} ${S}" aria-hidden="true">${segs}</svg>`;
+}
+// 17/11: faixa dos últimos 7 dias (cor da nota de cada manhã) e minigráficos de 7 dias nos três quadrinhos
+let seriesP = null, seriesAt = 0;
+const readySeries = () => { if (!seriesP || Date.now() - seriesAt > 10 * 60e3) { seriesAt = Date.now(); seriesP = api('/api/ready-series?days=60').catch(() => (seriesP = null, null)); } return seriesP; };
+async function fillWeekBits(d) {
+  const r = await readySeries(); if (!r || !onHoje()) return;
+  const today = isoToday(), by = new Map(r.days.map((x) => [x.date, x]));
+  const strip = screen.querySelector('#wkstrip');
+  if (strip) {
+    const days = Array.from({ length: 7 }, (_, i) => addIso(today, i - 6));
+    strip.innerHTML = days.map((iso) => {
+      const x = by.get(iso), v = x?.ready ?? null, on = iso === d.date;
+      const wd = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'narrow' });
+      return `<button type="button" class="ws-d${on ? ' on' : ''}" data-iso="${iso}" aria-label="${iso}${v != null ? `, ${v}%` : ''}"><small>${wd}</small><i style="--c:${v == null ? 'var(--line)' : readyColor(v)}">${v ?? ''}</i></button>`;
+    }).join('');
+    strip.querySelectorAll('[data-iso]').forEach((b) => b.addEventListener('click', () => {
+      const off = Math.round((new Date(today + 'T12:00:00') - new Date(b.dataset.iso + 'T12:00:00')) / 864e5);
+      if (off !== dayOffset) { dayOffset = off; load(); }
+    }));
+  }
+  // minigráficos: 7 dias até o dia aberto
+  const end = d.date, pts = Array.from({ length: 7 }, (_, i) => by.get(addIso(end, i - 6)));
+  const spark = (vals, color) => {
+    const v = vals.map((x) => (x == null ? null : Number(x))), ok = v.filter((x) => x != null); if (ok.length < 3) return '';
+    const mn = Math.min(...ok), mx = Math.max(...ok), W = 60, H = 16, X = (i) => (i / 6) * W, Y = (x) => H - 1 - ((x - mn) / (mx - mn || 1)) * (H - 2);
+    let dd = '', pen = false; v.forEach((x, i) => { if (x == null) { pen = false; return; } dd += `${pen ? 'L' : 'M'}${X(i).toFixed(1)},${Y(x).toFixed(1)}`; pen = true; });
+    const li = v.length - 1 - [...v].reverse().findIndex((x) => x != null);
+    return `<svg class="spk" viewBox="-2 -2 64 20" aria-hidden="true"><path d="${dd}" style="stroke:${color}"/><circle cx="${X(li)}" cy="${Y(v[li])}" r="2" style="fill:${color}"/></svg>`;
+  };
+  const tiles = screen.querySelectorAll('.tri .tile');
+  const add = (i, html) => { const t = tiles[i]; if (t && html && !t.querySelector('.spk')) t.querySelector('b')?.insertAdjacentHTML('afterend', html); };
+  add(0, spark(pts.map((x) => x?.sleep), 'var(--sleep)'));
+  add(1, spark(pts.map((x) => x?.strain), 'var(--strain)'));
+  add(2, spark(pts.map((x) => x?.rec), d.rec == null ? 'var(--text-3)' : readyColor(d.rec)));
+}
+
 function readyPartsHtml(r) {
   if (!r) return '';
   const W = { corpo: 55, carga: 20, ontem: 10, sono: 15 };
@@ -436,30 +486,36 @@ function morningHtml(d) {
 
 // ---------- linha do tempo do dia: sono, treinos, FC e estresse em 24 h ----------
 function timelineHtml(t, isToday) {
-  const W = 340, H = 92, X = (m) => (m / 1440) * W;
-  const head = cardHead('clock', isToday ? 'Seu dia' : 'O dia', { color: 'var(--fatigue)', info: 'Sono (faixa lilás), treinos (faixa da cor da modalidade), FC (linha) e estresse da Garmin (barras) a cada 5 minutos. Toque no gráfico para ver a hora.' });
+  // 17/11: faixa de 24 h em três trilhas — sono e treinos · estresse (cor por nível) · FC (linha fina)
+  const W = 340, X = (m) => (m / 1440) * W;
+  const L1 = [0, 22], L2 = [28, 40], L3 = [46, 74], H = 74;
+  const head = cardHead('clock', isToday ? 'Seu dia' : 'O dia', { color: 'var(--fatigue)', info: 'Faixa de 24 horas. Em cima: sono (lilás) e treinos (cor da modalidade). No meio: estresse da Garmin a cada 5 minutos (azul = descanso, amarelo → vermelho = mais estresse). Embaixo: FC. Toque para ver a hora.' });
   if (!t.hr.length && !t.stress && !t.workouts.length && !t.sleep.length) return `${head}<p class="empty">${t.error ? `Sem curva da Garmin (${esc(t.error)}).` : 'Sem dados do dia ainda.'}</p>`;
   const hrMax = Math.max(120, ...t.hr.map((p) => p[1])), hrMin = Math.min(40, ...t.hr.map((p) => p[1]));
-  const yHr = (v) => 14 + (1 - (v - hrMin) / (hrMax - hrMin)) * (H - 30);
+  const yHr = (v) => L3[0] + 2 + (1 - (v - hrMin) / (hrMax - hrMin)) * (L3[1] - L3[0] - 4);
   const path = (pts, y) => { let d = '', last = -99; for (const [m, v] of pts) { d += `${m - last > 15 ? 'M' : 'L'}${X(m).toFixed(1)},${y(v).toFixed(1)}`; last = m; } return d; };
-  const stressArea = t.stress ? t.stress.map(([m, v]) => `<rect x="${X(m).toFixed(1)}" y="${(H - 16 - (v / 100) * 26).toFixed(1)}" width="${(X(5) + 0.2).toFixed(2)}" height="${((v / 100) * 26).toFixed(1)}" class="tl-st"/>`).join('') : '';
-  const sleep = t.sleep.map((b) => `<rect x="${X(b.start).toFixed(1)}" y="0" width="${(X(b.end) - X(b.start)).toFixed(1)}" height="${H - 16}" class="tl-sleep"/>`).join('');
-  const work = t.workouts.map((w) => `<rect x="${X(w.start).toFixed(1)}" y="0" width="${Math.max(2, X(w.dur)).toFixed(1)}" height="${H - 16}" class="tl-w" style="fill:var(--${w.sport})"/>`).join('');
+  const stCol = (v) => (v < 0 ? 'transparent' : v <= 25 ? '#4c9dff' : v <= 50 ? '#e8c35a' : v <= 75 ? '#ff9a4c' : '#ff5f5f');
+  const lane = (y, h) => `<rect x="0" y="${y}" width="${W}" height="${h}" rx="4" class="tl-lane"/>`;
+  const sleep = t.sleep.map((b) => `<rect x="${X(b.start).toFixed(1)}" y="${L1[0]}" width="${(X(b.end) - X(b.start)).toFixed(1)}" height="${L1[1] - L1[0]}" rx="4" class="tl-sleep"/>`).join('');
+  const work = t.workouts.map((w) => `<rect x="${X(w.start).toFixed(1)}" y="${L1[0]}" width="${Math.max(3, X(w.dur)).toFixed(1)}" height="${L1[1] - L1[0]}" rx="3" style="fill:var(--${w.sport}, var(--accent))"/>`).join('');
+  const stress = t.stress ? t.stress.map(([m, v]) => `<rect x="${X(m).toFixed(1)}" y="${L2[0]}" width="${(X(5) + 0.3).toFixed(2)}" height="${L2[1] - L2[0]}" style="fill:${stCol(v)}"/>`).join('') : '';
   const now = isToday ? (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })() : null;
   const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
-  const dayHr = t.hr.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1]);
-  const stressDay = t.stress ? avg(t.stress.filter(([m]) => !t.sleep.some((b) => m >= b.start && m < b.end)).map((p) => p[1])) : null;
+  const awake = (m) => !t.sleep.some((b) => m >= b.start && m < b.end);
+  const dayHr = t.hr.filter(([m]) => awake(m)).map((p) => p[1]);
+  const stressDay = t.stress ? avg(t.stress.filter(([m, v]) => awake(m) && v >= 0).map((p) => p[1])) : null;
   return `${head}
-    <svg viewBox="0 0 ${W} ${H - 14}" class="tl-svg" role="img" aria-label="Linha do tempo do dia">
-      ${sleep}${work}${stressArea}
+    <svg viewBox="0 0 ${W} ${H}" class="tl-svg tl-strip" role="img" aria-label="Linha do tempo do dia">
+      ${lane(L1[0], L1[1] - L1[0])}${lane(L2[0], L2[1] - L2[0])}
+      ${sleep}${work}${stress}
       ${t.hr.length ? `<path d="${path(t.hr, yHr)}" class="tl-hr"/>` : ''}
-      ${now != null ? `<line x1="${X(now).toFixed(1)}" x2="${X(now).toFixed(1)}" y1="0" y2="${H - 16}" class="tl-now"/>` : ''}
-      <line x1="0" x2="${W}" y1="${H - 16}" y2="${H - 16}" class="tl-base"/>
-      <line class="tl-cur" x1="-10" x2="-10" y1="0" y2="${H - 16}"/>
+      ${[6, 12, 18].map((h) => `<line x1="${X(h * 60)}" x2="${X(h * 60)}" y1="0" y2="${H}" class="tl-grid"/>`).join('')}
+      ${now != null ? `<line x1="${X(now).toFixed(1)}" x2="${X(now).toFixed(1)}" y1="-2" y2="${H}" class="tl-now"/>` : ''}
+      <line class="tl-cur" x1="-10" x2="-10" y1="0" y2="${H}"/>
     </svg>
     <div class="tl-ticks" aria-hidden="true">${[0, 6, 12, 18, 24].map((h) => `<span>${h}h</span>`).join('')}</div>
-    <p class="tl-tip" aria-live="polite">${[dayHr.length ? `FC média acordado <b>${avg(dayHr)}</b>` : null, stressDay != null ? `estresse médio acordado <b>${stressDay}</b>` : null].filter(Boolean).join(' · ') || 'Toque no gráfico para ver a hora.'}</p>
-    <div class="yr-leg"><span><i style="background:color-mix(in srgb, var(--sleep) 30%, transparent)"></i>Sono</span>${t.workouts.length ? '<span><i style="background:var(--accent)"></i>Treino</span>' : ''}<span><i style="background:var(--fatigue);height:2px;border-radius:0"></i>FC</span>${t.stress ? '<span><i style="background:color-mix(in srgb, var(--warn) 55%, transparent)"></i>Estresse</span>' : ''}</div>`;
+    <p class="tl-tip" aria-live="polite">${[dayHr.length ? `FC média acordado <b>${avg(dayHr)}</b>` : null, stressDay != null ? `estresse médio acordado <b>${stressDay}</b>` : null].filter(Boolean).join(' · ') || 'Toque na faixa para ver a hora.'}</p>
+    <div class="yr-leg"><span><i style="background:var(--sleep)"></i>Sono</span>${t.workouts.length ? '<span><i style="background:var(--accent)"></i>Treino</span>' : ''}${t.stress ? '<span><i style="background:#4c9dff"></i>Descanso</span><span><i style="background:linear-gradient(90deg,#e8c35a,#ff5f5f)"></i>Estresse</span>' : ''}<span><i style="background:var(--fatigue);height:2px;border-radius:0"></i>FC</span></div>`;
 }
 function bindTimeline(screen, t) {
   const svg = screen.querySelector('.tl-svg'); if (!svg) return;
@@ -646,7 +702,10 @@ function render(d) {
   const raceTxt = d.race.days > 0 ? `Aracaju em ${d.race.days} dias` : d.race.days === 0 ? 'Dia de prova' : '';
   const todayIso = d.date;
 
+  // 17/11: brilho de fundo que acompanha a hora — dourado de manhã, neutro de dia, índigo à noite
+  const hh = new Date().getHours(), tod = !d.isToday ? 'dia' : hh < 11 ? 'manha' : hh < 17 ? 'dia' : 'noite';
   screen.innerHTML = `
+    <div class="tod tod-${tod}" aria-hidden="true"></div>
     <header class="top day-top">
       <div class="daynav">
         <button type="button" data-day="1" aria-label="Dia anterior" ${dayOffset >= MAX_BACK ? 'disabled' : ''}>‹</button>
@@ -656,6 +715,7 @@ function render(d) {
       <span class="top-r">${raceTxt ? `<a class="race race-link" href="#prova" aria-label="${esc(raceTxt)}. Abrir a aba Prova.">${esc(raceTxt)} ›</a>` : ''}<a class="gear" href="#ajustes" aria-label="Ajustes">${ICON.gear}</a></span>
     </header>
 
+    <nav class="wkstrip" id="wkstrip" aria-label="Últimos 7 dias"></nav>
     ${d.phase && d.isToday ? `<p class="phase-line">${esc(d.phase)}</p>` : ''}
     ${d.syncIssue ? `<a class="alert sync-alert" role="status" href="#garmin">${esc(d.syncIssue.text)} <em>Garmin ›</em></a>` : ''}
 
@@ -675,6 +735,7 @@ function render(d) {
       ${heroReady(shownV, {
         sub: wait != null ? 'de ontem · esperando a noite' : sc == null && d.isToday ? 'a noite ainda não chegou' : '',
         aria: wait != null ? `Ontem, ${wait}%. A noite de hoje ainda não chegou.` : shownV == null ? 'Sem número hoje.' : `${shownV}% pronto para hoje. Toque para ver o que entrou na conta.` })}
+      ${partsRing(sc == null ? null : r)}
     </section>
     <div class="contrib" id="ready-parts"><div>${readyPartsHtml(r)}</div></div>`;
     })()}
@@ -716,6 +777,7 @@ function render(d) {
   `;
 
   animateRings(screen);
+  fillWeekBits(d);
   // anéis: animação única ao abrir
   requestAnimationFrame(() => requestAnimationFrame(() => {
     screen.querySelectorAll('.rt-arc').forEach((a) => { a.style.strokeDashoffset = a.dataset.target; });
@@ -1203,7 +1265,13 @@ function navAnim(h) {
 screen.addEventListener('animationend', (e) => { if (e.target === screen) screen.classList.remove('nav-push', 'nav-pop', 'nav-fade'); });
 
 // esqueleto de carregamento: todo "Carregando…" vira faixas que brilham; some quando o texto muda (erro) ou o bloco é trocado
-const markSk = (root) => root.querySelectorAll?.('.empty').forEach((el) => el.classList.toggle('sk', el.textContent.trim() === 'Carregando…'));
+// 17/11: telas vazias ganham um desenho simples conforme o assunto (lua, treinos, dados)
+const ART = [[/noite|sono/i, 'noite'], [/treino|sess(ã|a)o|plano|corrida/i, 'treino'], [/.*/, 'dados']];
+const markSk = (root) => root.querySelectorAll?.('.empty').forEach((el) => {
+  const t = el.textContent.trim(), loading = t === 'Carregando…';
+  el.classList.toggle('sk', loading);
+  if (!loading && t && !/^Não carregou|^Sem conexão/.test(t)) el.dataset.art = ART.find(([re]) => re.test(t))[1]; else delete el.dataset.art;
+});
 new MutationObserver((ms) => { for (const m of ms) { const t = m.target.nodeType === 1 ? m.target : m.target.parentElement; if (t) { if (t.classList?.contains('sk') && t.textContent.trim() !== 'Carregando…') t.classList.remove('sk'); markSk(t); } } })
   .observe(screen, { childList: true, subtree: true, characterData: true });
 

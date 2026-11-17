@@ -68,9 +68,9 @@ export async function renderTrends(screen, api) {
     <section class="card rise" style="--i:3" id="b-hrv"></section>
     <section class="card rise" style="--i:4" id="b-rhr"></section>
     <section class="card rise" style="--i:5" id="b-sleep"></section>
-    <section class="card rise" style="--i:6">${cardHead('moon', 'Estresse acumulado', { color: 'var(--warn)' })}<div class="block" id="stress31"></div></section>
-    <section class="card rise" style="--i:7">${cardHead('book', 'O que mexe no meu REC', { color: 'var(--accent)' })}<div class="block" id="habs"></div></section>
-    <section class="card rise" style="--i:8">${cardHead('clock', 'O ano em quadradinhos', { color: 'var(--accent)' })}<div class="block" id="year"></div></section>`;
+    <section class="card rise" style="--i:6">${cardHead('wave', 'Estresse acumulado', { color: 'var(--warn)' })}<div class="block" id="stress31"></div></section>
+    <section class="card rise" style="--i:7">${cardHead('layers', 'O que mexe no meu REC', { color: 'var(--accent)' })}<div class="block" id="habs"></div></section>
+    <section class="card rise" style="--i:8">${cardHead('grid', 'O ano em quadradinhos', { color: 'var(--accent)' })}<div class="block" id="year"></div></section>`;
   screen.querySelectorAll('[data-bd]').forEach((b) => b.addEventListener('click', () => {
     bodyDays = Number(b.dataset.bd); try { localStorage.setItem('rec.bodyDays', String(bodyDays)); } catch {}
     screen.querySelectorAll('[data-bd]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
@@ -147,14 +147,14 @@ async function bodyCharts(screen, api) {
 
   const head = (sel, icon, title, color, big, sub) => `${cardHead(icon, title, { color })}<div class="b-big"><b>${big}</b><small>${sub}</small></div><div class="b-chart"></div>`;
   const box = (id) => screen.querySelector(id);
-  box('#b-ready').innerHTML = `${cardHead('bolt', 'Nota do dia e REC', { color: aR == null ? 'var(--text-2)' : readyColor(aR) })}<div class="b-chart"></div>`;
+  box('#b-ready').innerHTML = `${cardHead('ring', 'Nota do dia e REC', { color: aR == null ? 'var(--text-2)' : readyColor(aR) })}<div class="b-chart"></div>`;
   bandLine(box('#b-ready .b-chart'), { dates: rDates, values: rd.map((x) => x.ready), color: 'rgba(179,167,230,.9)', min: 0, max: 100, height: 120, axes: 'x',
     dots: (val, i) => (i === rd.length - 1 ? readyColor(val) : null), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.28)', width: 1 }], label: 'Nota do dia',
     tip: (i) => row('Nota do dia', rd[i].ready == null ? '–' : `${rd[i].ready}%`) + row('REC', rd[i].rec ?? '–') + row('Strain', rd[i].strain) });
   box('#b-ready').insertAdjacentHTML('beforeend', '<p class="b-leg"><span><i style="background:#b3a7e6"></i>Nota do dia</span><span><i style="background:rgba(255,255,255,.35)"></i>REC</span></p>');
 
   const hv = avg(days.map((x) => x.hrv)), hb = avg(days.map((x) => x.hrvBase));
-  box('#b-hrv').innerHTML = head('#b-hrv', 'heart', 'HRV', 'var(--hrv)', hv == null ? '–' : `${Math.round(hv)}<i> ms</i>`, `média · ${per}${hb ? ` · base ${Math.round(hb)} ms` : ''}${h?.label ? ` · ${h.label.toLowerCase()}` : ''}`);
+  box('#b-hrv').innerHTML = head('#b-hrv', 'pulse', 'HRV', 'var(--hrv)', hv == null ? '–' : `${Math.round(hv)}<i> ms</i>`, `média · ${per}${hb ? ` · base ${Math.round(hb)} ms` : ''}${h?.label ? ` · ${h.label.toLowerCase()}` : ''}`);
   bandLine(box('#b-hrv .b-chart'), { dates, values: days.map((x) => x.hrv), base: days.map((x) => x.hrvBase), color: 'var(--hrv)', height: 120, axes: 'x', label: 'HRV',
     tip: (i) => row('HRV', `${nf(days[i].hrv)} ms`) + row('Faixa normal', `${nf(days[i].hrvLo)}–${nf(days[i].hrvHi)}`) });
 
@@ -184,9 +184,9 @@ export async function renderEvolution(box, api) {
     ${C('evo', 'trend', 'Fitness, Fadiga e Forma', 'var(--fitness)')}
     ${C('focus', 'flame', 'Foco da carga', '#ff8a5c')}
     ${G('como', 'Como treinei')}
-    ${C('vol', 'stopwatch', 'Volume', 'var(--text-2)')}
+    ${C('vol', 'bars', 'Volume', 'var(--text-2)')}
     ${C('zones', 'flame', 'Zonas de treino', '#86c3f2')}
-    ${C('scat', 'bolt', 'Strain × Prontidão', '#b3a7e6')}
+    ${C('scat', 'ring', 'Strain × Prontidão', '#b3a7e6')}
     ${G('cap', 'Capacidade')}
     ${C('fage', 'run', 'VO2máx e idade fitness', 'var(--pred)')}`;
   box.querySelectorAll('[data-j]').forEach((b) => b.addEventListener('click', () => box.querySelector(`#${b.dataset.j}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })));
