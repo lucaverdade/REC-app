@@ -30,7 +30,21 @@
     "natacao": "Largar fora da briga; 1:28–1:33/100 m (RPE 5–6), sem sprint nos primeiros 200 m. Meta 28–30 min.",
     "bike": "RPE 6, FC 147–153; primeiros 20 min FC ≤148; não passar de 155 fora de subida. Meta ~30–31 km/h.",
     "corrida": "Três primeiros km FC ≤150 (5:50–6:10/km), depois FC 155–160 (5:15–5:35/km); teto 165; folga nos primeiros 14 km; caminhar 10–15 s nos postos de água. Se o simulado mostrar queda, largar a 6:10–6:20/km.",
-    "nutricao": "Bike 65–70 g/h do min 30 (garrafa e barras), corrida 40–50 g/h (gel 25 g aos 20 min + garrafa); sódio ~1,5–2 g por garrafa pela taxa de suor medida em 15/11. Nada novo."
+    "nutricao": "Bike 72 g/h (~205 g em 2h50): 3 garrafas de carbo de 50 g (33 g de maltodextrina + 17 g de frutose, em 650–700 ml) e 1 de água; géis: 1 hidrogel de 30 g (~1h20) e 1 Z2 de 25 g (~2h20), mais 1 Z2 de reserva; comece a beber carbo entre o min 10 e o 15. Corrida ~60 g/h (~115 g): 5 géis no macaquinho, tomando 4: km 3 Z2, km 8 Z2, km 13 hidrogel, km 18 hidrogel; o quinto (hidrogel) só se o estômago aceitar, por volta do km 10,5. Água com gelo nos postos, sem flask. Sódio: garrafas como já definido pela taxa de suor medida em 15/11 (1,5–2 g por garrafa) e géis com ~200 mg cada (Z2 Pitaia 204, Z2 Iced Coffee 200, hidrogel 200). Cafeína: dose a definir na semana da prova (Z2 Iced Coffee tem 150 mg por gel; confira no rótulo). Nada novo."
   },
-  "notas": "Plano-base; ajusto depois do simulado de 07/11 e do longão de 15/11."
+  "notas": "Plano-base; ajusto depois do simulado de 07/11 e do longão de 15/11.",
+  "taper": [
+    {
+      "dia": "2026-11-22",
+      "item": "Fechar o tênis (Deviate Nitro 3 ou Novablast 5) e o teto de FC da corrida (162 ou 160)"
+    },
+    {
+      "dia": "2026-11-25",
+      "item": "Definir a dose de cafeína da prova"
+    },
+    {
+      "dia": "2026-11-28",
+      "item": "Sacola vermelha: tênis e géis da corrida (5, sendo 3 hidrogel e 2 Z2)"
+    }
+  ]
 }
