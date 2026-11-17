@@ -17,7 +17,30 @@ const store = {
   clear: () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} },
 };
 
-async function api(path, opts = {}) {
+// leituras que saem no mesmo instante viram uma chamada só (/api/batch); cada uma recebe a sua resposta
+let batchQ = null;
+function api(path, opts = {}) {
+  if (opts.method || opts.raw || !path.startsWith('/api/')) return apiOne(path, opts);
+  return new Promise((resolve, reject) => {
+    if (!batchQ) { batchQ = []; setTimeout(flushBatch, 0); }
+    batchQ.push({ path, resolve, reject });
+  });
+}
+async function flushBatch() {
+  const q = batchQ; batchQ = null;
+  if (q.length === 1) { apiOne(q[0].path).then(q[0].resolve, q[0].reject); return; }
+  const uniq = [...new Set(q.map((x) => x.path))];
+  let r;
+  try { r = await apiOne(`/api/batch?${uniq.map((p) => `p=${encodeURIComponent(p)}`).join('&')}`); }
+  catch (e) { q.forEach((x) => apiOne(x.path).then(x.resolve, x.reject)); return; } // lote falhou: uma a uma
+  for (const x of q) {
+    const it = r[x.path];
+    if (!it) { apiOne(x.path).then(x.resolve, x.reject); continue; }
+    if (it.status >= 400) { let b = {}; try { b = JSON.parse(it.body); } catch {} x.reject(new Error(b.error || `HTTP ${it.status}`)); }
+    else { try { x.resolve(JSON.parse(it.body)); } catch (e) { x.reject(e); } }
+  }
+}
+async function apiOne(path, opts = {}) {
   const res = await fetch(path, {
     ...opts,
     headers: { 'content-type': 'application/json', ...(store.get() ? { authorization: `Bearer ${store.get()}` } : {}), ...(opts.headers || {}) },
@@ -657,7 +680,10 @@ function render(d) {
     })()}
 
     ${d.needsHistory ? '<p class="alert">O histórico ainda não foi carregado, então o REC não tem base. <a href="#garmin">Puxar histórico da Garmin</a></p>' : ''}
-    ${hojeOrder().map((k) => ({
+    ${(() => { // 17/11: com treino feito no dia, os treinos sobem para logo abaixo do anel (se a ordem não foi personalizada)
+      const o = hojeOrder(); let custom = false; try { custom = !!localStorage.getItem('rec.hoje'); } catch {}
+      if (!custom && d.activities?.length && o.includes('treinos')) { o.splice(o.indexOf('treinos'), 1); o.splice(o.includes('frase') ? o.indexOf('frase') + 1 : 0, 0, 'treinos'); }
+      return o; })().map((k) => ({
       frase: oneThingHtml(d),
       portas: triHtml(d),
       carga: d.load ? loadLine(d.load, todayIso) : '',
@@ -670,7 +696,15 @@ function render(d) {
       <div class="feel-dots" role="radiogroup" aria-label="Como me sinto, de 1 a 10">${Array.from({ length: 10 }, (_, i) => i + 1).map((v) => `<button type="button" role="radio" data-feel="${v}" aria-checked="${d.feel === v}">${v}</button>`).join('')}</div>
       <span class="saved" aria-live="polite"></span>
       ${d.habits ? (() => {
-        const grp = (g, t) => { const xs = d.habits.defs.filter((h) => (h.group ?? 'dia') === g); return xs.length ? `<p class="hb-h">${t}</p><div class="hb-list">${xs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" data-night="${g === 'noite'}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div>` : ''; };
+        // 17/11: de manhã abre "Noite passada", à tarde/noite abre "Hoje"; as opções mais usadas vêm primeiro
+        let use = {}; try { use = JSON.parse(localStorage.getItem('rec.tagUse') || '{}'); } catch {}
+        const hr = new Date().getHours();
+        const grp = (g, t) => {
+          const xs = d.habits.defs.filter((h) => (h.group ?? 'dia') === g).sort((a, b) => (use[b.key] ?? 0) - (use[a.key] ?? 0));
+          if (!xs.length) return '';
+          const on = xs.filter((h) => d.habits.on.includes(h.key)).length, open = !d.isToday || on > 0 || (g === 'noite' ? hr < 14 : hr >= 14);
+          return `<details class="hb-g"${open ? ' open' : ''}><summary class="hb-h">${t}${on ? ` · ${on} ${on === 1 ? 'marcado' : 'marcados'}` : ''}</summary><div class="hb-list">${xs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" data-night="${g === 'noite'}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div></details>`;
+        };
         return grp('noite', d.isToday ? 'Noite passada' : 'Noite anterior') + grp('dia', d.isToday ? 'Hoje' : 'No dia');
       })() : ''}
     </section>`,
@@ -730,6 +764,7 @@ function render(d) {
     b.setAttribute('aria-pressed', String(on));
     // a noite pertence ao dia anterior (o efeito é no REC desta manhã)
     const date = b.dataset.night === 'true' ? addDaysIso(todayIso, -1) : todayIso;
+    if (on) try { const u = JSON.parse(localStorage.getItem('rec.tagUse') || '{}'); u[b.dataset.tag] = (u[b.dataset.tag] ?? 0) + 1; localStorage.setItem('rec.tagUse', JSON.stringify(u)); } catch {}
     try { await api('/api/tags', { method: 'POST', body: JSON.stringify({ date, tag: b.dataset.tag, on }) }); }
     catch { b.setAttribute('aria-pressed', String(!on)); }
   }));
@@ -803,7 +838,9 @@ async function load() {
       autoTried = `${d.date}-${Math.floor(Date.now() / 900000)}`;
       const sync = screen.querySelector('.sync');
       if (sync) { sync.disabled = true; sync.textContent = d.needsSync ? 'Buscando a noite na Garmin…' : 'Buscando treinos novos…'; }
-      await api('/api/refresh?auto=1', { method: 'POST' }).catch(() => {});
+      const rr = await api('/api/refresh?auto=1', { method: 'POST' }).catch(() => null);
+      // nada novo na Garmin: não busca o Hoje de novo
+      if (rr && rr.changed === false) { const b = screen.querySelector('.sync'); if (b && live()) { b.disabled = false; b.textContent = d.needsSync ? 'A noite ainda não chegou à Garmin. Sincronize o relógio e toque aqui.' : 'Atualizado agora'; } return; }
       const d2 = await api(`/api/today?date=${date}`);
       todayCache = { ...todayCache, [date]: d2 };
       try { localStorage.setItem('rec.today', JSON.stringify(d2)); } catch {}
@@ -1211,5 +1248,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && (location.hash || '#hoje') === '#hoje') { autoTried = ''; dayOffset = 0; load(); }
 });
 
+// depois de Aracaju a aba Prova vira Provas
+if (new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10) > '2026-11-29') { const t = document.querySelector('.tab[href="#prova"]'); if (t) t.lastChild.textContent = 'Provas'; }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 route();

@@ -20,6 +20,22 @@ export async function renderRace(screen, api) {
   const r = d.race, n = r.days;
   const count = n > 1 ? `<b data-count="${n}">${n}</b><span>dias</span>` : n === 1 ? '<b>Amanhã</b>' : n === 0 ? '<b>Hoje</b>' : '<b>Prova feita</b>';
 
+  // depois da prova (17/11): a aba vira "Provas" — relatório, volta à base e previsões; o resto (taper, clima, carbo) sai
+  if (n < 0) {
+    const t = new Date(r.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    screen.innerHTML = `
+    <header class="top"><h1>Provas</h1></header>
+    <section class="race-hero">
+      <p class="rh-name">${esc(r.name)}</p><p class="rh-date">Feita em ${esc(t)}</p>
+      <div class="dhero rh-ring">${heroRing({ frac: 1, text: 'Feita', stops: ['var(--natacao)', 'var(--bike)', 'var(--corrida)'], size: 'md is-word' })}</div>
+    </section>
+    <a class="card rr-link" href="#relatorio/${r.date}">${cardHead('flag', 'Relatório da prova', { right: '›' })}<p class="rr-sub">Etapas, transições, o plano e quantos dias o corpo levou para voltar à base.</p></a>
+    <section class="card">${cardHead('stopwatch', 'Previsões de corrida', { color: 'var(--pred)' })}<div id="pred"></div></section>
+    <section class="card">${cardHead('flag', 'Próxima prova')}<p class="empty">Quando a próxima prova for definida, o chat de treino publica em prova.json (nome, data e distâncias) e a contagem volta aqui.</p></section>`;
+    predictions(screen, api); animateRings(screen);
+    return;
+  }
+
   screen.innerHTML = `
     <header class="top"><h1>Prova</h1></header>
 
@@ -97,11 +113,25 @@ function taperHtml(list) {
   let done = {}; try { done = JSON.parse(localStorage.getItem('rec.taper') || '{}'); } catch {}
   const items = list.map((x, i) => (typeof x === 'string' ? { id: String(i), dia: null, item: x } : { id: String(i), dia: x.dia ?? null, item: x.item ?? '' }));
   const n = items.filter((x) => done[x.id + x.item]).length;
-  return `<section class="card" id="taper">${cardHead('check', 'Taper do plano', { right: `${n} de ${items.length}`, info: 'Publicado pelo chat de treino em prova.json ("taper"). O que você marca fica guardado neste aparelho.' })}
-    <ul class="checklist">${items.map((x) => `<li><label><input type="checkbox" data-k="${esc(x.id + x.item)}" ${done[x.id + x.item] ? 'checked' : ''}><span>${x.dia ? `<b>${esc(new Date(x.dia + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }).replace('.', ''))}</b> · ` : ''}${esc(x.item)}</span></label></li>`).join('')}</ul></section>`;
+  // resumido (17/11): mostra o de hoje, os atrasados e os 2 próximos; o resto fica em "Ver todos"
+  const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  let next = 0;
+  const cls = items.map((x) => {
+    const k = done[x.id + x.item];
+    if (x.dia === today) return 'is-today';
+    if (x.dia && x.dia < today) return k ? 'is-hide' : 'is-late';
+    if (k) return 'is-hide';
+    return next++ < 2 ? '' : 'is-hide';
+  });
+  const hidden = cls.filter((c) => c === 'is-hide').length;
+  const d = (iso) => esc(new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }).replace('.', ''));
+  return `<section class="card taper" id="taper">${cardHead('check', 'Taper do plano', { right: `${n} de ${items.length}`, info: 'Publicado pelo chat de treino em prova.json ("taper"). O que você marca fica guardado neste aparelho. Aparecem o item de hoje, os atrasados e os dois próximos.' })}
+    <ul class="checklist">${items.map((x, i) => `<li class="${cls[i]}"><label><input type="checkbox" data-k="${esc(x.id + x.item)}" ${done[x.id + x.item] ? 'checked' : ''}><span>${x.dia ? `<b>${cls[i] === 'is-today' ? 'Hoje' : d(x.dia)}${cls[i] === 'is-late' ? ' · atrasado' : ''}</b>` : ''}${esc(x.item)}</span></label></li>`).join('')}</ul>
+    ${hidden ? `<button type="button" class="tp-all">Ver todos (${items.length})</button>` : ''}</section>`;
 }
 function bindTaper(screen) {
   const box = screen.querySelector('#taper'); if (!box) return;
+  box.querySelector('.tp-all')?.addEventListener('click', (e) => { const o = box.classList.toggle('is-open'); e.target.textContent = o ? 'Mostrar só os próximos' : `Ver todos (${box.querySelectorAll('li').length})`; });
   box.querySelectorAll('input').forEach((cb) => cb.addEventListener('change', () => {
     let done = {}; try { done = JSON.parse(localStorage.getItem('rec.taper') || '{}'); } catch {}
     if (cb.checked) done[cb.dataset.k] = 1; else delete done[cb.dataset.k];

@@ -1625,6 +1625,18 @@ export default {
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     if (!authorized(req, env)) return json({ error: 'nao_autorizado' }, 401);
     await ensureSchema(env);
+    // lote (17/11): várias leituras numa ida só; o app junta as chamadas GET que saem juntas
+    if (req.method === 'GET' && url.pathname === '/api/batch') {
+      const paths = url.searchParams.getAll('p').filter((p) => p.startsWith('/api/') && !p.startsWith('/api/batch')).slice(0, 16);
+      const out = await Promise.all(paths.map(async (p) => {
+        const u = new URL(p, url.origin), r = new Request(u, { headers: req.headers });
+        try {
+          const res = CACHEABLE.has(u.pathname) ? await cachedGet(env, u, () => handle(r, env)) : await handle(r, env);
+          return [p, { status: res.status, body: await res.text() }] as const;
+        } catch (e) { return [p, { status: 500, body: JSON.stringify({ error: String(e).slice(0, 120) }) }] as const; }
+      }));
+      return json(Object.fromEntries(out));
+    }
     if (req.method === 'GET' && CACHEABLE.has(url.pathname)) return cachedGet(env, url, () => handle(req, env));
     const res = await handle(req, env);
     if (req.method === 'POST' && res.status < 400) { await bumpData(env); if (url.pathname === '/api/refresh') await warm(env); }

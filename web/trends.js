@@ -77,20 +77,39 @@ export async function renderTrends(screen, api) {
     bodyCharts(screen, api);
   }));
   bodyCharts(screen, api);
-  stressSec(screen, api); habits(screen, api); yearSec(screen, api);
+  lazyLoad(screen, { stress31: stressSec, habs: habits, year: yearSec }, api);
   foldNotes(screen);
 }
 
 // explicações técnicas (p.note) ficam guardadas em "Como ler", fechadas; as seções chegam aos poucos, então observa o container
 export function foldNotes(root) {
-  const fold = () => root.querySelectorAll('.card p.note:not(.how p)').forEach((n) => {
-    // nota que é o único conteúdo do bloco (ex.: "sem dados") fica à vista
-    if (![...n.parentElement.children].some((c) => !c.matches('p.note, details.how-note, .ch, .card-info, h2, h3'))) return;
-    const prev = n.previousElementSibling;
-    if (prev?.matches('details.how-note')) { prev.append(n); return; }
-    const d = document.createElement('details'); d.className = 'how how-note'; d.innerHTML = '<summary>Como ler</summary>';
-    n.replaceWith(d); d.append(n);
-  });
+  // 17/11: as explicações (p.note) vão para o ⓘ do título do cartão; nada de "Como ler" espalhado
+  const fold = () => {
+    const byCard = new Map();
+    // "Como ler" / "Como é calculado" antigos (details): o conteúdo também vai para o ⓘ
+    root.querySelectorAll('.card details:not(.how):not(.hb-g):not(.raw)').forEach((dt) => {
+      const sm = dt.querySelector(':scope > summary'); if (!sm || !/^\s*Como/i.test(sm.textContent)) return;
+      const card = dt.closest('.card'); if (!card?.querySelector(':scope > .ch')) return; const wrap = document.createElement('div'); wrap.className = 'note ci-moved';
+      [...dt.childNodes].filter((x) => x !== sm).forEach((x) => wrap.append(x));
+      if (!byCard.has(card)) byCard.set(card, []); byCard.get(card).push(wrap); dt.remove();
+    });
+    root.querySelectorAll('.card p.note:not(.card-info p):not(.how p)').forEach((n) => {
+      // nota que é o único conteúdo do bloco (ex.: "sem dados") fica à vista
+      if (![...n.parentElement.children].some((c) => !c.matches('p.note, .ch, .card-info, h2, h3'))) return;
+      const card = n.closest('.card'); if (!byCard.has(card)) byCard.set(card, []); byCard.get(card).push(n);
+    });
+    byCard.forEach((ns, card) => {
+      let inf = card.querySelector(':scope > .card-info');
+      const head = card.querySelector(':scope > .ch');
+      if (!inf) {
+        if (!head) return;
+        inf = document.createElement('div'); inf.className = 'card-info'; inf.hidden = true; head.after(inf);
+        if (!head.querySelector('.info-btn')) head.insertAdjacentHTML('beforeend', '<button type="button" class="info-btn" aria-label="Como funciona" aria-expanded="false">i</button>');
+      }
+      inf.querySelectorAll('.ci-moved').forEach((x) => x.remove()); // seção redesenhada: troca as notas antigas
+      ns.forEach((n) => { n.classList.add('ci-moved'); inf.append(n); });
+    });
+  };
   fold(); new MutationObserver(fold).observe(root, { childList: true, subtree: true });
 }
 
@@ -112,7 +131,7 @@ async function bodyCharts(screen, api) {
     </div>
     ${v ? `<div class="bh-txt rise" style="--i:1"><p class="b-ans">${esc(v.answer)}</p><p class="b-trend">${arrow} ${esc(v.trendTxt)}</p>
       ${v.reasons.length ? `<details class="how"><summary>Por quê</summary><ul class="v-sig">${v.reasons.slice(0, 3).map((g) => `<li class="${g.bad ? 'bad' : 'ok'}"><b>${g.bad ? '!' : '✓'}</b>${esc(g.txt)}</li>`).join('')}</ul></details>` : ''}</div>`
-      : '<p class="empty">Ainda sem dados suficientes.</p>'}`;
+      : ''}`; // sem veredito: só o anel (o aviso contradizia o número)
   const share = (xs, ok) => { const v2 = xs.filter((x) => ok(x) != null); return v2.length ? v2.filter((x) => ok(x)).length / v2.length : null; };
   const pHrv = share(days, (x) => (x.hrv == null || x.hrvLo == null ? null : x.hrv >= x.hrvLo));
   const pRhr = share(days, (x) => (x.rhr == null || x.rhrHi == null ? null : x.rhr <= x.rhrHi));
@@ -130,18 +149,18 @@ async function bodyCharts(screen, api) {
   const box = (id) => screen.querySelector(id);
   box('#b-ready').innerHTML = `${cardHead('bolt', 'Nota do dia e REC', { color: aR == null ? 'var(--text-2)' : readyColor(aR) })}<div class="b-chart"></div>`;
   bandLine(box('#b-ready .b-chart'), { dates: rDates, values: rd.map((x) => x.ready), color: 'rgba(179,167,230,.9)', min: 0, max: 100, height: 120, axes: 'x',
-    dots: (val) => readyColor(val), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.28)', width: 1 }], label: 'Nota do dia',
+    dots: (val, i) => (i === rd.length - 1 ? readyColor(val) : null), extra: [{ values: rd.map((x) => x.rec), color: 'rgba(255,255,255,.28)', width: 1 }], label: 'Nota do dia',
     tip: (i) => row('Nota do dia', rd[i].ready == null ? '–' : `${rd[i].ready}%`) + row('REC', rd[i].rec ?? '–') + row('Strain', rd[i].strain) });
   box('#b-ready').insertAdjacentHTML('beforeend', '<p class="b-leg"><span><i style="background:#b3a7e6"></i>Nota do dia</span><span><i style="background:rgba(255,255,255,.35)"></i>REC</span></p>');
 
   const hv = avg(days.map((x) => x.hrv)), hb = avg(days.map((x) => x.hrvBase));
   box('#b-hrv').innerHTML = head('#b-hrv', 'heart', 'HRV', 'var(--hrv)', hv == null ? '–' : `${Math.round(hv)}<i> ms</i>`, `média · ${per}${hb ? ` · base ${Math.round(hb)} ms` : ''}${h?.label ? ` · ${h.label.toLowerCase()}` : ''}`);
-  bandLine(box('#b-hrv .b-chart'), { dates, values: days.map((x) => x.hrv), lo: days.map((x) => x.hrvLo), hi: days.map((x) => x.hrvHi), base: days.map((x) => x.hrvBase), color: 'var(--hrv)', height: 120, axes: 'x', label: 'HRV',
+  bandLine(box('#b-hrv .b-chart'), { dates, values: days.map((x) => x.hrv), base: days.map((x) => x.hrvBase), color: 'var(--hrv)', height: 120, axes: 'x', label: 'HRV',
     tip: (i) => row('HRV', `${nf(days[i].hrv)} ms`) + row('Faixa normal', `${nf(days[i].hrvLo)}–${nf(days[i].hrvHi)}`) });
 
   const rv = avg(days.map((x) => x.rhr)), rb = avg(days.map((x) => x.rhrBase));
   box('#b-rhr').innerHTML = head('#b-rhr', 'heart', 'FC de repouso', 'var(--rhr)', rv == null ? '–' : `${nf(rv, 1)}<i> bpm</i>`, `média · ${per}${rb ? ` · base ${nf(rb, 1)} bpm` : ''}`);
-  bandLine(box('#b-rhr .b-chart'), { dates, values: days.map((x) => x.rhr), lo: days.map((x) => x.rhrLo), hi: days.map((x) => x.rhrHi), base: days.map((x) => x.rhrBase), color: 'var(--rhr)', height: 110, axes: 'x', label: 'FC de repouso',
+  bandLine(box('#b-rhr .b-chart'), { dates, values: days.map((x) => x.rhr), base: days.map((x) => x.rhrBase), color: 'var(--rhr)', height: 110, axes: 'x', label: 'FC de repouso',
     tip: (i) => row('FC', `${nf(days[i].rhr)} bpm`) + row('Faixa normal', `${nf(days[i].rhrLo)}–${nf(days[i].rhrHi)}`) });
 
   const sv = avg(days.map((x) => x.sleep)), short = days.filter((x) => x.sleep != null && x.sleep < need - 0.5).length, nights = days.filter((x) => x.sleep != null).length;
@@ -154,17 +173,47 @@ async function bodyCharts(screen, api) {
 
 // ---------- Treino → Evolução (04/11): tudo de treino em cartões abertos ----------
 export async function renderEvolution(box, api) {
+  // 17/11: três blocos com atalho no topo (Carga · Como treinei · Capacidade)
   let ci = 0; const C = (id, icon, title, color) => `<section class="card rise" style="--i:${ci++}">${cardHead(icon, title, { color })}<div class="block" id="${id}"></div></section>`;
   foldNotes(box);
+  const G = (id, t) => `<h3 class="ev-g" id="g-${id}">${t}</h3>`;
   box.innerHTML = `
+    <nav class="ev-jump">${[['carga', 'Carga'], ['como', 'Como treinei'], ['cap', 'Capacidade']].map(([k, l]) => `<button type="button" data-j="g-${k}">${l}</button>`).join('')}</nav>
+    ${G('carga', 'Carga')}
     ${C('sw', 'bolt', 'Strain semanal', 'var(--strain)')}
     ${C('evo', 'trend', 'Fitness, Fadiga e Forma', 'var(--fitness)')}
-    ${C('scat', 'bolt', 'Strain × Prontidão', '#b3a7e6')}
-    ${C('zones', 'flame', 'Zonas de treino', '#86c3f2')}
-    ${C('vol', 'stopwatch', 'Volume', 'var(--text-2)')}
     ${C('focus', 'flame', 'Foco da carga', '#ff8a5c')}
+    ${G('como', 'Como treinei')}
+    ${C('vol', 'stopwatch', 'Volume', 'var(--text-2)')}
+    ${C('zones', 'flame', 'Zonas de treino', '#86c3f2')}
+    ${C('scat', 'bolt', 'Strain × Prontidão', '#b3a7e6')}
+    ${G('cap', 'Capacidade')}
     ${C('fage', 'run', 'VO2máx e idade fitness', 'var(--pred)')}`;
-  strainWeeks(box, api); evolve(box, api); scatterSec(box, api); zonesSec(box, api); volume(box, api); focusSec(box, api); fageSec(box, api);
+  box.querySelectorAll('[data-j]').forEach((b) => b.addEventListener('click', () => box.querySelector(`#${b.dataset.j}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })));
+  // cada cartão carrega quando chega perto da tela (17/11); os que aparecem juntos saem numa chamada só
+  lazyLoad(box, { sw: strainWeeks, evo: evolve, scat: scatterSec, zones: zonesSec, vol: volSummary, focus: focusSec, fage: fageSec }, api);
+}
+
+// Volume (17/11): só o resumo — esta semana, a anterior, média de 4 semanas e 8 barrinhas; o detalhe fica no Progresso
+async function volSummary(box, api) {
+  const sec = box.querySelector('#vol'); if (!sec) return;
+  sec.innerHTML = '<p class="empty">Carregando…</p>';
+  let d; try { d = await api('/api/vol-weeks?n=8'); } catch (e) { sec.innerHTML = `<p class="empty">Não carregou: ${esc(e.message)}</p>`; return; }
+  const W = d.weeks, cur = W.at(-1), prev = W.at(-2), done = W.slice(0, -1), avg4 = done.slice(-4).reduce((a, w) => a + w.hours, 0) / Math.max(1, Math.min(4, done.length));
+  const mx = Math.max(...W.map((w) => w.hours), 0.1);
+  const diff = prev && prev.hours ? Math.round((cur.hours / avg4 - 1) * 100) : null;
+  sec.innerHTML = `<div class="vs-row">
+      <div><small>Esta semana</small><b>${hm(cur.hours)}</b><span>${cur.sessions} ${cur.sessions === 1 ? 'sessão' : 'sessões'}</span></div>
+      <div><small>Semana passada</small><b>${hm(prev?.hours ?? 0)}</b><span>média de 4: ${hm(avg4)}</span></div>
+      <div class="vs-bars">${W.map((w, i) => `<i style="height:${Math.max(4, (w.hours / mx) * 100)}%"${i === W.length - 1 ? ' class="on"' : ''}></i>`).join('')}</div>
+    </div>
+    <a class="pg-link" href="#progresso"><span><b>Progresso por semana</b><small>Tempo, distância e Strain, semana a semana${diff != null ? ` · esta semana em ${diff >= 0 ? '+' : '−'}${Math.abs(diff)}% da média` : ''}</small></span><em>›</em></a>`;
+}
+export function lazyLoad(box, map, api) {
+  const run = (id) => { const f = map[id]; if (f) { delete map[id]; f(box, api); } };
+  if (!('IntersectionObserver' in window)) { Object.keys(map).forEach(run); return; }
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { io.unobserve(e.target); run(e.target.id); } }), { rootMargin: '400px 0px' });
+  Object.keys(map).forEach((id) => { const el = box.querySelector(`#${id}`); if (el) io.observe(el); else run(id); });
 }
 
 // Strain × Prontidão (04/11, v2 mais simples): quanto você costuma treinar quando acorda com Prontidão baixa, média ou alta
@@ -753,11 +802,11 @@ async function recovery(box, api) {
         hbands: [[33.5, 66.5, 'rgba(255,255,255,.5)']], dots: (v) => zoneVar(v), yTicks: [33, 66], label: 'REC', tip: big ? (i) => row('REC', days[i].rec ?? '–') : null }) },
     { k: 'hrv', title: 'HRV', color: 'var(--hrv)', val: sm.hrv7 == null ? '–' : Math.round(sm.hrv7), unitTxt: 'ms, média 7 noites',
       txt: sm.hrvPct == null ? '' : `${pct(sm.hrvPct)} sua base (${nf(sm.hrvBase)} ms).${sm.hrvOut ? ` ${sm.hrvOut} de 7 noites abaixo da faixa normal.` : ''}`,
-      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.hrv), lo: days.map((x) => x.hrvLo), hi: days.map((x) => x.hrvHi), base: big ? days.map((x) => x.hrvBase) : null,
+      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.hrv), base: big ? days.map((x) => x.hrvBase) : null,
         color: 'var(--hrv)', height: big ? 120 : 44, axes: big, label: 'HRV', tip: big ? (i) => row('HRV', `${nf(days[i].hrv)} ms`) + row('Faixa normal', `${nf(days[i].hrvLo)}–${nf(days[i].hrvHi)}`) : null }) },
     { k: 'rhr', title: 'FC de repouso', color: 'var(--rhr)', val: sm.rhr7 == null ? '–' : nf(sm.rhr7), unitTxt: 'bpm, média 7 dias',
       txt: sm.rhrDiff == null ? '' : `${sm.rhrDiff === 0 ? 'Igual à' : `${nf(Math.abs(sm.rhrDiff), 1)} bpm ${sm.rhrDiff > 0 ? 'acima da' : 'abaixo da'}`} sua base (${nf(sm.rhrBase)} bpm).${sm.rhrOut ? ` ${sm.rhrOut} de 7 dias acima da faixa normal.` : ''}`,
-      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.rhr), lo: days.map((x) => x.rhrLo), hi: days.map((x) => x.rhrHi), base: big ? days.map((x) => x.rhrBase) : null,
+      draw: (w, big) => bandLine(w, { dates, values: days.map((x) => x.rhr), base: big ? days.map((x) => x.rhrBase) : null,
         color: 'var(--rhr)', height: big ? 120 : 44, axes: big, label: 'FC de repouso', tip: big ? (i) => row('FC', `${nf(days[i].rhr)} bpm`) + row('Faixa normal', `${nf(days[i].rhrLo)}–${nf(days[i].rhrHi)}`) : null }) },
     { k: 'sleep', title: 'Sono', color: 'var(--sleep)', val: hm(sm.sleep7), unitTxt: 'média 7 noites',
       txt: `Sua necessidade: ${hm(need)}.${sm.sleepShort ? ` ${sm.sleepShort} de 7 noites com mais de 30 min a menos.` : ' Nenhuma noite curta na semana.'}`,
@@ -944,18 +993,17 @@ async function strainWeeks(box, api) {
     <p class="note">Toque num ponto para ver a semana e os treinos. A faixa sombreada é 0,8 a 1,3 vezes a média das 3 semanas anteriores: subir dentro dela é progressão gradual; acima dela, a carga cresceu rápido.</p>`;
 
   animateRings(sec); countUp(sec);
-  // gráfico: faixa (área entre lo e hi) + pontos semanais
+  // gráfico (17/11): uma barra por semana, faixa clara atrás; a barra tocada fica acesa
   const svgW = 340, h = 120;
-  const vals = ws.flatMap((x) => [x.total, x.hi]);
-  const hiV = Math.max(...vals) * 1.08, x = (k) => 6 + (k / (ws.length - 1)) * (svgW - 40), y = (v) => h - (v / hiV) * h;
-  const band = ws.map((q, k) => `${x(k).toFixed(1)},${y(q.hi).toFixed(1)}`).join(' ') + ' ' + ws.slice().reverse().map((q, k) => `${x(ws.length - 1 - k).toFixed(1)},${y(q.lo).toFixed(1)}`).join(' ');
-  const ticks = [0, Math.round(ws.length / 3), Math.round((2 * ws.length) / 3), ws.length - 1];
+  const hiV = Math.max(...ws.flatMap((x) => [x.total, x.hi])) * 1.08, bw = (svgW - 40) / ws.length, x = (k) => 4 + k * bw, y = (v) => h - (v / hiV) * h;
+  const band = ws.map((q, k) => `${(x(k) + bw / 2).toFixed(1)},${y(q.hi).toFixed(1)}`).join(' ') + ' ' + ws.slice().reverse().map((q, k) => `${(x(ws.length - 1 - k) + bw / 2).toFixed(1)},${y(q.lo).toFixed(1)}`).join(' ');
+  const ticks = [0, Math.round((ws.length - 1) / 2), ws.length - 1];
   sec.querySelector('#ch-sw').innerHTML = `<svg viewBox="0 -8 ${svgW} ${h + 26}" class="chart sw-chart" role="img" aria-label="Strain semanal e faixa">
     <polygon points="${band}" class="sw-band"/>
-    <line x1="${x(i)}" x2="${x(i)}" y1="-8" y2="${h}" class="sw-sel"/>
-    ${ws.map((q, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(q.total).toFixed(1)}" r="${k === i ? 6 : 4.5}" class="sw-dot sw-${q.status ?? 'none'}${k === i ? ' on' : ''}" data-k="${k}"/>`).join('')}
-    ${ticks.map((k) => `<text x="${x(k)}" y="${h + 16}" class="ax" text-anchor="middle">${fmtDay(ws[k].start)}</text>`).join('')}
+    ${ws.map((q, k) => `<rect x="${(x(k) + bw * 0.18).toFixed(1)}" width="${(bw * 0.64).toFixed(1)}" y="${y(q.total).toFixed(1)}" height="${Math.max(1.5, h - y(q.total)).toFixed(1)}" rx="2.5" class="sw-bar sw-${q.status ?? 'none'}${k === i ? ' on' : ''}" style="--d:${k * 30}ms"/>`).join('')}
+    ${ws.map((q, k) => `<rect x="${x(k).toFixed(1)}" width="${bw.toFixed(1)}" y="-8" height="${h + 8}" class="sw-hit" data-k="${k}"/>`).join('')}
+    ${ticks.map((k) => `<text x="${(x(k) + bw / 2).toFixed(1)}" y="${h + 16}" class="ax" text-anchor="middle">${fmtDay(ws[k].start)}</text>`).join('')}
     <text x="${svgW}" y="${y(Math.max(...ws.map((q) => q.total))) + 4}" class="ax" text-anchor="end">${nf(Math.max(...ws.map((q) => q.total)))}</text>
   </svg>`;
-  sec.querySelectorAll('.sw-dot').forEach((c) => c.addEventListener('click', () => { swSel = Number(c.dataset.k); strainWeeks(box, api); }));
+  sec.querySelectorAll('.sw-hit').forEach((c) => c.addEventListener('click', () => { swSel = Number(c.dataset.k); strainWeeks(box, api); }));
 }
