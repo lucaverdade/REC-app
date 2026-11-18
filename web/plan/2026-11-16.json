@@ -64,19 +64,11 @@
       {
         "modalidade": "bike",
         "titulo": "Bike com esforço de prova",
-        "minutos": 25,
+        "minutos": 35,
         "zona": "Z2",
-        "detalhe": "Na academia (spinning), sem casaco. Vá por FC e esforço, a posição não é a da sua bike. 8 min Z1; 9 min Z2 (135–147, RPE 5); 3 min esforço de prova (147–153, RPE 6); 2 min Z1; 3 min esforço de prova. Sem corrida hoje, para poupar a inflamação até domingo.",
+        "detalhe": "Na academia (spinning), sem casaco. 10 min Z1 (FC abaixo de 131); 8 min Z2 (135–147, RPE 5); 6 min esforço de prova (147–153, RPE 6); 3 min Z1; 6 min esforço de prova; 2 min Z1. Vá por FC e esforço, a posição não é a da sua bike. Sem corrida hoje, para poupar a inflamação até domingo; a natação fica para o lago de sexta.",
         "chave": true,
-        "strain": 46
-      },
-      {
-        "modalidade": "natacao",
-        "titulo": "Natação",
-        "minutos": 20,
-        "zona": "Z1",
-        "detalhe": "Leve, para manter contato com a água. Sem impacto, no lugar da T2 de corrida.",
-        "chave": false
+        "strain": 58
       }
     ],
     "2026-11-20": [
