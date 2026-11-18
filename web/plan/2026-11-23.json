@@ -9,7 +9,7 @@
         "titulo": "Calor: spinning + banho quente",
         "minutos": 20,
         "zona": "Z1",
-        "detalhe": "Spinning na academia, sem casaco: 5 min Z1 (FC abaixo de 131); 10 min Z1 em esforço 3 em 10; 5 min Z1. Banho quente em seguida: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. Solta a perna depois da corrida de domingo e mantém a aclimatação.",
+        "detalhe": "Spinning na academia, sem casaco: 5 min Z1 (FC abaixo de 120); 10 min Z1 em esforço 3 em 10; 5 min Z1. Banho quente em seguida: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. Solta a perna depois da corrida de domingo e mantém a aclimatação.",
         "chave": false,
         "strain": 15
       }
@@ -20,7 +20,7 @@
         "titulo": "T2: bike",
         "minutos": 30,
         "zona": "Z2",
-        "detalhe": "Na academia (spinning), sem casaco. 10 min Z1 (FC abaixo de 131); 8 min Z2 (135–147, RPE 5); 4 min esforço de prova (147–153, RPE 6); 2 min Z1; 4 min esforço de prova; 2 min Z1. É o último toque de esforço de prova na transição.",
+        "detalhe": "Na academia (spinning), sem casaco. Vá por esforço e perna: no spinning a sua FC fica mais baixa que na rua. 10 min Z1 (FC abaixo de 115); 8 min Z2 (FC ~118–130, RPE 5); 4 min esforço de prova (FC ~138–146, RPE 6); 2 min Z1; 4 min esforço de prova; 2 min Z1. É o último toque de esforço de prova na transição.",
         "chave": true,
         "strain": 55
       },
@@ -48,7 +48,7 @@
         "titulo": "Calor: spinning + banho quente (o último)",
         "minutos": 20,
         "zona": "Z1",
-        "detalhe": "Spinning na academia, sem casaco: 5 min Z1 (FC abaixo de 131); 10 min Z1 em esforço 3 em 10; 5 min Z1. Banho quente em seguida: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. É o último calor, de 2 a 4 dias antes da prova, a janela de refresco da aclimatação.",
+        "detalhe": "Spinning na academia, sem casaco: 5 min Z1 (FC abaixo de 120); 10 min Z1 em esforço 3 em 10; 5 min Z1. Banho quente em seguida: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. É o último calor, de 2 a 4 dias antes da prova, a janela de refresco da aclimatação.",
         "chave": false,
         "strain": 15
       }
