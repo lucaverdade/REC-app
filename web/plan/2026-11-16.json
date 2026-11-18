@@ -63,21 +63,20 @@
     "2026-11-19": [
       {
         "modalidade": "bike",
-        "titulo": "T2: bike",
+        "titulo": "Bike com esforço de prova",
         "minutos": 25,
         "zona": "Z2",
-        "detalhe": "Na academia (spinning), sem casaco. Vá por FC e esforço, a posição não é a da sua bike. 8 min Z1; 9 min Z2 (135–147, RPE 5); 3 min esforço de prova (147–153, RPE 6); 2 min Z1; 3 min esforço de prova.",
+        "detalhe": "Na academia (spinning), sem casaco. Vá por FC e esforço, a posição não é a da sua bike. 8 min Z1; 9 min Z2 (135–147, RPE 5); 3 min esforço de prova (147–153, RPE 6); 2 min Z1; 3 min esforço de prova. Sem corrida hoje, para poupar a inflamação até domingo.",
         "chave": true,
         "strain": 46
       },
       {
-        "modalidade": "corrida",
-        "titulo": "T2: corrida",
-        "minutos": 15,
-        "zona": "Z2–Z3",
-        "detalhe": "Na esteira (1% de inclinação, ventilador ligado), sem casaco. T2 em até 3 min. 3 min a 6:40/km; 3 min a 6:00; 7 min a 5:25–5:30 (GAP, FC 155–158); 2 min Z1 a 6:40. Os 7 min em ritmo de prova só se a dor de perna do Hyrox estiver em 4 ou menos em 10; com 5 ou mais, vira 10 min a 6:20, bem solto. Sai se FC de repouso acima de 42 ou HRV abaixo de 95.",
-        "chave": true,
-        "strain": 32
+        "modalidade": "natacao",
+        "titulo": "Natação",
+        "minutos": 20,
+        "zona": "Z1",
+        "detalhe": "Leve, para manter contato com a água. Sem impacto, no lugar da T2 de corrida.",
+        "chave": false
       }
     ],
     "2026-11-20": [
@@ -116,7 +115,7 @@
         "titulo": "Ritmo de prova (último)",
         "minutos": 45,
         "zona": "Z2–Z3",
-        "detalhe": "Teste do nitrato: tome de 2 a 3 h antes e anote como o estômago e a FC respondem. 10 min a 6:40–6:50/km; 10 min a 6:00–6:10; 2×8 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 4 min a 7:00 entre; 5 min Z1 a 6:40. Com HRV abaixo de 95, FC de repouso acima de 42 ou dor de perna em 5 ou mais em 10, vira 30 min em Z2. Para se houver dor aguda na canela ou na panturrilha. Depois, banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; reponha 500 ml com sal.",
+        "detalhe": "Teste do nitrato: tome de 2 a 3 h antes e anote como o estômago e a FC respondem. 10 min a 6:40–6:50/km; 10 min a 6:00–6:10; 2×8 min em ritmo de prova (5:20–5:30 de GAP, FC 155–158) com 4 min a 7:00 entre; 5 min Z1 a 6:40. Com HRV abaixo de 95, FC de repouso acima de 42 ou dor de perna em 5 ou mais em 10, vira 30 min em Z2. Para se houver dor aguda na canela ou na panturrilha. Depois, banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; reponha 500 ml com sal. Inflamação: se a dor no começo estiver acima de 2 em 10 ou crescer durante os blocos, para; vira 20 min de Z1 ou bike e o ensaio do Deviate passa para a T2 de terça 24.",
         "chave": true,
         "strain": 87
       }
