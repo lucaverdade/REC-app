@@ -52,20 +52,11 @@
     ],
     "2026-11-18": [
       {
-        "modalidade": "hyrox",
-        "titulo": "Hyrox",
-        "minutos": 40,
-        "zona": "Z3",
-        "chave": false,
-        "strain": 100,
-        "detalhe": "De manhã. É o último antes da prova. Se o HRV estiver abaixo de 95 ou a FC de repouso acima de 42, não faz: vira calor de 40 min na bike (5 min Z1; 30 min Z1–Z2 em RPE 3–4, 2–3 camadas, FC teto 150; 5 min Z1). À noite, banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. Jantar forte em carboidrato; cama às 21:45."
-      },
-      {
         "modalidade": "natacao",
         "titulo": "Natação",
         "minutos": 20,
         "zona": "Z1",
-        "detalhe": "No fim da tarde, leve, antes do banho quente.",
+        "detalhe": "No fim da tarde, leve, só se a cama às 21:45 estiver garantida (sono vale mais que natação). Hyrox cancelado por noite curta (~5h20). Banho quente de 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. Jantar forte em carboidrato; cama às 21:45.",
         "chave": false
       }
     ],
