@@ -1,7 +1,7 @@
 {
   "semana": "2026-11-16",
   "fase": "Polimento, semana 1 de 2",
-  "notas": "Polimento: volume cai de 8,4 h para ~7,4 h (sem academia) e os toques de ritmo de prova continuam. A bike foi para a oficina na terça e volta na sexta; é despachada no sábado às 13h. Quinta: T2 na academia (spinning e esteira), sem casaco, com a transição em até 3 min. Sexta: teste da bike de 25 min e natação no lago de macaquinho. Sábado: bike ao ar livre com nutrição de prova, de manhã. Domingo: a última corrida de ritmo de prova, 7 dias antes da prova. Calor: banho quente na quarta e no domingo. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 e o Hyrox de quarta. Natação segunda, terça e quarta (leves) e sexta (lago); sem academia nesta semana. Cama às 21:45; sexta e sábado sem sair, exceto o treino.",
+  "notas": "Polimento: volume cai de ~8,7 h (média das 5 semanas anteriores) para ~6,8 h (410 min, −21%, sem academia) e os toques de ritmo de prova continuam. A bike foi para a oficina na terça, foi buscada na quinta e é despachada no sábado às 13h. Quinta: bike com esforço de prova na academia (spinning), sem casaco. Sexta (feriado): natação no lago de macaquinho de manhã (evento de família no almoço) e, depois, bike de 45 min com teste do que a volta da loja não testou (câmbio, freio e posição sob esforço). Sábado: bike ao ar livre de 60 min com nutrição de prova, de manhã. Domingo: a última corrida de ritmo de prova, 7 dias antes da prova. Calor: banho quente na quarta e no domingo. Regras: HRV abaixo de 98 em duas noites seguidas reduz o calor do dia para 30 min; FC de repouso ≥44 ou HRV abaixo de 90 corta o dia; FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 e o Hyrox de quarta. Natação segunda, terça e quarta (leves) e sexta (lago); sem academia nesta semana. Cama às 21:45; sexta e sábado sem sair, exceto o treino e o almoço de família.",
   "dias": {
     "2026-11-16": [
       {
@@ -73,32 +73,32 @@
     ],
     "2026-11-20": [
       {
-        "modalidade": "bike",
-        "titulo": "Bike: teste pós-revisão",
-        "minutos": 25,
-        "zona": "Z1–Z2",
-        "detalhe": "Assim que pegar a bike na oficina. 10 min Z1; 3×1 min em esforço de prova (FC 147–153) com 2 min Z1 entre; resto Z1. Confira marcha, freio e pneu: se algo estiver errado, a oficina ainda abre antes do despacho.",
-        "chave": false,
-        "strain": 30
-      },
-      {
         "modalidade": "natacao",
         "titulo": "Natação",
         "minutos": 30,
         "zona": "Z1–Z2",
-        "detalhe": "No lago, de macaquinho, no fim da tarde. Cama às 21:45.",
+        "detalhe": "No lago, de macaquinho, de manhã (feriado; o almoço é de família). Fácil: o objetivo é testar atrito no pescoço, no ombro e no zíper e treinar olhar para frente, não puxar forte. Coma algo 15 min antes (3 biscoitos de arroz com 20 g de mel) e deixe pelo menos 1h30 entre a natação e a bike, com café da manhã de verdade.",
         "chave": false
+      },
+      {
+        "modalidade": "bike",
+        "titulo": "Bike: teste sob esforço",
+        "minutos": 45,
+        "zona": "Z1–Z2",
+        "detalhe": "Depois da natação e do café da manhã, sem pressa. A volta da loja (10 min leves) já mostrou que a bike anda, freia e troca; o que ela não testou é o esforço. 10 min Z1 (FC abaixo de 131); 15 min Z2 (135–147); 3×1 min em esforço de prova (FC 147–153) com 2 min Z1 entre; o resto, cerca de 11 min, em Z1 solto. Confira se o câmbio troca com carga, se sai ruído ou salto na corrente, se o freio segura depois de uma descida e se a posição incomoda (lombar, ombro, pescoço). Antes de sair, olhe a pressão dos pneus e se as garrafas e o suporte estão firmes. Garrafa só com água. Se algo estiver errado, ainda dá tempo de resolver no sábado de manhã, antes do despacho às 13h. Sem passar de 45 min: o pedal de sábado e a corrida de domingo vêm primeiro. Cama às 21:45.",
+        "chave": false,
+        "strain": 38
       }
     ],
     "2026-11-21": [
       {
         "modalidade": "bike",
         "titulo": "Bike ao ar livre com nutrição de prova",
-        "minutos": 50,
+        "minutos": 60,
         "zona": "Z2",
-        "detalhe": "De manhã, calor natural, sem casaco; termine antes de despachar a bike até as 13h. 10 min Z1; 12 min Z2 (135–147, RPE 5); 8 min esforço de prova (147–153, RPE 6); 4 min Z1; 8 min esforço de prova; 8 min Z1. Nutrição de prova, 70 g/h de carbo, sem subir. É o último pedal antes do despacho. Ensaio da cafeína: tome o Super Coffee de 115 mg ao acordar, como na prova, e 1 gel Z2 Iced Coffee (150 mg) por volta do min 35; anote como ficam o estômago e a FC depois do gel. Teste da meia: pedale sem meia na sapatilha; com ponto quente ou bolha, vai de meia na prova.",
+        "detalhe": "De manhã, calor natural, sem casaco; termine antes de despachar a bike até as 13h. 10 min Z1; 15 min Z2 (135–147, RPE 5); 10 min esforço de prova (147–153, RPE 6); 5 min Z1; 10 min esforço de prova; 10 min Z1. Nutrição de prova, 70 g/h de carbo, sem subir. É o último pedal antes do despacho. Ensaio da cafeína: tome o Super Coffee de 115 mg ao acordar, como na prova, e 1 gel Z2 Iced Coffee (150 mg) por volta do min 35, que cai no começo dos 5 min Z1; anote como ficam o estômago e a FC depois do gel. Teste da meia: pedale sem meia na sapatilha; com ponto quente ou bolha, vai de meia na prova.",
         "chave": true,
-        "strain": 94
+        "strain": 105
       }
     ],
     "2026-11-22": [
