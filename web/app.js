@@ -122,7 +122,8 @@ function partsRing(r) {
   if (!r?.parts?.length) return '';
   const W = { corpo: 55, carga: 20, ontem: 10, sono: 15 }, LB = { corpo: 'Corpo', carga: 'Carga', ontem: 'Ontem', sono: 'Sono' };
   // 20/11: normal = traço bem apagado; ajudou = verde; pesou um pouco = amarelo; pesou bastante = laranja (sem vermelho)
-  const col = (z) => (z == null ? 'color-mix(in srgb, var(--text) 8%, transparent)' : z >= 0.5 ? 'var(--good)' : z <= -1 ? '#ff9a4c' : z <= -0.4 ? '#e8c35a' : 'color-mix(in srgb, var(--text) 16%, transparent)');
+  // 20/11 (v2): as mesmas cores da escala do anel principal — ajudou = azul-gelo; pesou um pouco = rosa; pesou bastante = coral
+  const col = (z) => (z == null ? 'color-mix(in srgb, var(--text) 8%, transparent)' : z >= 0.5 ? '#74e6ff' : z <= -1 ? '#e2614f' : z <= -0.4 ? '#d98aa6' : 'color-mix(in srgb, var(--text) 16%, transparent)');
   const S = 300, c = S / 2, R = 121, C = 2 * Math.PI * R, gap = 6;
   let at = 0;
   const segs = r.parts.map((p) => {
