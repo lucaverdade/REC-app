@@ -121,14 +121,17 @@ function contribHtml(list) {
 function partsRing(r) {
   if (!r?.parts?.length) return '';
   const W = { corpo: 55, carga: 20, ontem: 10, sono: 15 }, LB = { corpo: 'Corpo', carga: 'Carga', ontem: 'Ontem', sono: 'Sono' };
-  const col = (z) => (z == null ? 'var(--line)' : z >= 0.5 ? 'var(--good)' : z <= -1 ? 'var(--bad)' : z <= -0.4 ? 'var(--warn)' : 'color-mix(in srgb, var(--text) 45%, transparent)');
-  const S = 252, R = 121, C = 2 * Math.PI * R, gap = 6;
+  // 20/11: normal = traço bem apagado; ajudou = verde; pesou um pouco = amarelo; pesou bastante = laranja (sem vermelho)
+  const col = (z) => (z == null ? 'color-mix(in srgb, var(--text) 8%, transparent)' : z >= 0.5 ? 'var(--good)' : z <= -1 ? '#ff9a4c' : z <= -0.4 ? '#e8c35a' : 'color-mix(in srgb, var(--text) 16%, transparent)');
+  const S = 300, c = S / 2, R = 121, C = 2 * Math.PI * R, gap = 6;
   let at = 0;
   const segs = r.parts.map((p) => {
     const len = (W[p.key] / 100) * C, off = at; at += len;
-    const mid = (off + len / 2) / C * 2 * Math.PI - Math.PI / 2, lx = S / 2 + (R + 0) * Math.cos(mid), ly = S / 2 + (R + 0) * Math.sin(mid);
-    return `<circle cx="${S / 2}" cy="${S / 2}" r="${R}" stroke="${col(p.z)}" stroke-dasharray="${(len - gap).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-off - gap / 2).toFixed(1)}"><title>${LB[p.key]}</title></circle>
-      <text x="${lx.toFixed(1)}" y="${(ly + 3).toFixed(1)}" class="pr-l" text-anchor="middle">${LB[p.key]}</text>`;
+    const mid = ((off + len / 2) / C) * 2 * Math.PI - Math.PI / 2, lr = R + 13;
+    const lx = c + lr * Math.cos(mid), ly = c + lr * Math.sin(mid);
+    const anchor = Math.abs(Math.cos(mid)) < 0.3 ? 'middle' : Math.cos(mid) > 0 ? 'start' : 'end';
+    return `<circle cx="${c}" cy="${c}" r="${R}" stroke="${col(p.z)}" stroke-dasharray="${(len - gap).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-off - gap / 2).toFixed(1)}"/>
+      <text x="${lx.toFixed(1)}" y="${(ly + 3).toFixed(1)}" class="pr-l" text-anchor="${anchor}">${LB[p.key]}</text>`;
   }).join('');
   return `<svg class="parts-ring" viewBox="0 0 ${S} ${S}" aria-hidden="true">${segs}</svg>`;
 }

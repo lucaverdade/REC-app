@@ -1746,9 +1746,9 @@ details.how[open] > :not(summary) { animation: rise .35s ease both; }
 .ws-d.on i { background: var(--c); color: #0b0b0d; box-shadow: 0 0 12px color-mix(in srgb, var(--c) 60%, transparent); }
 .ws-d.on small { color: var(--text); font-weight: 600; }
 .hero { position: relative; }
-.parts-ring { position: absolute; left: 50%; top: -20px; width: 252px; height: 252px; margin-left: -126px; pointer-events: none; transform: rotate(0deg); }
-.parts-ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 126px 126px; animation: fadein .8s .8s both; }
-.parts-ring .pr-l { display: none; }
+.parts-ring { position: absolute; left: 50%; top: -44px; width: 300px; height: 300px; margin-left: -150px; pointer-events: none; overflow: visible; }
+.parts-ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 150px 150px; animation: fadein .8s .8s both; }
+.parts-ring .pr-l { fill: var(--text-3); font: 500 9.5px var(--font-ui, system-ui); letter-spacing: .04em; text-transform: uppercase; animation: fadein .8s 1s both; }
 .spk { display: block; width: 60px; height: 18px; margin: 2px 0 1px; overflow: visible; }
 .spk path { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
 
@@ -1777,3 +1777,4 @@ details.how[open] > :not(summary) { animation: rise .35s ease both; }
 .empty[data-art="dados"]::before { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%20fill%3D%27none%27%20stroke%3D%27%238a8a91%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M10%2044c8%200%209-14%2016-14s8%208%2014%208%208-18%2014-18%27%20stroke-dasharray%3D%272%204%27/%3E%3Ccircle%20cx%3D%2754%27%20cy%3D%2720%27%20r%3D%272.5%27%20fill%3D%27%238a8a91%27/%3E%3C/svg%3E"); }
 @keyframes art-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .empty[data-art]::before { animation: none; } }
+.hero { margin-top: 30px; }
