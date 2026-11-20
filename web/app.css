@@ -1778,3 +1778,4 @@ details.how[open] > :not(summary) { animation: rise .35s ease both; }
 @keyframes art-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .empty[data-art]::before { animation: none; } }
 .hero { margin-top: 30px; }
+.hb[data-g="cuidado"][aria-pressed="true"] { background: color-mix(in srgb, #74e6ff 18%, transparent); border-color: #74e6ff; }

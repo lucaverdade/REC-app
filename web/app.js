@@ -767,10 +767,10 @@ function render(d) {
         const grp = (g, t) => {
           const xs = d.habits.defs.filter((h) => (h.group ?? 'dia') === g).sort((a, b) => (use[b.key] ?? 0) - (use[a.key] ?? 0));
           if (!xs.length) return '';
-          const on = xs.filter((h) => d.habits.on.includes(h.key)).length, open = !d.isToday || on > 0 || (g === 'noite' ? hr < 14 : hr >= 14);
-          return `<details class="hb-g"${open ? ' open' : ''}><summary class="hb-h">${t}${on ? ` · ${on} ${on === 1 ? 'marcado' : 'marcados'}` : ''}</summary><div class="hb-list">${xs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" data-night="${g === 'noite'}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div></details>`;
+          const on = xs.filter((h) => d.habits.on.includes(h.key)).length, open = !d.isToday || on > 0 || (g === 'noite' ? hr < 14 : g === 'dia' ? hr >= 14 : false);
+          return `<details class="hb-g"${open ? ' open' : ''}><summary class="hb-h">${t}${on ? ` · ${on} ${on === 1 ? 'marcado' : 'marcados'}` : ''}</summary><div class="hb-list">${xs.map((h) => `<button type="button" class="hb" data-tag="${h.key}" data-g="${g}" data-night="${g === 'noite'}" aria-pressed="${d.habits.on.includes(h.key)}">${esc(h.label)}</button>`).join('')}</div></details>`;
         };
-        return grp('noite', d.isToday ? 'Noite passada' : 'Noite anterior') + grp('dia', d.isToday ? 'Hoje' : 'No dia');
+        return grp('noite', d.isToday ? 'Noite passada' : 'Noite anterior') + grp('dia', d.isToday ? 'Hoje' : 'No dia') + grp('cuidado', 'Recuperação');
       })() : ''}
     </section>`,
     }[k] ?? '')).join('\n')}
