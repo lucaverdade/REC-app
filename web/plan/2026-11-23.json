@@ -1,17 +1,16 @@
 {
   "semana": "2026-11-23",
   "fase": "Semana da prova",
-  "notas": "Polimento, semana 2 de 2: ~3,7 h, sem academia e sem Hyrox. A bike está despachada: spinning na academia até quinta; em Aracaju, só um pedal curto de reconhecimento no sábado. Calor: segunda e quarta (spinning leve e banho quente); a quarta é o último, de 2 a 4 dias antes da prova, e de sexta em diante vale o calor natural de Aracaju. Regras: FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 de terça e vira 15 min bem leves na quinta. Sono: pelo menos 8 h de terça a quinta; sexta e sábado cama cedo. Nada novo na bike, no tênis ou na nutrição.",
+  "notas": "Polimento, semana 2 de 2: ~3,2 h (192 min), sem academia e sem Hyrox. A bike está despachada: spinning na academia só terça e quarta; em Aracaju, um pedal curto de reconhecimento no sábado. Nunca natação e spinning no mesmo dia. Calor: segunda (banho quente depois da natação) e quarta (spinning leve e banho quente); a quarta é o último, de 2 a 4 dias antes da prova, e de sexta em diante vale o calor natural de Aracaju. Regras: FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 de terça e vira 15 min bem leves na quinta; dor ao respirar acima de 2 em 10 cancela a natação de segunda. Sono: pelo menos 8 h de terça a quinta; sexta e sábado cama cedo. Nada novo na bike, no tênis ou na nutrição.",
   "dias": {
     "2026-11-23": [
       {
-        "modalidade": "bike",
-        "titulo": "Calor: spinning + banho quente",
-        "minutos": 20,
+        "modalidade": "natacao",
+        "titulo": "Natação leve",
+        "minutos": 25,
         "zona": "Z1",
-        "detalhe": "Spinning na academia, sem casaco: 5 min Z1 (FC abaixo de 120); 10 min Z1 em esforço 3 em 10; 5 min Z1. Banho quente em seguida: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. Solta a perna depois da corrida de domingo e mantém a aclimatação.",
-        "chave": false,
-        "strain": 15
+        "detalhe": "Leve, para manter o contato com a água; sem série. Só se a dor ao respirar estiver em 2 de 10 ou menos; senão, não faz. Depois, banho quente: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. Mantém a aclimatação.",
+        "chave": false
       }
     ],
     "2026-11-24": [
@@ -20,7 +19,7 @@
         "titulo": "T2: bike",
         "minutos": 30,
         "zona": "Z2",
-        "detalhe": "Na academia (spinning), sem casaco. Vá por esforço e perna: no spinning a sua FC fica mais baixa que na rua. 10 min Z1 (FC abaixo de 115); 8 min Z2 (FC ~118–130, RPE 5); 4 min esforço de prova (FC ~138–146, RPE 6); 2 min Z1; 4 min esforço de prova; 2 min Z1. É o último toque de esforço de prova na transição.",
+        "detalhe": "De manhã, antes de tudo: 10 elevações de calcanhar por perna; sem dor ou tensão acima de 3 em 10, o treino segue. Na academia (spinning), sem casaco. Vá por esforço e perna: no spinning a sua FC fica mais baixa que na rua. 10 min Z1 (FC abaixo de 115); 8 min Z2 (FC ~118–130, RPE 5); 4 min esforço de prova (FC ~138–146, RPE 6); 2 min Z1; 4 min esforço de prova; 2 min Z1. É o último toque de esforço de prova na transição.",
         "chave": true,
         "strain": 55
       },
@@ -29,17 +28,9 @@
         "titulo": "T2: corrida",
         "minutos": 15,
         "zona": "Z2–Z3",
-        "detalhe": "Na esteira (1% de inclinação, ventilador ligado), sem casaco. T2 em até 3 min. 3 min a 6:40/km; 3 min a 6:00; 7 min a 5:25–5:30 (FC 155–158); 2 min Z1 a 6:40. Sai se a FC de repouso estiver acima de 42 ou o HRV abaixo de 95. Para se houver dor aguda na canela ou na panturrilha.",
+        "detalhe": "Na esteira (1% de inclinação, não 1,5%, para poupar o sóleo; ventilador ligado), sem casaco. T2 em até 3 min. 3 min a 9,0 km/h (6:40/km); 3 min a 10,0 km/h (6:00); 7 min a 11,0 km/h (5:27; FC 150–158, freio em 160); 2 min Z1 a 9,0 km/h. Sai se a FC de repouso estiver acima de 42 ou o HRV abaixo de 95. Para se houver dor aguda na canela ou na panturrilha.",
         "chave": true,
         "strain": 32
-      },
-      {
-        "modalidade": "natacao",
-        "titulo": "Natação",
-        "minutos": 30,
-        "zona": "Z1–Z2",
-        "detalhe": "À noite, leve. Cama cedo: de terça a quinta, pelo menos 8 h de sono.",
-        "chave": false
       }
     ],
     "2026-11-25": [
@@ -48,7 +39,7 @@
         "titulo": "Calor: spinning + banho quente (o último)",
         "minutos": 20,
         "zona": "Z1",
-        "detalhe": "Spinning na academia, sem casaco: 5 min Z1 (FC abaixo de 120); 10 min Z1 em esforço 3 em 10; 5 min Z1. Banho quente em seguida: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. É o último calor, de 2 a 4 dias antes da prova, a janela de refresco da aclimatação.",
+        "detalhe": "Cadência alta (90–100 rpm), rodado e leve, para soltar a perna depois da T2. Spinning na academia, sem casaco: 5 min Z1 (FC abaixo de 120); 10 min Z1 em esforço 3 em 10; 5 min Z1. Banho quente em seguida: 30 min a 40 °C, no mínimo 90 min antes de dormir, sem banho frio depois; pese antes e depois e reponha 500 ml com sal. É o último calor, de 2 a 4 dias antes da prova, a janela de refresco da aclimatação.",
         "chave": false,
         "strain": 15
       }
@@ -56,29 +47,29 @@
     "2026-11-26": [
       {
         "modalidade": "corrida",
-        "titulo": "Corrida curta com tiros",
+        "titulo": "Corrida leve",
         "minutos": 20,
-        "zona": "Z1–Z2",
-        "detalhe": "8 min a 6:40–7:00/km; 4×30 s a 5:00–5:15 com 90 s a 6:40 entre; 4 min soltos a 6:40. Mantém a perna afiada sem custo. Com FC de repouso acima de 42 ou HRV abaixo de 95, vira 15 min bem leves.",
+        "zona": "Z1",
+        "detalhe": "Z1 a 6:40–7:15/km em plano, sem tiros e sem pressa: a perna fica solta, não afiada. Com FC de repouso acima de 42 ou HRV abaixo de 95, vira 15 min bem leves.",
         "chave": false,
-        "strain": 30
+        "strain": 20
       },
       {
         "modalidade": "natacao",
         "titulo": "Natação",
         "minutos": 20,
         "zona": "Z1",
-        "detalhe": "À noite, leve, só se der; se não der, não repõe.",
+        "detalhe": "Leve, para manter o contato com a água. Faça com pelo menos 3 h de diferença da corrida. Cama cedo: de terça a quinta, pelo menos 8 h de sono.",
         "chave": false
       }
     ],
     "2026-11-27": [
       {
         "modalidade": "corrida",
-        "titulo": "Corrida de soltura em Aracaju (opcional)",
+        "titulo": "Corrida de soltura em Aracaju (se der)",
         "minutos": 15,
         "zona": "Z1",
-        "detalhe": "À noite, depois da viagem. 15 min em Z1 (6:40–7:00/km), sem tiros, só para soltar a perna. Se estiver cansado, não faz. Cama cedo.",
+        "detalhe": "À tarde ou à noite, se o voo e o check-in permitirem. Comece caminhando 5 min para soltar a panturrilha e corra 15 min em Z1 (6:40–7:15/km), sem tiros. Se estiver cansado, só caminhe. Cama cedo.",
         "chave": false,
         "strain": 15
       }
@@ -87,9 +78,9 @@
       {
         "modalidade": "natacao",
         "titulo": "Natação",
-        "minutos": 20,
+        "minutos": 15,
         "zona": "Z1",
-        "detalhe": "De manhã, no mesmo horário da largada, para conhecer a água e o macaquinho. Leve.",
+        "detalhe": "Só se for simples (10–15 min): de manhã, no horário da largada, para conhecer a água e o macaquinho. Se brigar com o check-in da bike e das sacolas, pule; não perde nada.",
         "chave": false
       },
       {
@@ -106,7 +97,7 @@
         "titulo": "Bike de reconhecimento",
         "minutos": 20,
         "zona": "Z1–Z2",
-        "detalhe": "Na bike remontada, antes do check-in. 10 min Z1 (FC abaixo de 131); 3×1 min esforço de prova (147–153) com 2 min Z1 entre; 4 min Z1. É para conferir marcha, freio e pneu, não para treinar.",
+        "detalhe": "Prioridade do dia. Na bike remontada, antes do check-in. 10 min Z1 (FC abaixo de 131); 3×1 min esforço de prova (147–153) com 2 min Z1 entre; 4 min Z1. É para conferir marcha, freio e pneu, não para treinar.",
         "chave": false,
         "strain": 25
       }
