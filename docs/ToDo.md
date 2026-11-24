@@ -97,6 +97,14 @@ Objetivo: o chat de treino (o outro, que já está treinado) lê os dados do Luc
 ## Depois de Aracaju: app para mais uma pessoa (pedido 17/11)
 - [ ] Uma segunda pessoa usar o REC com os dados dela: login separado, dados separados por pessoa no banco, conexão com o Garmin dela (a chave pessoal é individual: ela precisaria da própria chave, ou o caminho Intervals.icu), plano/treinos dela e o envio para o relógio dela. Bases (120 dias) e calibração por pessoa. Antes: decidir hospedagem (mesmo Worker com várias contas × uma cópia separada) e privacidade (LGPD, dados de saúde de outra pessoa).
 
+## Fases da temporada na aba Treino (pedido 24/11, fazer depois)
+Hoje o app só mostra a fase da semana ("Polimento, semana 1 de 2", vinda do plano). Ideia: ver o caminho inteiro até a prova.
+- [ ] **Dados**: arquivo novo publicado pelo chat de treino (ex.: `web/plan/temporada.json`) com a prova-alvo e as fases em ordem: nome, tipo (base, força, construção/progressão, específico/pico, polimento, recuperação/transição), início e número de semanas, objetivo em uma frase. Os treinos continuam chegando semana a semana; a temporada só dá o mapa.
+- [ ] **Tela**: em Treino, uma faixa do tempo com as fases (cor por tipo, largura = semanas), marcador "você está aqui", semanas que faltam em cada fase e até a prova. Toque numa fase abre a explicação.
+- [ ] **Explicação curta por tipo** (2–3 linhas, escrita uma vez no app): para que serve, como costuma ser a intensidade e o volume, e o que isso significa para comer. Ex.: base = muito volume em baixa intensidade, a fase mais tranquila para um déficit calórico leve; construção/pico = mais intensidade, comer para treinar; polimento = menos volume, manter a intensidade, carbo nos dias antes da prova; recuperação = descanso ativo.
+- [ ] Ligar com o que já existe: Strain semanal × o esperado para a fase, e a frase do dia citando a fase quando fizer sentido.
+- [ ] Pensado também para a versão de outra pessoa (cada uma com a própria temporada).
+
 ## Nutrição: calorias, macros e peso (ideia salva em 16/11, fazer depois)
 Muda a decisão inicial ("contador de calorias fora do app"): agora o Luca quer acompanhar dentro do REC.
 - [ ] Gasto: calorias ativas do dia (Garmin) + basal; testar se a chave pessoal traz as duas (resumo diário). Total do dia = basal + ativas.
