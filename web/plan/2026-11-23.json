@@ -1,7 +1,7 @@
 {
   "semana": "2026-11-23",
   "fase": "Semana da prova",
-  "notas": "Polimento, semana 2 de 2: ~3,7 h (222 min), sem academia e sem Hyrox. A bike está despachada: spinning na academia só na terça (T2); em Aracaju, um pedal curto de reconhecimento no sábado. Nunca natação e spinning no mesmo dia. Calor: segunda e quarta (banho quente depois da natação); a quarta é o último, de 2 a 4 dias antes da prova, e de sexta em diante vale o calor natural de Aracaju. Regras: FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 de terça e vira 15 min bem leves na quinta; dor ao respirar acima de 2 em 10 cancela a natação de segunda e tira os blocos de prova da T2. Sono: pelo menos 8 h de terça a quinta; sexta e sábado cama cedo. Nada novo na bike, no tênis ou na nutrição.",
+  "notas": "Polimento, semana 2 de 2: ~3,8 h (227 min), sem academia e sem Hyrox. A bike está despachada: spinning na academia só na terça (T2); em Aracaju, um pedal curto de reconhecimento no sábado. Nunca natação e spinning no mesmo dia. Calor: segunda e quarta (banho quente depois da natação); a quarta é o último, de 2 a 4 dias antes da prova, e de sexta em diante vale o calor natural de Aracaju. Regras: FC de repouso acima de 42 ou HRV abaixo de 95 tira a corrida da T2 de terça e vira 15 min bem leves na quinta; dor ao respirar acima de 2 em 10 cancela a natação de segunda e tira os blocos de prova da T2. Sono: pelo menos 8 h de terça a quinta; sexta e sábado cama cedo. Nada novo na bike, no tênis ou na nutrição.",
   "dias": {
     "2026-11-23": [
       {
@@ -56,13 +56,12 @@
     ],
     "2026-11-27": [
       {
-        "modalidade": "corrida",
-        "titulo": "Corrida de soltura antes da viagem",
-        "minutos": 15,
+        "modalidade": "natacao",
+        "titulo": "Natação leve antes da viagem",
+        "minutos": 20,
         "zona": "Z1",
-        "detalhe": "De manhã, em Brasília, antes de viajar. Guia: FC (abaixo de 145); o ritmo 6:40–7:15/km é só referência. Sem tiros. Se a manhã estiver corrida, pule e só caminhe em Aracaju. Cama cedo.",
-        "chave": false,
-        "strain": 15
+        "detalhe": "De manhã, em Brasília, antes de viajar. Leve, só para sentir a água e soltar os ombros. Sem corrida e sem spinning hoje. Se a manhã estiver corrida (mala, check-in), pule: não perde nada. À tarde, em Aracaju, se der, caminhe 10–15 min para soltar a perna. Cama cedo.",
+        "chave": false
       }
     ],
     "2026-11-28": [
